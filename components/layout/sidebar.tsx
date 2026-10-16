@@ -127,8 +127,8 @@ export function Sidebar({ collapsed, onToggleCollapsed, mobile, onNavigate }: Si
             type="button"
             onClick={onToggleCollapsed}
             className={cn(
-              "absolute bottom-5 z-10 hidden h-11 w-11 items-center justify-center rounded-full bg-white text-violet shadow-[0_8px_22px_rgba(70,50,160,0.22)] transition-colors hover:bg-[#f4f1ff] lg:flex",
-              compact ? "left-1/2 -translate-x-1/2" : "right-4",
+              "absolute top-1/2 z-10 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white text-violet shadow-[0_8px_22px_rgba(70,50,160,0.22)] transition-colors hover:bg-[#f4f1ff] lg:flex",
+              compact ? "left-1/2 -ml-[22px]" : "right-4",
             )}
             aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
             title={collapsed ? "Expandir menu" : "Recolher menu"}
