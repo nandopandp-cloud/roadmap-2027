@@ -68,3 +68,26 @@ export function PlatformChip({ platform, className }: { platform: Platform; clas
     </span>
   );
 }
+
+/** Chip com borda (cards e cabeçalho do drawer), como na referência visual. */
+export function PlatformPill({ platform, size = "md" }: { platform: Platform; size?: "sm" | "md" }) {
+  const Glyph = PLATFORM_GLYPHS[platform.icon];
+  const tone = ACCENT_TONE[platform.accent];
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-2 rounded-xl border border-line bg-surface font-semibold text-ink shadow-[0_1px_2px_rgba(23,27,77,0.04)]",
+        size === "sm" ? "h-8 pl-1.5 pr-2.5 text-[12.5px]" : "h-9 pl-1.5 pr-3 text-[13px]",
+      )}
+    >
+      <span
+        aria-hidden
+        className={cn("inline-flex items-center justify-center rounded-lg text-white", size === "sm" ? "h-[22px] w-[22px]" : "h-6 w-6")}
+        style={{ background: tone.solid }}
+      >
+        <Glyph size={size === "sm" ? 13 : 14} strokeWidth={2.4} />
+      </span>
+      {platform.name}
+    </span>
+  );
+}

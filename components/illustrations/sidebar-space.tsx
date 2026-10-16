@@ -1,4 +1,4 @@
-/** Cena espacial decorativa do rodapé do menu (astronauta sobre um planeta). */
+/** Cena espacial decorativa do rodapé do menu (planetas, estrelas e solo). */
 export function SidebarSpace({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 200 330" className={className} aria-hidden focusable="false">
@@ -19,14 +19,6 @@ export function SidebarSpace({ className }: { className?: string }) {
           <stop offset="0" stopColor="#F28A4A" />
           <stop offset=".5" stopColor="#C2417A" />
           <stop offset="1" stopColor="#5A2A9E" />
-        </linearGradient>
-        <linearGradient id="ss-suit" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#B7A4FF" />
-          <stop offset="1" stopColor="#6C4BD8" />
-        </linearGradient>
-        <linearGradient id="ss-visor" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#2A2370" />
-          <stop offset="1" stopColor="#0E0B33" />
         </linearGradient>
       </defs>
 
@@ -53,22 +45,10 @@ export function SidebarSpace({ className }: { className?: string }) {
       <circle cx="16" cy="170" r="28" fill="url(#ss-p3)" />
       <circle cx="166" cy="200" r="9" fill="#E07A5F" opacity=".9" />
 
-      <path d="M-10 330V270c40-26 90-32 140-24 30 5 55 16 80 30v54z" fill="url(#ss-ground)" />
+      <path d="M-10 330V282c40-22 90-28 140-20 30 5 55 14 80 26v42z" fill="url(#ss-ground)" />
       <ellipse cx="60" cy="290" rx="10" ry="4" fill="#8E2F6E" opacity=".5" />
       <ellipse cx="150" cy="300" rx="14" ry="5" fill="#5A2A9E" opacity=".5" />
 
-      <g transform="translate(74 186)">
-        <rect x="6" y="38" width="54" height="50" rx="16" fill="#4A2FB0" />
-        <rect x="12" y="44" width="44" height="54" rx="18" fill="url(#ss-suit)" />
-        <rect x="18" y="84" width="16" height="24" rx="8" fill="url(#ss-suit)" />
-        <rect x="36" y="84" width="16" height="24" rx="8" fill="url(#ss-suit)" />
-        <circle cx="34" cy="28" r="28" fill="#EDE8FF" />
-        <ellipse cx="36" cy="30" rx="20" ry="17" fill="url(#ss-visor)" />
-        <path d="M24 22c3-6 9-9 16-8" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" fill="none" opacity=".75" />
-        <rect x="24" y="58" width="20" height="14" rx="4" fill="#2B1F7A" />
-        <circle cx="30" cy="65" r="2.2" fill="#00D2C1" />
-        <circle cx="37" cy="65" r="2.2" fill="#FFB547" />
-      </g>
     </svg>
   );
 }

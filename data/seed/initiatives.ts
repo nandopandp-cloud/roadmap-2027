@@ -1,10 +1,11 @@
-import type { Initiative } from "@/lib/domain/types";
+import { defaultPhases } from "@/lib/domain/progress";
+import type { Initiative, PhaseState } from "@/lib/domain/types";
 
 /**
  * Iniciativas iniciais de demonstração. NÃO representam prioridades aprovadas:
  * quarters e prioridades estão marcados como "a validar" (planningValidated: false).
  *
- * A JG-2027-001 usa como fonte o PRD recebido em 16/10/2026
+ * A JG-2027-001 (Login simplificado do estudante) usa como fonte o PRD recebido em 16/10/2026
  * (initiatives/JG-2027-001-autenticacao-estudante/prd.md).
  */
 const SEEDED_AT = "2026-10-16T12:00:00.000Z";
@@ -35,7 +36,12 @@ const base = {
   userPain: "",
   hypothesis: "",
   audience: "",
+  objectives: [],
+  deliverables: [],
 } satisfies Partial<Initiative>;
+
+/** Etapas padrão, com a primeira no estado indicado (nenhuma etapa está concluída nos dados iniciais). */
+const phases = (first: PhaseState) => defaultPhases().map((p, idx) => (idx === 0 ? { ...p, state: first } : p));
 
 const created = (id: string) => ({
   id: `${id}-h1`,
@@ -48,11 +54,25 @@ export const seedInitiatives: Initiative[] = [
     ...base,
     id: "JG-2027-001",
     repoFolder: "initiatives/JG-2027-001-autenticacao-estudante",
-    title: "Autenticação simplificada do estudante",
+    title: "Login simplificado do estudante",
     summary: "Permitir que estudantes acessem a plataforma por QR Code ou código de ícones, além de e-mail e senha.",
     category: "Acesso e identidade",
-    tags: ["Acessibilidade", "Autenticação", "Fundamental I"],
+    tags: ["Acesso", "Experiência do estudante", "Segurança"],
     illustration: "astronauta",
+    objectives: [
+      "Oferecer acesso por QR Code e por código de ícones espaciais.",
+      "Manter o login por e-mail e senha.",
+      "Permitir emissão e reemissão de credenciais no Admins.",
+      "Garantir segurança e continuidade dos cadastros existentes.",
+    ],
+    deliverables: [
+      "Login por QR Code",
+      "Login por código de ícones espaciais",
+      "Emissão e reemissão de credenciais no Admins",
+      "Controle de permissão de acesso",
+      "Histórico de uso e alterações",
+    ],
+    phases: phases("em_andamento"),
     problem:
       "Estudantes em fase de alfabetização podem enfrentar dificuldades para realizar login com e-mail e senha, aumentando a dependência de professores e responsáveis.",
     currentContext:
@@ -131,7 +151,7 @@ export const seedInitiatives: Initiative[] = [
     documents: [
       {
         id: "prd",
-        title: "Autenticação simplificada",
+        title: "Login simplificado do estudante",
         kind: "prd",
         source: "repo",
         path: "initiatives/JG-2027-001-autenticacao-estudante/prd.md",
@@ -233,8 +253,9 @@ export const seedInitiatives: Initiative[] = [
     title: "Consistência de cadastros e vínculos escolares",
     summary: "Garantir dados consistentes, integrados e atualizados entre escolas, turmas e estudantes.",
     category: "Dados e operação",
-    tags: ["Cadastro", "Integridade de dados"],
-    illustration: "planeta",
+    tags: ["Cadastro", "Dados", "Integrações"],
+    illustration: "ilha",
+    phases: phases("em_andamento"),
     problem:
       "Garantir maior consistência entre estudantes, escolas, turmas e identificadores nos fluxos de cadastro e atualização.",
     audience: "Equipes administrativas e gestores escolares; indiretamente, estudantes e educadores.",
@@ -273,8 +294,9 @@ export const seedInitiatives: Initiative[] = [
     title: "Autonomia do estudante no aprendizado",
     summary: "Evoluir a experiência do Exploradores com mais autonomia, personalização e engajamento.",
     category: "Experiência de aprendizagem",
-    tags: ["Autonomia", "Engajamento"],
+    tags: ["Aprendizagem", "Gamificação", "Experiência"],
     illustration: "foguete",
+    phases: phases("pendente"),
     problem:
       "Investigar oportunidades para tornar a experiência do Exploradores mais clara, autônoma e favorável à continuidade da aprendizagem.",
     audience: "Estudantes usuários do Exploradores.",
@@ -309,8 +331,9 @@ export const seedInitiatives: Initiative[] = [
     title: "Qualidade das jornadas críticas",
     summary: "Aprimorar as jornadas essenciais para aumentar estabilidade, desempenho e satisfação dos usuários.",
     category: "Confiabilidade",
-    tags: ["Qualidade", "Estabilidade"],
+    tags: ["Performance", "Confiabilidade", "Jornadas"],
     illustration: "satelite",
+    phases: phases("em_andamento"),
     problem:
       "Identificar oportunidades de melhoria nas principais jornadas, priorizando confiabilidade, conclusão e redução de fricções.",
     audience: "Estudantes, educadores e equipes administrativas nas jornadas mais utilizadas.",

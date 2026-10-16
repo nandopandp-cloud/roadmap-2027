@@ -2,11 +2,13 @@
 
 import { CircleDashed, Flag, GitFork, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
-import { PageContainer, PageTitle, TopBar } from "@/components/layout/page-header";
+import { PageContainer, PageHero } from "@/components/layout/page-header";
 import { PLATFORM_GLYPHS } from "@/components/platforms/platform-icon";
 import { PriorityBadge, StatusBadge, TransversalBadge } from "@/components/ui/badges";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/fields";
+import { ProgressBar } from "@/components/ui/progress";
+import { progressOf } from "@/lib/domain/progress";
 import { EmptyState, ErrorBanner, Skeleton } from "@/components/ui/feedback";
 import { cn, plural } from "@/lib/client/cn";
 import { isTransversal, sortInitiatives } from "@/lib/client/filtering";
@@ -71,6 +73,7 @@ function RoadmapCard({
         <PriorityBadge priority={i.priority} size="sm" />
       </span>
       <PlatformDots ids={i.platformIds} platforms={platforms} />
+      <ProgressBar value={progressOf(i.phases)} />
       {milestones.length > 0 && (
         <span className="flex flex-col gap-1 border-t border-line pt-2">
           {milestones.map((m) => (
@@ -146,18 +149,19 @@ export function RoadmapView() {
   );
 
   return (
-    <PageContainer>
-      <TopBar crumbs={[{ label: "Roadmap" }]} />
-      <PageTitle
+    <>
+      <PageHero
+        crumbs={[{ label: "Roadmap" }]}
         title="Roadmap 2027"
         subtitle="Como as iniciativas se distribuem ao longo do ano. Quarters e prioridades são propostas até serem validados."
-        actions={
-          <Button variant="primary" icon={<Plus size={18} />} onClick={() => openForm(null, 3)}>
+      >
+        <div className="mt-8">
+          <Button variant="primary" className="h-[52px] rounded-[14px] px-6 text-[15px] shadow-[0_8px_20px_rgba(0,133,124,0.25)]" icon={<Plus size={19} />} onClick={() => openForm(null, 3)}>
             Nova iniciativa
           </Button>
-        }
-      />
-
+        </div>
+      </PageHero>
+      <PageContainer className="pb-16 pt-6">
       <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-3">
         <label className="flex items-center gap-2 text-[14px] font-semibold text-muted">
           Plataforma
@@ -194,7 +198,7 @@ export function RoadmapView() {
       <div className="@container mt-6">
         <div className="grid grid-cols-1 gap-4 @2xl:grid-cols-2 @5xl:grid-cols-4">
           {columns.map(({ q, main, markers }) => (
-            <section key={q} aria-labelledby={`col-${q}`} className="flex flex-col rounded-3xl border border-line bg-[#eef2fa] p-3">
+            <section key={q} aria-labelledby={`col-${q}`} className="flex flex-col rounded-[24px] border border-[#e3e9f4] bg-white/70 p-3 shadow-[0_2px_10px_rgba(23,27,77,0.04)] backdrop-blur">
               <header className="flex items-baseline justify-between gap-2 px-2 pb-3 pt-1">
                 <div>
                   <h2 id={`col-${q}`} className="text-[18px] font-black text-navy">
@@ -250,5 +254,6 @@ export function RoadmapView() {
         />
       )}
     </PageContainer>
+    </>
   );
 }

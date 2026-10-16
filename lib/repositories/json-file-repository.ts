@@ -4,9 +4,8 @@ import { seedContext } from "@/data/seed/context";
 import { seedInitiatives } from "@/data/seed/initiatives";
 import { seedPlatforms } from "@/data/seed/platforms";
 import type { Database } from "@/lib/domain/types";
+import { migrateDatabase, SCHEMA_VERSION } from "@/lib/repositories/migrations";
 import type { RoadmapRepository } from "@/lib/repositories/types";
-
-export const SCHEMA_VERSION = 1;
 
 export function buildSeedDatabase(): Database {
   return structuredClone({
@@ -49,7 +48,9 @@ export class JsonFileRepository implements RoadmapRepository {
   private async load(): Promise<Database> {
     try {
       const raw = await fs.readFile(this.filePath, "utf8");
-      return JSON.parse(raw) as Database;
+      const { db, changed } = migrateDatabase(JSON.parse(raw) as Database);
+      if (changed) await this.write(db);
+      return db;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
       const seeded = buildSeedDatabase();

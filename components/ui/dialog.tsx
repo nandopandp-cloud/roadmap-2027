@@ -86,7 +86,7 @@ export function Modal({ open, onClose, title, description, children, footer, siz
   if (!open || typeof document === "undefined") return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-6">
+    <div className="fixed inset-0 z-[60] flex items-end justify-center p-0 sm:items-center sm:p-6">
       <div className="absolute inset-0 animate-fade-in bg-[#171b4d]/40 backdrop-blur-[2px]" onClick={onClose} aria-hidden />
       <div
         ref={ref}

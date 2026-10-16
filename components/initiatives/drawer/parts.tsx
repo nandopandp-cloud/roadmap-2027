@@ -21,13 +21,13 @@ export function DrawerSection({
   action?: ReactNode;
 }) {
   return (
-    <section className="border-b border-line py-6 last:border-b-0">
-      <div className="flex items-center gap-4">
-        <Icon size={28} strokeWidth={2} style={{ color }} aria-hidden />
-        <h3 className="flex-1 text-[17px] font-extrabold text-navy">{title}</h3>
+    <section className="rounded-[18px] border border-[#e6ebf5] bg-surface p-5 shadow-[0_1px_2px_rgba(23,27,77,0.03)]">
+      <div className="flex items-center gap-3">
+        <Icon size={24} strokeWidth={2.1} style={{ color }} aria-hidden />
+        <h3 className="flex-1 text-[16.5px] font-extrabold text-navy">{title}</h3>
         {action}
       </div>
-      <div className="mt-3 pl-11 sm:pl-[44px]">{children}</div>
+      <div className="mt-2 pl-9">{children}</div>
     </section>
   );
 }

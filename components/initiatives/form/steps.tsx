@@ -2,7 +2,7 @@
 
 import { Plus, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
-import { newDocument, newMetric, newMilestone, newPrototype } from "@/components/initiatives/form/defaults";
+import { newDocument, newMetric, newMilestone, newPhase, newPrototype } from "@/components/initiatives/form/defaults";
 import { illustrationFor } from "@/components/initiatives/initiative-illustration";
 import { PLATFORM_GLYPHS } from "@/components/platforms/platform-icon";
 import { Button, IconButton } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import {
   INITIATIVE_STATUSES,
   METRIC_TARGET_STATES,
   METRIC_VALUE_STATES,
+  PHASE_STATES,
   PRIORITIES,
   PROTOTYPE_STATUSES,
   QUARTERS,
@@ -23,8 +24,10 @@ import {
   DOCUMENT_KIND_LABEL,
   DOCUMENT_STATUS_LABEL,
   ILLUSTRATION_LABEL,
+  ILLUSTRATION_SRC,
   METRIC_TARGET_STATE_LABEL,
   METRIC_VALUE_STATE_LABEL,
+  PHASE_STATE_LABEL,
   PRIORITY_LABEL,
   PROTOTYPE_STATUS_LABEL,
   QUARTER_LABEL,
@@ -100,7 +103,7 @@ function Repeater<T extends { id: string }>({
 }
 
 export function IdentificationStep({ draft, set, errors, others, editingId, nextId }: StepProps) {
-  const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   const clash = draft.title.trim() && others.find((o) => norm(o.title) === norm(draft.title));
   const previewKey = illustrationFor(editingId ?? nextId, draft.illustration);
 
@@ -123,7 +126,7 @@ export function IdentificationStep({ draft, set, errors, others, editingId, next
         value={draft.title}
         onChange={(e) => set("title", e.target.value)}
         error={errors.title ?? (clash ? `Já existe uma iniciativa com este nome (${clash.id}).` : undefined)}
-        placeholder="Ex.: Autenticação simplificada do estudante"
+        placeholder="Ex.: Login simplificado do estudante"
         data-autofocus
       />
       <TextAreaField
@@ -156,7 +159,7 @@ export function IdentificationStep({ draft, set, errors, others, editingId, next
           >
             <input type="radio" name="illustration" className="sr-only" checked={draft.illustration === null} onChange={() => set("illustration", null)} />
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={`/illustrations/${previewKey}.svg`} alt="" className="h-9 w-9 rounded-lg opacity-70" />
+            <img src={ILLUSTRATION_SRC[previewKey]} alt="" className="h-9 w-9 rounded-lg opacity-70" />
             Automática
           </label>
           {ILLUSTRATIONS.map((key) => (
@@ -169,7 +172,7 @@ export function IdentificationStep({ draft, set, errors, others, editingId, next
             >
               <input type="radio" name="illustration" className="sr-only" checked={draft.illustration === key} onChange={() => set("illustration", key)} />
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`/illustrations/${key}.svg`} alt="" className="h-[60px] w-[60px] rounded-xl" />
+              <img src={ILLUSTRATION_SRC[key]} alt="" className="h-[60px] w-[60px] rounded-xl" />
               {ILLUSTRATION_LABEL[key]}
             </label>
           ))}
@@ -217,6 +220,10 @@ export function ProblemStep({ draft, set, errors }: StepProps) {
         onChange={(e) => set("expectedOutcome", e.target.value)}
         error={errors.expectedOutcome}
       />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <LinesField label="Objetivos principais" value={draft.objectives} onChange={(v) => set("objectives", v)} rows={4} />
+        <LinesField label="Principais entregas" value={draft.deliverables} onChange={(v) => set("deliverables", v)} rows={4} />
+      </div>
     </div>
   );
 }
@@ -296,6 +303,31 @@ export function PlanningStep({ draft, set, errors }: StepProps) {
         onChange={(v) => set("planningValidated", v)}
       />
       <TextField label="Responsável (opcional)" value={draft.owner} onChange={(e) => set("owner", e.target.value)} />
+      <Group
+        title="Etapas de progresso"
+        description="O percentual de progresso é calculado pelas etapas concluídas — não é digitado manualmente."
+      >
+        <Repeater
+          items={draft.phases}
+          onChange={(v) => set("phases", v)}
+          create={newPhase}
+          addLabel="Adicionar etapa"
+          empty="Nenhuma etapa definida. Sem etapas, o progresso não é exibido."
+          itemLabel={(_p, idx) => `Etapa ${idx + 1}`}
+          render={(ph, update, idx) => (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_200px]">
+              <TextField label="Nome da etapa" required value={ph.title} onChange={(e) => update({ title: e.target.value })} error={errors[`phases.${idx}.title`]} />
+              <SelectField label="Situação" value={ph.state} onChange={(e) => update({ state: e.target.value as typeof ph.state })}>
+                {PHASE_STATES.map((st) => (
+                  <option key={st} value={st}>
+                    {PHASE_STATE_LABEL[st]}
+                  </option>
+                ))}
+              </SelectField>
+            </div>
+          )}
+        />
+      </Group>
       <Group
         title="Marcos planejados"
         description="Uma iniciativa transversal mantém um único registro; seus marcos aparecem nos quarters correspondentes do roadmap."

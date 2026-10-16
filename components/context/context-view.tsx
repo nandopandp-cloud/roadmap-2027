@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { DriverEditor, PlatformEditor, ProblemEditor } from "@/components/context/editors";
-import { PageContainer, PageTitle, TopBar } from "@/components/layout/page-header";
+import { PageContainer, PageHero } from "@/components/layout/page-header";
 import { PlatformTile } from "@/components/platforms/platform-icon";
 import { ValidationBadge } from "@/components/ui/badges";
 import { Button, IconButton } from "@/components/ui/button";
@@ -120,7 +120,7 @@ function IntroEditor() {
   return (
     <div className="relative mt-6 overflow-hidden rounded-3xl bg-[linear-gradient(120deg,#2a1f86_0%,#3b2a9e_55%,#5938a6_100%)] p-7 text-white shadow-[var(--shadow-raised)] sm:p-9">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/illustrations/foguete.svg" alt="" aria-hidden className="pointer-events-none absolute -right-6 -top-6 hidden h-44 w-44 rounded-[36px] opacity-30 md:block" />
+      <img src="/illustrations/foguete.jpg" alt="" aria-hidden className="pointer-events-none absolute -right-4 -top-4 hidden h-48 w-48 rotate-6 rounded-[36px] object-cover opacity-40 mix-blend-screen md:block" />
       <div className="relative max-w-3xl">
         {data.context.intro ? (
           data.context.intro.split(/\n{2,}/).map((p, idx) => (
@@ -194,9 +194,13 @@ export function ContextView() {
   const problems = data.context.problems.filter((p) => validationFilter === "todos" || p.validation === validationFilter);
 
   return (
-    <PageContainer>
-      <TopBar crumbs={[{ label: "Contexto" }]} />
-      <PageTitle title="Contexto estratégico" subtitle="A direção que orienta as iniciativas de Produto da Jovens Gênios em 2027." />
+    <>
+    <PageHero
+      crumbs={[{ label: "Contexto" }]}
+      title="Contexto estratégico"
+      subtitle="A direção que orienta as iniciativas de Produto da Jovens Gênios em 2027."
+    />
+    <PageContainer className="pb-16 pt-2">
 
       {load.status === "loading" && (
         <div className="mt-6 flex flex-col gap-4" aria-busy="true">
@@ -411,5 +415,6 @@ export function ContextView() {
       {problemEdit !== undefined && <ProblemEditor problem={problemEdit} onClose={() => setProblemEdit(undefined)} />}
       {platformEdit !== undefined && <PlatformEditor platform={platformEdit} onClose={() => setPlatformEdit(undefined)} />}
     </PageContainer>
+    </>
   );
 }

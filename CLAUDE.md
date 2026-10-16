@@ -7,7 +7,9 @@ Instruções permanentes para trabalhar neste repositório. Leia o [README](READ
 - Ferramenta interna de **gestão estratégica de iniciativas**, documentação e roadmap. Não é gestão de projetos: não adicionar sprints, tarefas, kanban de execução ou dashboards de gráficos.
 - Toda a interface é em **português brasileiro**.
 - A sidebar tem **exatamente três** itens: Contexto, Iniciativas, Roadmap. Não adicionar itens de primeiro nível; PRDs, protótipos e plataformas ficam vinculados às iniciativas ou ao contexto.
-- Detalhes de iniciativa abrem no **drawer lateral** (`?iniciativa=<id>&aba=<aba>`), nunca em página própria. `/iniciativas/<id>` apenas redireciona.
+- Detalhes de iniciativa abrem no **drawer lateral sobreposto** com camada escura (`?iniciativa=<id>&aba=<aba>`), nunca em página própria. `/iniciativas/<id>` apenas redireciona.
+- A referência visual aprovada é o layout com hero ilustrado, abas de status, cards com progresso e drawer com cabeçalho ilustrado. Mudanças visuais devem preservar essa composição.
+- Progresso é sempre derivado das etapas (`lib/domain/progress.ts`); nunca aceitar percentual digitado.
 - Nunca inventar métricas, metas, valores de referência, evidências ou compromissos. Hipóteses devem ser apresentadas como hipóteses. Campos ausentes recebem estados vazios explícitos.
 - Não criar links fictícios nem mensagens de sucesso para arquivos inexistentes. Use `useArtifactStatus` para verificar arquivos.
 - Iniciativas transversais (2+ plataformas) são **um único registro**; marcos em outros quarters aparecem no roadmap ligados ao mesmo ID.
@@ -17,7 +19,8 @@ Instruções permanentes para trabalhar neste repositório. Leia o [README](READ
 - Logo oficial: `public/brand/jovens-genios-horizontal.png` (componente `BrandLogo`). Não redesenhar, não substituir por texto/iniciais. `app/icon.png` é um recorte do mesmo arquivo.
 - Tokens em `app/globals.css` (`@theme`): `navy`, `brand`, `violet`, `blue`, `teal`, `action` (turquesa com contraste AA — use para ações primárias), `ink`, `muted`, `line`, `canvas`, `surface`.
 - Badges usam tons suaves de `lib/client/tones.ts`; não usar cores fortes fora desses tons.
-- Ilustrações: `public/illustrations/<chave>.svg` (chaves em `ILLUSTRATIONS`). Para trocar por arte oficial, substitua o arquivo mantendo o nome.
+- Ilustrações: mapa `ILLUSTRATION_SRC` (lib/domain/labels.ts) → arquivos em `public/illustrations/`. As JPGs vêm da arte oficial do Exploradores; os SVGs (astronauta, cenário do hero) seguem o mesmo estilo.
+- Ao mudar o formato dos dados persistidos, incremente `SCHEMA_VERSION` e escreva a migração em `lib/repositories/migrations.ts`.
 - Fonte: Nunito (via `next/font`).
 
 ## Convenções de código

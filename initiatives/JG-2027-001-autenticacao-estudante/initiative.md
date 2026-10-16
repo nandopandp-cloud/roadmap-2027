@@ -1,4 +1,4 @@
-# JG-2027-001 — Autenticação simplificada do estudante
+# JG-2027-001 — Login simplificado do estudante
 
 > Os campos operacionais (status, quarter, prioridade, plataformas, métricas) vivem no banco da aplicação.
 > Este arquivo registra a narrativa da iniciativa e aponta para os artefatos versionados.

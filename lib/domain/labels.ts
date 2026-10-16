@@ -5,6 +5,7 @@ import type {
   InitiativeStatus,
   MetricTargetState,
   MetricValueState,
+  PhaseState,
   Priority,
   ProblemValidation,
   PrototypeStatus,
@@ -88,9 +89,25 @@ export const PROBLEM_VALIDATION_LABEL: Record<ProblemValidation, string> = {
 
 export const ILLUSTRATION_LABEL: Record<IllustrationKey, string> = {
   astronauta: "Astronauta",
-  planeta: "Planeta",
+  ilha: "Ilha flutuante",
   foguete: "Foguete",
   satelite: "Satélite",
-  cometa: "Cometa",
-  lua: "Lua",
+  planeta: "Planeta",
+  tecnologia: "Planeta da Tecnologia",
+};
+
+/** Arquivos da biblioteca de ilustrações (public/illustrations). */
+export const ILLUSTRATION_SRC: Record<IllustrationKey, string> = {
+  astronauta: "/illustrations/astronauta.svg",
+  ilha: "/illustrations/ilha.jpg",
+  foguete: "/illustrations/foguete.jpg",
+  satelite: "/illustrations/satelite.jpg",
+  planeta: "/illustrations/planeta.jpg",
+  tecnologia: "/illustrations/tecnologia.jpg",
+};
+
+export const PHASE_STATE_LABEL: Record<PhaseState, string> = {
+  pendente: "Pendente",
+  em_andamento: "Em andamento",
+  concluida: "Concluída",
 };

@@ -1,4 +1,4 @@
-# Decisões — JG-2027-001 Autenticação simplificada do estudante
+# Decisões — JG-2027-001 Login simplificado do estudante
 
 Registro de decisões relevantes e suas justificativas. Decisões listadas como **Proposta** ainda não
 foram aprovadas.

@@ -41,10 +41,10 @@ A navegação tem exatamente três seções:
 | Seção | Rota | Conteúdo |
 | --- | --- | --- |
 | **Contexto** | `/contexto` | Texto introdutório, direcionadores estratégicos, problemas estruturais (confirmados × hipóteses), princípios de planejamento e catálogo de plataformas — tudo editável. |
-| **Iniciativas** | `/iniciativas` | Catálogo com busca textual, filtros combináveis (quarter, plataforma, status), ordenação e criação/edição. Clicar em um card abre o **drawer lateral** de detalhes. |
+| **Iniciativas** | `/iniciativas` | Catálogo com busca (atalho ⌘K/Ctrl+K), abas de status com contadores, filtros combináveis (quarter, plataforma, categoria), ordenação, visualização em lista ou grade e criação/edição. Clicar em um card abre o **drawer lateral** de detalhes. |
 | **Roadmap** | `/roadmap` | Quatro colunas (Q1–Q4) com as iniciativas, seus marcos em outros quarters, dependências e iniciativas sem quarter. |
 
-**Drawer de detalhes** — abre à direita sem trocar de página (≈35% da largura no desktop, sobreposto no tablet, tela cheia no celular). Abas: *Visão geral*, *PRD*, *Protótipo*, *Roadmap* (alteração rápida de quarter/prioridade/status, marcos, histórico) e *Dependências* (relações, riscos, decisões pendentes). A iniciativa e a aba ficam na URL — `/iniciativas?iniciativa=JG-2027-001&aba=prd` — para compartilhar links diretos.
+**Drawer de detalhes** — abre à direita sobre a página, com camada escura por trás (≈44% da largura no desktop, mín. 620px; 94% no tablet; tela cheia no celular). Esc ou clique na camada escura fecham. Abas: *Visão geral*, *PRD*, *Protótipo*, *Roadmap* (alteração rápida de quarter/prioridade/status, marcos, histórico) e *Dependências* (relações, riscos, decisões pendentes). A iniciativa e a aba ficam na URL — `/iniciativas?iniciativa=JG-2027-001&aba=prd` — para compartilhar links diretos.
 
 **Documentos** — `/iniciativas/<id>/documentos/<docId>` exibe o Markdown com sumário por seções; `?editar=1` abre o editor com pré-visualização, registro de versão e nota de alteração. O conteúdo é gravado no arquivo do repositório.
 
@@ -84,6 +84,7 @@ Repositório (lib/repositories/)              ← persistência atrás de uma in
 - Mudanças relevantes (status, quarter, prioridade, nome, documentos, protótipos, dependências, plataformas, validação do planejamento) são registradas no histórico da iniciativa com data.
 - Uma iniciativa com mais de uma plataforma é **transversal**: continua sendo um único registro; seus marcos aparecem nos quarters correspondentes do roadmap.
 - Métricas distinguem valores *definidos / estimados / pendentes* e metas *aprovadas / propostas / pendentes*. Nada é calculado ou presumido.
+- **Progresso** = etapas concluídas ÷ total de etapas (padrão: Discovery e levantamento, Design e protótipo, Desenvolvimento, Homologação, Lançamento — editáveis). O percentual nunca é digitado manualmente; nos dados iniciais nenhuma etapa está concluída.
 
 ## Organização do repositório
 
@@ -111,7 +112,7 @@ initiatives/
   JG-2027-00X-…/
 public/
   brand/                logo oficial (arquivo original)
-  illustrations/        biblioteca de ilustrações espaciais (SVG)
+  illustrations/        ilustrações (arte oficial do Exploradores + SVGs no mesmo estilo)
 scripts/reset-db.mjs
 ```
 
@@ -154,5 +155,6 @@ Caminhos são validados (precisam começar com `initiatives/`, sem `..`) e resol
 | Estado no cliente via contexto React + API | Volume de dados pequeno; o drawer é compartilhado entre Iniciativas, Roadmap e Contexto sem bibliotecas extras. |
 | Iniciativa selecionada na URL (`?iniciativa=&aba=`) | Links compartilháveis e navegação voltar/avançar preservando a lista. |
 | Prioridade começa "A definir" | O briefing pede validação de prioridades; nenhuma pontuação automática. |
-| Ilustrações SVG próprias em `public/illustrations/` | Não havia ilustrações individuais disponíveis em arquivo; seguem o estilo do Exploradores e podem ser substituídas pelos assets oficiais (mesmos nomes). |
+| Ilustrações em `public/illustrations/` | Foguete, satélite, planeta, ilha flutuante e Planeta da Tecnologia foram recortados da arte oficial do documento "Planetas e Narrativas" (Exploradores). Não havia astronauta em arquivo: `astronauta.svg`, `astronauta-recorte.svg` e o cenário `hero-ceu.svg` foram desenhados no mesmo estilo. Para trocar por arte nova, substitua o arquivo mantendo o nome. |
+| Banco local com versão de esquema | `lib/repositories/migrations.ts` atualiza bancos antigos sem perder dados (v1 → v2: objetivos, entregas e etapas). |
 | PRD da JG-2027-001 importado integralmente | Fornecido pelo time em 16/10/2026. Listas de RF/RN/riscos convertidas em tabelas apenas para leitura; três tabelas ausentes no texto recebido estão marcadas como pendentes no documento. |

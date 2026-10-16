@@ -20,7 +20,7 @@ interface RoadmapStore {
   platformById: (id: string) => Platform | undefined;
   upsertInitiative: (initiative: Initiative) => void;
   removeInitiative: (id: string) => Promise<void>;
-  patchPlanning: (id: string, patch: Partial<Pick<Initiative, "quarter" | "priority" | "status" | "planningValidated">>) => Promise<Initiative>;
+  patchPlanning: (id: string, patch: Partial<Pick<Initiative, "quarter" | "priority" | "status" | "planningValidated" | "phases">>) => Promise<Initiative>;
   savePlatform: (id: string | null, data: unknown) => Promise<Platform>;
   removePlatform: (id: string) => Promise<void>;
   saveContext: (context: StrategyContext) => Promise<StrategyContext>;

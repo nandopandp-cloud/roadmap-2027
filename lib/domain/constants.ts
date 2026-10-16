@@ -38,7 +38,13 @@ export const PROBLEM_VALIDATION = ["confirmado", "em_validacao", "hipotese"] as 
 
 export const PLATFORM_ICONS = ["settings", "explorer", "teacher", "family", "book", "sparkles", "layers"] as const;
 
-export const ILLUSTRATIONS = ["astronauta", "planeta", "foguete", "satelite", "cometa", "lua"] as const;
+export const ILLUSTRATIONS = ["astronauta", "ilha", "foguete", "satelite", "planeta", "tecnologia"] as const;
+
+/** Estado de cada etapa de progresso. O percentual é derivado das etapas concluídas. */
+export const PHASE_STATES = ["pendente", "em_andamento", "concluida"] as const;
+
+/** Etapas sugeridas para novas iniciativas (editáveis). */
+export const DEFAULT_PHASES = ["Discovery e levantamento", "Design e protótipo", "Desenvolvimento", "Homologação", "Lançamento"] as const;
 
 /** Diretório (relativo à raiz do projeto) onde ficam os artefatos versionáveis das iniciativas. */
 export const INITIATIVES_DIR = "initiatives";

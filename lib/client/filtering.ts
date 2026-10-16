@@ -7,6 +7,7 @@ export interface InitiativeFilters {
   query: string;
   quarter: Quarter | "todos" | "sem";
   platform: string | "todas";
+  category: string | "todas";
   status: InitiativeStatus | "todos";
   sort: SortKey;
 }
@@ -15,6 +16,7 @@ export const DEFAULT_FILTERS: InitiativeFilters = {
   query: "",
   quarter: "todos",
   platform: "todas",
+  category: "todas",
   status: "todos",
   sort: "prioridade",
 };
@@ -22,7 +24,7 @@ export const DEFAULT_FILTERS: InitiativeFilters = {
 const normalize = (value: string) =>
   value
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
 
 /** Texto pesquisável: nome, problema, motivador, palavras-chave e demais campos descritivos. */
@@ -44,9 +46,15 @@ function haystack(i: Initiative): string {
   );
 }
 
+/** Aplica busca e filtros, exceto status (usado para contar as abas de status). */
+export function filterExceptStatus(list: Initiative[], f: InitiativeFilters): Initiative[] {
+  return filterInitiatives(list, { ...f, status: "todos" });
+}
+
 export function filterInitiatives(list: Initiative[], f: InitiativeFilters): Initiative[] {
   const terms = normalize(f.query).split(/\s+/).filter(Boolean);
   const filtered = list.filter((i) => {
+    if (f.category !== "todas" && i.category !== f.category) return false;
     if (f.quarter === "sem" ? i.quarter !== null : f.quarter !== "todos" && i.quarter !== f.quarter) return false;
     if (f.platform !== "todas" && !i.platformIds.includes(f.platform)) return false;
     if (f.status !== "todos" && i.status !== f.status) return false;

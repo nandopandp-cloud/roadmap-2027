@@ -1,4 +1,4 @@
-# PRD — Autenticação simplificada do estudante
+# PRD — Login simplificado do estudante
 
 **Jovens Gênios | Admins + Exploradores | Roadmap 2027**
 

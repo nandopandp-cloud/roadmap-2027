@@ -10,6 +10,7 @@ import {
   INITIATIVE_STATUSES,
   METRIC_TARGET_STATES,
   METRIC_VALUE_STATES,
+  PHASE_STATES,
   PLATFORM_ACCENTS,
   PLATFORM_ICONS,
   PRIORITIES,
@@ -42,6 +43,12 @@ export const milestoneSchema = z.object({
   quarter: z.enum(QUARTERS),
   date: isoDate,
   done: z.boolean().default(false),
+});
+
+export const phaseSchema = z.object({
+  id: localId,
+  title: required("O nome da etapa", 120),
+  state: z.enum(PHASE_STATES).default("pendente"),
 });
 
 export const versionEntrySchema = z.object({
@@ -134,6 +141,8 @@ export const initiativeInputSchema = z.object({
   evidence: list(),
   hypothesis: text().default(""),
   expectedOutcome: required("O resultado esperado", 2000),
+  objectives: list(),
+  deliverables: list(),
 
   // Planejamento
   quarter: z.enum(QUARTERS).nullable().default(null),
@@ -142,6 +151,8 @@ export const initiativeInputSchema = z.object({
   planningValidated: z.boolean().default(false),
   owner: text(120).default(""),
   milestones: z.array(milestoneSchema).max(40).default([]),
+  /** Etapas de progresso; o percentual exibido é derivado das etapas concluídas. */
+  phases: z.array(phaseSchema).max(12).default([]),
   dependsOn: z.array(z.string().regex(INITIATIVE_ID_PATTERN)).max(30).default([]),
   relatedInitiativeIds: z.array(z.string().regex(INITIATIVE_ID_PATTERN)).max(30).default([]),
   risks: list(),
@@ -181,6 +192,7 @@ export const planningPatchSchema = z
     priority: z.enum(PRIORITIES).nullable(),
     status: z.enum(INITIATIVE_STATUSES),
     planningValidated: z.boolean(),
+    phases: z.array(phaseSchema).max(12),
   })
   .partial();
 

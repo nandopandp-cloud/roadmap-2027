@@ -48,7 +48,7 @@ function DocumentCard({ initiativeId, doc, exists }: { initiativeId: string; doc
   const [showVersions, setShowVersions] = useState(false);
   const missing = doc.source === "repo" && exists === false;
   return (
-    <li className="rounded-2xl border border-line p-4">
+    <li className="rounded-[18px] border border-[#e6ebf5] bg-surface p-5">
       <div className="flex items-start gap-3.5">
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-soft text-blue" aria-hidden>
           <FileText size={22} />
@@ -136,7 +136,7 @@ export function DocumentsTab({ initiative: i }: { initiative: Initiative }) {
   }
 
   return (
-    <div className="flex flex-col gap-6 py-6">
+    <div className="flex flex-col gap-6">
       <div>
         <SubHeading>PRD</SubHeading>
         {prds.length === 0 ? (
@@ -193,7 +193,7 @@ export function PrototypesTab({ initiative: i, platforms }: { initiative: Initia
 
   if (i.prototypes.length === 0) {
     return (
-      <div className="py-6">
+      <div>
         <EmptyState
           icon={<MonitorPlay size={22} />}
           title="Ainda não há um protótipo associado a esta iniciativa."
@@ -209,13 +209,13 @@ export function PrototypesTab({ initiative: i, platforms }: { initiative: Initia
   }
 
   return (
-    <div className="flex flex-col gap-4 py-6">
+    <div className="flex flex-col gap-4">
       <ul className="flex flex-col gap-3">
         {i.prototypes.map((p) => {
           const missing = p.source === "repo" && status[p.path] === false;
           const shown = p.platformIds.map((id) => platforms.find((x) => x.id === id)).filter((x): x is Platform => !!x);
           return (
-            <li key={p.id} className="rounded-2xl border border-line p-4">
+            <li key={p.id} className="rounded-[18px] border border-[#e6ebf5] bg-surface p-5">
               <div className="flex items-start gap-3.5">
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-soft text-teal" aria-hidden>
                   <MonitorPlay size={22} />

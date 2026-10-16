@@ -1,9 +1,11 @@
 "use client";
 
-import { CalendarRange, CheckCircle2, Circle, FileText, GitFork, History, Info, Layers, ListChecks, Scale, ShieldAlert, Wrench } from "lucide-react";
+import { CalendarRange, CheckCircle2, Gauge, Circle, FileText, GitFork, History, Info, Layers, ListChecks, Scale, ShieldAlert, Wrench } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { PhaseIcon } from "@/components/initiatives/drawer/overview-tab";
 import { BulletList, DrawerSection, InitiativeRow, Prose, SubHeading } from "@/components/initiatives/drawer/parts";
+import { ProgressBar } from "@/components/ui/progress";
 import { PlatformChip } from "@/components/platforms/platform-icon";
 import { ValidationBadge } from "@/components/ui/badges";
 import { buttonClass, Spinner } from "@/components/ui/button";
@@ -13,9 +15,10 @@ import { ApiError } from "@/lib/client/api";
 import { cn, formatDate, formatDateTime } from "@/lib/client/cn";
 import { useRoadmap } from "@/lib/client/store";
 import { documentReaderHref } from "@/lib/domain/artifacts";
-import { INITIATIVE_STATUSES, PRIORITIES, QUARTERS } from "@/lib/domain/constants";
-import { PRIORITY_LABEL, QUARTER_LABEL, QUARTER_MONTHS, STATUS_LABEL } from "@/lib/domain/labels";
-import type { Initiative, Platform } from "@/lib/domain/types";
+import { INITIATIVE_STATUSES, PHASE_STATES, PRIORITIES, QUARTERS } from "@/lib/domain/constants";
+import { PHASE_STATE_LABEL, PRIORITY_LABEL, QUARTER_LABEL, QUARTER_MONTHS, STATUS_LABEL } from "@/lib/domain/labels";
+import { progressOf } from "@/lib/domain/progress";
+import type { Initiative, Phase, Platform } from "@/lib/domain/types";
 
 function InlineSelect({
   label,
@@ -67,9 +70,15 @@ export function RoadmapTab({ initiative: i, onOpen }: { initiative: Initiative; 
   const deps = i.dependsOn.map((id) => data.initiatives.find((x) => x.id === id)).filter((x): x is Initiative => !!x);
   const milestonesByQuarter = QUARTERS.map((q) => ({ q, items: i.milestones.filter((m) => m.quarter === q) })).filter((g) => g.items.length);
   const history = showAllHistory ? i.history : i.history.slice(0, 6);
+  const progress = progressOf(i.phases);
+
+  async function setPhase(id: string, state: Phase["state"]) {
+    const phases = i.phases.map((ph) => (ph.id === id ? { ...ph, state } : ph));
+    await save({ phases }, "Etapa atualizada.");
+  }
 
   return (
-    <div>
+    <div className="flex flex-col gap-4">
       <DrawerSection
         icon={CalendarRange}
         color="#5938A6"
@@ -135,6 +144,38 @@ export function RoadmapTab({ initiative: i, onOpen }: { initiative: Initiative; 
             <span className="font-bold text-ink">Responsável: </span>
             {i.owner}
           </p>
+        )}
+      </DrawerSection>
+
+      <DrawerSection icon={Gauge} color="#2868E8" title="Etapas de progresso" action={progress !== null ? <span className="text-[14px] font-extrabold text-navy">{progress}%</span> : undefined}>
+        {i.phases.length === 0 ? (
+          <Prose empty="Nenhuma etapa definida. Adicione etapas na edição da iniciativa." />
+        ) : (
+          <>
+            <ProgressBar value={progress} showLabel={false} />
+            <ul className="mt-3 flex flex-col gap-2">
+              {i.phases.map((ph) => (
+                <li key={ph.id} className="flex items-center gap-3">
+                  <PhaseIcon state={ph.state} />
+                  <span className="flex-1 text-[14px] font-semibold text-ink">{ph.title}</span>
+                  <select
+                    aria-label={`Situação da etapa ${ph.title}`}
+                    value={ph.state}
+                    disabled={saving}
+                    onChange={(e) => setPhase(ph.id, e.target.value as Phase["state"])}
+                    className="h-9 rounded-lg border border-line bg-surface px-2 text-[13px] font-semibold text-ink focus:border-violet focus:outline-none"
+                  >
+                    {PHASE_STATES.map((st) => (
+                      <option key={st} value={st}>
+                        {PHASE_STATE_LABEL[st]}
+                      </option>
+                    ))}
+                  </select>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-3 text-[12.5px] text-muted">O percentual considera apenas etapas concluídas.</p>
+          </>
         )}
       </DrawerSection>
 
@@ -230,7 +271,7 @@ export function DependenciesTab({
   const decisionsDoc = i.documents.find((d) => d.kind === "decisoes" && d.source === "repo");
 
   return (
-    <div>
+    <div className="flex flex-col gap-4">
       <DrawerSection icon={GitFork} color="#2868E8" title="Iniciativas relacionadas">
         {dependsOn.length + blocks.length + related.length === 0 ? (
           <Prose empty="Nenhuma iniciativa relacionada." />

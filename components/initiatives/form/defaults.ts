@@ -1,4 +1,5 @@
-import type { DocumentRef, Initiative, InitiativeInput, Metric, Milestone, PrototypeRef } from "@/lib/domain/types";
+import { defaultPhases } from "@/lib/domain/progress";
+import type { DocumentRef, Initiative, InitiativeInput, Metric, Milestone, Phase, PrototypeRef } from "@/lib/domain/types";
 
 export const FORM_STEPS = [
   { key: "identificacao", label: "Identificação", hint: "Nome, resumo e classificação" },
@@ -12,9 +13,9 @@ export const FORM_STEPS = [
 /** Em qual etapa cada campo vive (para levar o usuário ao primeiro erro). */
 const FIELD_STEP: Record<string, number> = {
   title: 0, summary: 0, category: 0, tags: 0, illustration: 0,
-  problem: 1, currentContext: 1, audience: 1, userPain: 1, motivator: 1, evidence: 1, hypothesis: 1, expectedOutcome: 1,
+  problem: 1, currentContext: 1, audience: 1, userPain: 1, motivator: 1, evidence: 1, hypothesis: 1, expectedOutcome: 1, objectives: 1, deliverables: 1,
   platformIds: 2, platformNotes: 2, journeys: 2, userProfiles: 2, areas: 2, operationalImpacts: 2,
-  status: 3, quarter: 3, priority: 3, planningValidated: 3, owner: 3, milestones: 3,
+  status: 3, quarter: 3, priority: 3, planningValidated: 3, owner: 3, milestones: 3, phases: 3,
   documents: 4, prototypes: 4,
   metrics: 5, dependsOn: 5, relatedInitiativeIds: 5, technicalDependencies: 5, risks: 5, pendingDecisions: 5,
 };
@@ -37,12 +38,15 @@ export const emptyInput = (): InitiativeInput => ({
   evidence: [],
   hypothesis: "",
   expectedOutcome: "",
+  objectives: [],
+  deliverables: [],
   quarter: null,
   priority: null,
   status: "ideia",
   planningValidated: false,
   owner: "",
   milestones: [],
+  phases: defaultPhases(),
   dependsOn: [],
   relatedInitiativeIds: [],
   risks: [],
@@ -74,6 +78,8 @@ export const newMilestone = (quarter: Milestone["quarter"] = "Q1"): Milestone =>
   date: "",
   done: false,
 });
+
+export const newPhase = (): Phase => ({ id: localId("fase"), title: "", state: "pendente" });
 
 export const newDocument = (folder?: string, hasPrd?: boolean): DocumentRef => ({
   id: localId("doc"),
@@ -113,7 +119,7 @@ export const newMetric = (): Metric => ({
 });
 
 const LIST_FIELDS = [
-  "tags", "evidence", "risks", "pendingDecisions", "journeys", "userProfiles", "areas", "technicalDependencies", "operationalImpacts",
+  "tags", "evidence", "objectives", "deliverables", "risks", "pendingDecisions", "journeys", "userProfiles", "areas", "technicalDependencies", "operationalImpacts",
 ] as const;
 
 /** Remove itens vazios de listas antes de validar/enviar. */

@@ -1,4 +1,5 @@
 import { PRIORITY_LABEL, QUARTER_LABEL, STATUS_LABEL } from "@/lib/domain/labels";
+import { progressOf } from "@/lib/domain/progress";
 import type { HistoryEntry, Initiative, InitiativeInput } from "@/lib/domain/types";
 
 const quarter = (q: Initiative["quarter"]) => (q ? QUARTER_LABEL[q] : "sem quarter");
@@ -44,6 +45,12 @@ export function describeChanges(before: Initiative, after: InitiativeInput): str
   const addedPlatforms = after.platformIds.filter((p) => !before.platformIds.includes(p));
   const removedPlatforms = before.platformIds.filter((p) => !after.platformIds.includes(p));
   if (addedPlatforms.length || removedPlatforms.length) changes.push("Plataformas impactadas atualizadas.");
+
+  if (JSON.stringify(before.phases) !== JSON.stringify(after.phases)) {
+    const pct = progressOf(after.phases);
+    changes.push(`Etapas de progresso atualizadas${pct === null ? "" : ` (${pct}% concluído)`}.`);
+  }
+  if (JSON.stringify(before.objectives) !== JSON.stringify(after.objectives)) changes.push("Objetivos principais atualizados.");
   return changes;
 }
 
