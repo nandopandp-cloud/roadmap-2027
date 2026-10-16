@@ -109,8 +109,8 @@ export function InitiativesView() {
     <>
       <PageHero
         crumbs={[{ label: "Iniciativas" }]}
-        title="Iniciativas do Roadmap 2027"
-        subtitle="Projetos que serão discutidos para o roadmap de produto 2027."
+        title="Roadmap 2027"
+        subtitle="Iniciativas que serão discutidos para o roadmap de produto 2027."
       >
         <div role="search" aria-label="Buscar iniciativas" className="mt-8 flex flex-col gap-3 sm:flex-row">
           <button
