@@ -95,6 +95,19 @@ function HeaderArt({ initiative, platforms }: { initiative: Initiative; platform
   const key = illustrationFor(initiative.id, initiative.illustration);
   const asset = ILLUSTRATION_ASSET[key];
 
+  if (initiative.customImage) {
+    return (
+      <div aria-hidden className="pointer-events-none absolute bottom-0 right-5 hidden h-[220px] w-[240px] sm:block">
+        {/* eslint-disable-next-line @next/next/no-img-element -- imagem enviada */}
+        <img
+          src={`/api/images/${initiative.customImage.imageId}`}
+          alt=""
+          className="absolute bottom-8 right-8 h-[170px] w-[170px] rotate-[3deg] rounded-[28px] border-4 border-white object-cover shadow-[0_18px_36px_rgba(23,20,91,0.28)]"
+        />
+      </div>
+    );
+  }
+
   // Artes de fundo claro (ex.: astronauta com QR Code) já trazem a composição completa:
   // são exibidas grandes e fundidas ao fundo do cabeçalho.
   if (asset.fit === "contain" || asset.header) {

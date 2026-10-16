@@ -1,7 +1,8 @@
 "use client";
 
-import { Plus, Trash2 } from "lucide-react";
-import type { ReactNode } from "react";
+import { ImagePlus, Plus, Trash2 } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { ImageEditor } from "@/components/initiatives/form/image-editor";
 import { newDocument, newMetric, newMilestone, newPhase, newPrototype } from "@/components/initiatives/form/defaults";
 import { illustrationFor, InitiativeIllustration } from "@/components/initiatives/initiative-illustration";
 import { PLATFORM_GLYPHS } from "@/components/platforms/platform-icon";
@@ -102,6 +103,7 @@ function Repeater<T extends { id: string }>({
 }
 
 export function IdentificationStep({ draft, set, errors, others, editingId, nextId }: StepProps) {
+  const [editorOpen, setEditorOpen] = useState(false);
   const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   const clash = draft.title.trim() && others.find((o) => norm(o.title) === norm(draft.title));
   const previewKey = illustrationFor(editingId ?? nextId, draft.illustration);
@@ -149,14 +151,34 @@ export function IdentificationStep({ draft, set, errors, others, editingId, next
       </div>
       <fieldset>
         <legend className="mb-2 text-[13px] font-bold text-navy">Ilustração</legend>
+        <div className="mb-4 flex flex-wrap items-center gap-4 rounded-2xl border border-line bg-[#fafbff] p-3">
+          <InitiativeIllustration id={editingId ?? nextId} illustration={draft.illustration} customImage={draft.customImage} className="h-[72px] w-[72px] rounded-xl" />
+          <div className="min-w-0 flex-1">
+            <p className="text-[14px] font-extrabold text-navy">{draft.customImage ? "Imagem própria" : "Usar uma imagem sua"}</p>
+            <p className="text-[12.5px] text-muted">
+              {draft.customImage ? "Ela substitui as ilustrações abaixo." : "Envie um arquivo e ajuste zoom, rotação, espelhamento e corte."}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant={draft.customImage ? "secondary" : "primary"} icon={<ImagePlus size={15} />} onClick={() => setEditorOpen(true)}>
+              {draft.customImage ? "Editar imagem" : "Enviar imagem"}
+            </Button>
+            {draft.customImage && (
+              <Button size="sm" variant="ghost" icon={<Trash2 size={15} />} onClick={() => set("customImage", null)}>
+                Remover
+              </Button>
+            )}
+          </div>
+        </div>
+        {editorOpen && <ImageEditor current={draft.customImage} onClose={() => setEditorOpen(false)} onApply={(img) => { set("customImage", img); setEditorOpen(false); }} />}
         <div className="flex flex-wrap gap-3">
           <label
             className={cn(
               "relative flex h-[88px] w-[84px] cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border-2 text-center text-[11.5px] font-bold has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-[#6045d8]/20",
-              draft.illustration === null ? "border-violet bg-brand-soft text-brand" : "border-line text-muted hover:border-line-strong",
+              draft.illustration === null && !draft.customImage ? "border-violet bg-brand-soft text-brand" : "border-line text-muted hover:border-line-strong",
             )}
           >
-            <HiddenInput type="radio" name="illustration" checked={draft.illustration === null} onChange={() => set("illustration", null)} />
+            <HiddenInput type="radio" name="illustration" checked={draft.illustration === null && !draft.customImage} onChange={() => { set("illustration", null); set("customImage", null); }} />
             <InitiativeIllustration id={editingId ?? nextId} illustration={previewKey} className="h-9 w-9 rounded-lg opacity-70" />
             Automática
           </label>
@@ -165,10 +187,10 @@ export function IdentificationStep({ draft, set, errors, others, editingId, next
               key={key}
               className={cn(
                 "relative flex cursor-pointer flex-col items-center gap-1 rounded-2xl border-2 p-1 text-[11.5px] font-bold has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-[#6045d8]/20",
-                draft.illustration === key ? "border-violet text-brand" : "border-transparent text-muted hover:border-line",
+                draft.illustration === key && !draft.customImage ? "border-violet text-brand" : "border-transparent text-muted hover:border-line",
               )}
             >
-              <HiddenInput type="radio" name="illustration" checked={draft.illustration === key} onChange={() => set("illustration", key)} />
+              <HiddenInput type="radio" name="illustration" checked={draft.illustration === key && !draft.customImage} onChange={() => { set("illustration", key); set("customImage", null); }} />
               <InitiativeIllustration id={editingId ?? nextId} illustration={key} className="h-[60px] w-[60px] rounded-xl" />
               {ILLUSTRATION_LABEL[key]}
             </label>

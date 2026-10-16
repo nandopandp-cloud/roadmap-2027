@@ -41,7 +41,7 @@ export function InitiativeCard({ initiative: i, platforms, selected, layout, onO
   if (layout === "grid") {
     return (
       <button type="button" onClick={onOpen} aria-pressed={selected} aria-label={`${i.title} — abrir detalhes`} className={cn(frame, "flex h-full flex-col overflow-hidden")}>
-        <InitiativeIllustration id={i.id} illustration={i.illustration} className="h-44 w-full rounded-none rounded-t-[21px]" />
+        <InitiativeIllustration id={i.id} illustration={i.illustration} customImage={i.customImage} className="h-44 w-full rounded-none rounded-t-[21px]" />
         <span className="flex flex-1 flex-col p-5">
           <span className="flex items-center justify-between gap-2">
             <span className="text-[13.5px] font-semibold text-muted">{quarter}</span>
@@ -65,7 +65,7 @@ export function InitiativeCard({ initiative: i, platforms, selected, layout, onO
       aria-label={`${i.title} — abrir detalhes`}
       className={cn(frame, "flex items-center gap-5 p-4 pr-5")}
     >
-      <InitiativeIllustration id={i.id} illustration={i.illustration} className="hidden h-[112px] w-[110px] sm:block" />
+      <InitiativeIllustration id={i.id} illustration={i.illustration} customImage={i.customImage} className="hidden h-[112px] w-[110px] sm:block" />
 
       <span className="block min-w-0 flex-1">
         <span className="flex flex-col gap-3 md:flex-row md:items-start md:gap-6">

@@ -6,6 +6,7 @@
  */
 import type { z } from "zod";
 import type {
+  customImageSchema,
   driverSchema,
   documentRefSchema,
   historyEntrySchema,
@@ -54,6 +55,7 @@ export type IllustrationKey = (typeof ILLUSTRATIONS)[number];
 export type PhaseState = (typeof PHASE_STATES)[number];
 export type Phase = z.infer<typeof phaseSchema>;
 
+export type CustomImage = z.infer<typeof customImageSchema>;
 export type Milestone = z.infer<typeof milestoneSchema>;
 export type DocumentRef = z.infer<typeof documentRefSchema>;
 export type PrototypeRef = z.infer<typeof prototypeRefSchema>;

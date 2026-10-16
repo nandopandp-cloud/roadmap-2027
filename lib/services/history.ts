@@ -50,6 +50,8 @@ export function describeChanges(before: Initiative, after: InitiativeInput): str
     const pct = progressOf(after.phases);
     changes.push(`Etapas de progresso atualizadas${pct === null ? "" : ` (${pct}% concluído)`}.`);
   }
+  if (before.customImage?.imageId !== after.customImage?.imageId)
+    changes.push(after.customImage ? "Imagem da iniciativa atualizada." : "Imagem própria removida.");
   if (JSON.stringify(before.objectives) !== JSON.stringify(after.objectives)) changes.push("Objetivos principais atualizados.");
   return changes;
 }

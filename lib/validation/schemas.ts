@@ -117,6 +117,20 @@ export const metricSchema = z.object({
   lastEvaluatedAt: isoDate,
 });
 
+const imageId = z.string().regex(/^[a-f0-9-]{36}$/, "Imagem inválida.");
+
+/** Imagem enviada pelo usuário: recorte final, original (para reeditar) e parâmetros do editor. */
+export const customImageSchema = z.object({
+  imageId,
+  originalId: imageId,
+  zoom: z.number().min(1).max(5).default(1),
+  rotation: z.number().min(-360).max(360).default(0),
+  flipX: z.boolean().default(false),
+  flipY: z.boolean().default(false),
+  x: z.number().min(-2).max(2).default(0),
+  y: z.number().min(-2).max(2).default(0),
+});
+
 export const historyEntrySchema = z.object({
   id: localId,
   at: z.string(),
@@ -131,6 +145,8 @@ export const initiativeInputSchema = z.object({
   category: text(80).default(""),
   tags: z.array(text(40)).max(20).default([]),
   illustration: z.enum(ILLUSTRATIONS).nullable().default(null),
+  /** Imagem própria; quando definida, tem prioridade sobre a ilustração da biblioteca. */
+  customImage: customImageSchema.nullable().default(null),
 
   // Problema e motivação
   problem: required("O problema", 4000),

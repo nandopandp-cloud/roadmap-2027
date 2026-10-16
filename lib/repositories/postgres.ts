@@ -59,6 +59,11 @@ CREATE TABLE IF NOT EXISTS strategy_context (
   data JSONB NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+CREATE TABLE IF NOT EXISTS images (
+  id TEXT PRIMARY KEY,
+  data BYTEA NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 CREATE TABLE IF NOT EXISTS documents (
   path TEXT PRIMARY KEY,
   content TEXT NOT NULL,

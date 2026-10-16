@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useFirstAvailable } from "@/lib/client/assets";
 import { cn } from "@/lib/client/cn";
 import { ILLUSTRATION_ASSET, ILLUSTRATION_LABEL } from "@/lib/domain/labels";
-import type { IllustrationKey } from "@/lib/domain/types";
+import type { CustomImage, IllustrationKey } from "@/lib/domain/types";
 
 /** Fallback visual estável por iniciativa quando nenhuma ilustração foi escolhida. */
 const FALLBACK_ORDER: IllustrationKey[] = ["planeta", "foguete", "satelite", "ilha", "tecnologia", "astronauta"];
@@ -55,12 +55,23 @@ export function FallbackImg({
 export function InitiativeIllustration({
   id,
   illustration,
+  customImage,
   className,
 }: {
   id: string;
   illustration: IllustrationKey | null;
+  /** Imagem própria da iniciativa (tem prioridade sobre a biblioteca). */
+  customImage?: CustomImage | null;
   className?: string;
 }) {
+  if (customImage) {
+    return (
+      <span aria-hidden className={cn("relative block shrink-0 overflow-hidden rounded-2xl bg-[#efeaff]", className)}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- imagem enviada, servida pela própria aplicação */}
+        <img src={`/api/images/${customImage.imageId}`} alt="" draggable={false} loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
+      </span>
+    );
+  }
   const key = illustrationFor(id, illustration);
   const asset = ILLUSTRATION_ASSET[key];
   return (

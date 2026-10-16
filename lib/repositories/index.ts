@@ -1,6 +1,7 @@
 import "server-only";
 import path from "node:path";
 import { FileDocumentStore, PostgresDocumentStore, type DocumentStore } from "@/lib/repositories/documents";
+import { FileImageStore, PostgresImageStore, type ImageStore } from "@/lib/repositories/images";
 import { JsonFileRepository } from "@/lib/repositories/json-file-repository";
 import { getPool, resolveDatabaseUrl } from "@/lib/repositories/postgres";
 import { PostgresRepository } from "@/lib/repositories/postgres-repository";
@@ -44,4 +45,14 @@ export function getDocumentStore(resolve: (relPath: string) => string): Document
     documents = url ? new PostgresDocumentStore(getPool(url), resolve) : new FileDocumentStore(resolve);
   }
   return documents;
+}
+
+let images: ImageStore | null = null;
+
+export function getImageStore(): ImageStore {
+  if (!images) {
+    const url = resolveDatabaseUrl();
+    images = url ? new PostgresImageStore(getPool(url)) : new FileImageStore(path.join(PROJECT_ROOT, "data", "local", "images"));
+  }
+  return images;
 }

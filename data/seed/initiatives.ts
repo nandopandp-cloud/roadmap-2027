@@ -39,6 +39,7 @@ const base = {
   audience: "",
   objectives: [],
   deliverables: [],
+  customImage: null,
 } satisfies Partial<Initiative>;
 
 /** Etapas padrão, com a primeira no estado indicado (nenhuma etapa está concluída nos dados iniciais). */

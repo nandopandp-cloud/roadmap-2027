@@ -133,6 +133,7 @@ A camada de persistência é escolhida automaticamente ([lib/repositories/index.
 - **Importação inicial**: com o banco vazio, o app importa os dados existentes (`data/local/db.json`, se houver, ou os dados iniciais de `data/seed/`) e o conteúdo de todos os `.md` de `initiatives/`. Isso acontece uma única vez (`roadmap_meta.schema_version`).
 - Alterações rodam em transação com lock consultivo (`pg_advisory_xact_lock`), gravando apenas os registros alterados.
 - Documentos: o conteúdo salvo pela interface fica na tabela `documents`. Os arquivos em `initiatives/` são a versão inicial versionada no git; editar pela interface **não** altera o arquivo do repositório.
+- **Imagens enviadas** (editor de imagem da iniciativa) ficam na tabela `images` (bytea); sem banco, em `data/local/images/`. Cada envio gera duas imagens: o recorte quadrado (800 px) e uma cópia original reduzida (1600 px) para permitir reeditar zoom, rotação, espelhamento e corte. Imagens substituídas não são apagadas automaticamente.
 - Para trabalhar localmente no mesmo banco, coloque a `DATABASE_URL` da Neon em `.env.local` (nunca no código).
 
 ### Arquivo local
