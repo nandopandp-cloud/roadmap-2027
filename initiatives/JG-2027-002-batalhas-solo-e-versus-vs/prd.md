@@ -1,6 +1,6 @@
-# PRD — Batalhas Solo e Versus (VS) | Geniex
+# PRD: Batalhas Solo e Versus (VS) | Geniex
 
-**Produto:** Geniex — Jovens Gênios  
+**Produto:** Geniex (Jovens Gênios)  
 **Funcionalidade:** Batalhas Solo e Versus  
 **Versão:** 2.0  
 **Status:** Proposta consolidada para refinamento com Produto, Design e Engenharia  
@@ -90,7 +90,7 @@ As metas quantitativas deverão ser definidas após o levantamento da linha de b
 
 ---
 
-# 2. Discovery — premissas, critérios e restrições
+# 2. Discovery: premissas, critérios e restrições
 
 ## 2.1. Premissas do produto
 
@@ -189,7 +189,7 @@ Cada questão terá o mesmo peso.
 
 A nota representa o número de respostas corretas, e não um percentual. O percentual de aproveitamento poderá ser exibido como informação complementar, calculado sobre as 10 questões.
 
-## 2.6. Batalha Solo — critérios de resultado
+## 2.6. Batalha Solo: critérios de resultado
 
 | Acertos | Resultado |
 |---:|---|
@@ -199,7 +199,7 @@ A nota representa o número de respostas corretas, e não um percentual. O perce
 
 O resultado será apresentado imediatamente após a conclusão ou o encerramento automático da rodada.
 
-## 2.7. Batalha Versus — critérios de resultado
+## 2.7. Batalha Versus: critérios de resultado
 
 - O estudante seleciona um oponente elegível.
 - O desafio é registrado.
@@ -311,7 +311,7 @@ O sistema deverá validar a elegibilidade no momento da criação do desafio.
 - A plataforma não inicia uma rodada se não conseguir atender às regras de composição.
 - A configuração e o conjunto de questões são persistidos para garantir consistência durante a rodada.
 
-## 3.5. Batalha Solo — personagem oficial Nexo
+## 3.5. Batalha Solo: personagem oficial Nexo
 
 **Descrição:** permitir que o estudante enfrente o Nexo em uma rodada de 10 questões.
 
@@ -478,7 +478,7 @@ O sistema deverá validar a elegibilidade no momento da criação do desafio.
 
 **Descrição:** permitir que os participantes iniciem uma nova disputa após o encerramento da batalha anterior.
 
-**Prioridade:** P1 — a confirmar no planejamento do MVP.
+**Prioridade:** P1, a confirmar no planejamento do MVP.
 
 **Critérios de aceite:**
 
@@ -494,7 +494,7 @@ O sistema deverá validar a elegibilidade no momento da criação do desafio.
 
 **Descrição:** permitir consultar desafios pendentes e disputas anteriores.
 
-**Prioridade:** P1 — a confirmar no planejamento do MVP.
+**Prioridade:** P1, a confirmar no planejamento do MVP.
 
 **Critérios de aceite:**
 
@@ -507,7 +507,7 @@ O sistema deverá validar a elegibilidade no momento da criação do desafio.
 
 ---
 
-# 4. User flow — fluxos de navegação
+# 4. User flow: fluxos de navegação
 
 ## 4.1. Fluxo geral
 
@@ -545,7 +545,7 @@ O sistema deverá validar a elegibilidade no momento da criação do desafio.
 15. O estudante consulta o gabarito.
 16. Retorna à área de Batalhas ou inicia outra disputa.
 
-## 4.3. Fluxo da Batalha VS — desafiante
+## 4.3. Fluxo da Batalha VS: desafiante
 
 1. O estudante seleciona Batalha VS.
 2. Visualiza os oponentes elegíveis.
@@ -564,7 +564,7 @@ O sistema deverá validar a elegibilidade no momento da criação do desafio.
 15. Caso o prazo expire sem conclusão do desafiado, o desafiante recebe vitória por W.O.
 16. Após o encerramento, o estudante pode solicitar revanche.
 
-## 4.4. Fluxo da Batalha VS — desafiado
+## 4.4. Fluxo da Batalha VS: desafiado
 
 1. O estudante identifica um desafio pendente.
 2. Visualiza o desafiante, as disciplinas, os tópicos e o prazo disponível.
@@ -607,59 +607,59 @@ O sistema deverá validar a elegibilidade no momento da criação do desafio.
 | Rodada do desafiante em andamento | O desafiante está respondendo às questões. |
 | Rodada do desafiado em andamento | O desafiado está respondendo às questões. |
 | Aguardando resultado | Uma rodada foi encerrada, mas a outra ainda está pendente. |
-| Concluída — vitória | Um participante obteve a maior nota. |
-| Concluída — derrota | O participante obteve a menor nota. |
-| Concluída — empate | Ambos obtiveram a mesma nota. |
-| Concluída — W.O. | O desafiado não concluiu dentro do prazo. |
+| Concluída: vitória | Um participante obteve a maior nota. |
+| Concluída: derrota | O participante obteve a menor nota. |
+| Concluída: empate | Ambos obtiveram a mesma nota. |
+| Concluída: W.O. | O desafiado não concluiu dentro do prazo. |
 | Indisponível ou cancelada | Estado excepcional sujeito a regras adicionais. |
 
 Os estados da batalha e os estados das rodadas individuais deverão ser modelados separadamente quando necessário, evitando combinações contraditórias.
 
 ---
 
-# 5. Delivery — requisitos funcionais e técnicos
+# 5. Delivery: requisitos funcionais e técnicos
 
 ## 5.1. Requisitos funcionais
 
-**RF-01 — Acesso:** disponibilizar a área de Batalhas para estudantes autorizados.
+**RF-01 (Acesso):** disponibilizar a área de Batalhas para estudantes autorizados.
 
-**RF-02 — Modalidade:** permitir selecionar Solo ou VS.
+**RF-02 (Modalidade):** permitir selecionar Solo ou VS.
 
-**RF-03 — Seleção de disciplinas:** exigir de uma a três disciplinas por batalha.
+**RF-03 (Seleção de disciplinas):** exigir de uma a três disciplinas por batalha.
 
-**RF-04 — Seleção de tópicos:** exigir exatamente um tópico para cada disciplina selecionada.
+**RF-04 (Seleção de tópicos):** exigir exatamente um tópico para cada disciplina selecionada.
 
-**RF-05 — Validação:** impedir o início sem disciplinas e tópicos válidos.
+**RF-05 (Validação):** impedir o início sem disciplinas e tópicos válidos.
 
-**RF-06 — Geração de questões:** gerar exatamente 10 questões por rodada, respeitando os tópicos selecionados e o mínimo de três questões por tópico.
+**RF-06 (Geração de questões):** gerar exatamente 10 questões por rodada, respeitando os tópicos selecionados e o mínimo de três questões por tópico.
 
-**RF-07 — Aleatoriedade:** randomizar a ordem das questões e a distribuição válida entre os tópicos.
+**RF-07 (Aleatoriedade):** randomizar a ordem das questões e a distribuição válida entre os tópicos.
 
-**RF-08 — Registro de respostas:** persistir as respostas fornecidas pelo estudante.
+**RF-08 (Registro de respostas):** persistir as respostas fornecidas pelo estudante.
 
-**RF-09 — Cronômetro:** limitar cada rodada a 10 minutos.
+**RF-09 (Cronômetro):** limitar cada rodada a 10 minutos.
 
-**RF-10 — Encerramento automático:** encerrar a rodada ao atingir o limite e contabilizar questões não respondidas como incorretas.
+**RF-10 (Encerramento automático):** encerrar a rodada ao atingir o limite e contabilizar questões não respondidas como incorretas.
 
-**RF-11 — Cálculo de nota:** calcular a nota de 0 a 10 no servidor.
+**RF-11 (Cálculo de nota):** calcular a nota de 0 a 10 no servidor.
 
-**RF-12 — Resultado Solo:** aplicar os critérios de vitória, empate e derrota.
+**RF-12 (Resultado Solo):** aplicar os critérios de vitória, empate e derrota.
 
-**RF-13 — Seleção de oponente:** listar estudantes elegíveis para o modo VS.
+**RF-13 (Seleção de oponente):** listar estudantes elegíveis para o modo VS.
 
-**RF-14 — Criação de desafio:** registrar participantes, disciplinas, tópicos, data/hora e prazo.
+**RF-14 (Criação de desafio):** registrar participantes, disciplinas, tópicos, data/hora e prazo.
 
-**RF-15 — Resultado VS:** comparar as notas após o encerramento das duas rodadas.
+**RF-15 (Resultado VS):** comparar as notas após o encerramento das duas rodadas.
 
-**RF-16 — W.O.:** encerrar desafios não respondidos em 24 horas.
+**RF-16 (W.O.):** encerrar desafios não respondidos em 24 horas.
 
-**RF-17 — Gabarito:** disponibilizar respostas selecionadas, respostas corretas e situação de cada questão.
+**RF-17 (Gabarito):** disponibilizar respostas selecionadas, respostas corretas e situação de cada questão.
 
-**RF-18 — Revanche:** permitir iniciar uma nova batalha após o encerramento, conforme as regras definidas.
+**RF-18 (Revanche):** permitir iniciar uma nova batalha após o encerramento, conforme as regras definidas.
 
-**RF-19 — Histórico:** permitir consultar batalhas anteriores e pendentes.
+**RF-19 (Histórico):** permitir consultar batalhas anteriores e pendentes.
 
-**RF-20 — Persistência:** preservar notas, respostas, gabaritos e resultados após o encerramento.
+**RF-20 (Persistência):** preservar notas, respostas, gabaritos e resultados após o encerramento.
 
 ## 5.2. Regras de geração e distribuição
 
@@ -805,7 +805,7 @@ A experiência deverá manter a identidade visual da Geniex, utilizando o Nexo c
 
 # 6. Roadmap e estratégia de entrega
 
-## Fase 1 — Validação de regras
+## Fase 1: Validação de regras
 
 **Objetivo:** validar as regras de negócio e as principais dependências.
 
@@ -819,7 +819,7 @@ Entregáveis:
 - Validação dos critérios de W.O.
 - Priorização final do MVP.
 
-## Fase 2 — UX/UI e especificação
+## Fase 2: UX/UI e especificação
 
 **Objetivo:** transformar os requisitos em uma experiência pronta para implementação.
 
@@ -834,7 +834,7 @@ Entregáveis:
 - Critérios de aceite por tela.
 - Handoff de Design para Engenharia.
 
-## Fase 3 — Núcleo da Batalha Solo
+## Fase 3: Núcleo da Batalha Solo
 
 **Objetivo:** viabilizar a configuração e a execução de batalhas individuais.
 
@@ -851,7 +851,7 @@ Entregáveis:
 - Resultado Solo.
 - Gabarito.
 
-## Fase 4 — Batalha Versus
+## Fase 4: Batalha Versus
 
 **Objetivo:** habilitar disputas entre estudantes.
 
@@ -867,7 +867,7 @@ Entregáveis:
 - Encerramento automático por W.O.
 - Gabarito individual.
 
-## Fase 5 — Revanche e histórico
+## Fase 5: Revanche e histórico
 
 **Objetivo:** ampliar a recorrência e a continuidade da experiência.
 
@@ -879,7 +879,7 @@ Entregáveis:
 - Refinamentos de UX.
 - Melhorias na instrumentação analítica.
 
-## Fase 6 — QA e lançamento
+## Fase 6: QA e lançamento
 
 **Objetivo:** garantir a consistência da experiência antes e depois da disponibilização.
 
@@ -943,7 +943,7 @@ O lançamento deverá ser acompanhado por:
 
 ---
 
-# 8. Futuro — oportunidades de evolução
+# 8. Futuro: oportunidades de evolução
 
 As evoluções abaixo não fazem parte do escopo obrigatório do MVP.
 
@@ -981,7 +981,7 @@ Avaliar a seleção de questões conforme o nível de conhecimento, os conteúdo
 
 ---
 
-# 9. Q&A — perguntas e respostas
+# 9. Q&A: perguntas e respostas
 
 ## Seleção de conteúdo
 
@@ -1163,7 +1163,7 @@ A batalha não deverá começar. A plataforma deverá informar a indisponibilida
 
 ---
 
-# 11. Definition of Done — critérios para lançamento
+# 11. Definition of Done: critérios para lançamento
 
 A funcionalidade poderá ser considerada pronta para lançamento quando:
 
