@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, ChevronsLeft, ChevronsRight, FileText, House, Lock, X } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, FileText, House, Lock, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BrandLogo } from "@/components/layout/brand-logo";
@@ -34,7 +34,7 @@ export function Sidebar({ collapsed, onToggleCollapsed, mobile, onNavigate }: Si
   const hasArt = useHasAsset(SIDEBAR_ART);
 
   return (
-    <div className={cn("h-full shrink-0 p-3 transition-[width] duration-200", compact ? "w-[84px]" : "w-[208px]", mobile && "w-[232px]")}>
+    <div className={cn("relative z-20 h-full shrink-0 p-3 transition-[width] duration-200", compact ? "w-[84px]" : "w-[208px]", mobile && "w-[232px]")}>
       <nav
         aria-label="Navegação principal"
         className="relative flex h-full flex-col overflow-hidden rounded-[28px] bg-[linear-gradient(180deg,#f7f5ff_0%,#f1eeff_55%,#e9e4ff_100%)] shadow-[0_10px_40px_rgba(70,50,160,0.14),0_0_0_1px_rgba(120,100,220,0.08)]"
@@ -121,22 +121,20 @@ export function Sidebar({ collapsed, onToggleCollapsed, mobile, onNavigate }: Si
             );
           })}
         </ul>
-
-        {!mobile && (
-          <button
-            type="button"
-            onClick={onToggleCollapsed}
-            className={cn(
-              "absolute top-1/2 z-10 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white text-violet shadow-[0_8px_22px_rgba(70,50,160,0.22)] transition-colors hover:bg-[#f4f1ff] lg:flex",
-              compact ? "left-1/2 -ml-[22px]" : "right-4",
-            )}
-            aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
-            title={collapsed ? "Expandir menu" : "Recolher menu"}
-          >
-            {collapsed ? <ChevronsRight size={20} /> : <ChevronsLeft size={20} />}
-          </button>
-        )}
       </nav>
+
+      {/* Puxador: centralizado na borda direita (metade dentro, metade fora do cartão). Fica fora do <nav> porque o cartão corta o que ultrapassa a borda. */}
+      {!mobile && (
+        <button
+          type="button"
+          onClick={onToggleCollapsed}
+          className="absolute right-[-6px] top-1/2 z-30 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[#d9d2fb] bg-white text-violet shadow-[0_6px_18px_rgba(70,50,160,0.25)] transition-all hover:scale-110 hover:bg-[#f4f1ff] lg:flex"
+          aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+          title={collapsed ? "Expandir menu" : "Recolher menu"}
+        >
+          {collapsed ? <ChevronRight size={20} strokeWidth={2.4} /> : <ChevronLeft size={20} strokeWidth={2.4} />}
+        </button>
+      )}
     </div>
   );
 }
