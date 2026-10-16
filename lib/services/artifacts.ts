@@ -1,7 +1,7 @@
 import "server-only";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { PROJECT_ROOT } from "@/lib/repositories";
+import { getDocumentStore, PROJECT_ROOT, storageKind } from "@/lib/repositories";
 import { READ_ONLY_MESSAGE } from "@/lib/repositories/json-file-repository";
 import { DomainError } from "@/lib/services/errors";
 import { DOCUMENT_EXTENSIONS, isSafeRepoPath } from "@/lib/validation/paths";
@@ -19,40 +19,34 @@ function resolveSafe(relPath: string, extensions: string[]): string {
   return absolute;
 }
 
+const isDocument = (relPath: string) => DOCUMENT_EXTENSIONS.some((ext) => relPath.toLowerCase().endsWith(ext));
+const documentStore = () => getDocumentStore((relPath) => resolveSafe(relPath, DOCUMENT_EXTENSIONS));
+
 export async function artifactExists(relPath: string, extensions: string[]): Promise<boolean> {
   try {
-    const stat = await fs.stat(resolveSafe(relPath, extensions));
-    return stat.isFile();
+    const absolute = resolveSafe(relPath, extensions);
+    // Documentos podem existir no banco mesmo sem arquivo correspondente no repositório.
+    if (isDocument(relPath)) return await documentStore().exists(relPath);
+    return (await fs.stat(absolute)).isFile();
   } catch {
     return false;
   }
 }
 
 export async function readDocument(relPath: string): Promise<{ content: string; modifiedAt: string } | null> {
-  const file = resolveSafe(relPath, DOCUMENT_EXTENSIONS);
-  try {
-    const [content, stat] = await Promise.all([fs.readFile(file, "utf8"), fs.stat(file)]);
-    return { content, modifiedAt: stat.mtime.toISOString() };
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
-    throw error;
-  }
+  resolveSafe(relPath, DOCUMENT_EXTENSIONS);
+  return documentStore().read(relPath);
 }
 
 export async function writeDocument(relPath: string, content: string): Promise<{ modifiedAt: string }> {
-  const file = resolveSafe(relPath, DOCUMENT_EXTENSIONS);
+  resolveSafe(relPath, DOCUMENT_EXTENSIONS);
   try {
-    await fs.mkdir(path.dirname(file), { recursive: true });
-    const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
-    await fs.writeFile(tmp, content.endsWith("\n") ? content : `${content}\n`, "utf8");
-    await fs.rename(tmp, file);
+    return await documentStore().write(relPath, content.endsWith("\n") ? content : `${content}\n`);
   } catch (error) {
-    // Qualquer erro de sistema de arquivos ao gravar indica ambiente sem escrita.
-    if ((error as NodeJS.ErrnoException).code) throw new DomainError(503, READ_ONLY_MESSAGE);
+    // Erro de sistema de arquivos ao gravar (sem banco configurado) indica ambiente sem escrita.
+    if ((error as NodeJS.ErrnoException).code && storageKind() === "arquivo") throw new DomainError(503, READ_ONLY_MESSAGE);
     throw error;
   }
-  const stat = await fs.stat(file);
-  return { modifiedAt: stat.mtime.toISOString() };
 }
 
 const MIME: Record<string, string> = {

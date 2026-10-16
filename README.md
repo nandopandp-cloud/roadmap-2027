@@ -120,16 +120,24 @@ scripts/reset-db.mjs
 
 ## Persistência
 
-Hoje: **arquivo JSON local** em `data/local/db.json`, criado automaticamente a partir de `data/seed/` na primeira requisição. As escritas são serializadas e atômicas (arquivo temporário + rename). Os dados persistem entre recarregamentos e reinícios do servidor.
+A camada de persistência é escolhida automaticamente ([lib/repositories/index.ts](lib/repositories/index.ts)):
 
-Limitação: exige sistema de arquivos gravável. Em ambientes serverless com disco somente leitura (ex.: Vercel) a aplicação funciona **apenas para leitura**: exibe os dados iniciais, mostra um aviso no topo e responde às tentativas de edição com uma mensagem clara (HTTP 503), sem simular gravação. Para editar em produção, migre para um banco persistente (abaixo).
+| Ambiente | Armazenamento |
+| --- | --- |
+| Com `DATABASE_URL` / `POSTGRES_URL` (produção na Vercel, banco **Neon "Roadmap-JG"**) | **Postgres** — iniciativas, plataformas, contexto, histórico e conteúdo dos documentos Markdown |
+| Sem variável de banco (desenvolvimento) | Arquivo JSON `data/local/db.json` + documentos em `initiatives/` |
 
-### Migrar para Supabase
+### Postgres (Neon)
 
-1. Criar tabelas `initiatives`, `platforms`, `context` (ou `drivers`, `problems`, `principles`), `initiative_documents`, `initiative_prototypes`, `initiative_dependencies`, `initiative_history` — espelhando os schemas de `lib/validation/schemas.ts`.
-2. Implementar `SupabaseRepository` com a interface `RoadmapRepository` ([lib/repositories/types.ts](lib/repositories/types.ts)) e selecioná-lo em [lib/repositories/index.ts](lib/repositories/index.ts) quando `SUPABASE_URL` estiver definida.
-3. Usar a service role key **apenas no servidor** (rotas de API). Configurar RLS assim que houver autenticação.
-4. Os arquivos de `initiatives/` continuam versionados no git; para produção, considerar Supabase Storage para conteúdo editado pela interface.
+- Tabelas (criadas automaticamente na primeira conexão): `initiatives`, `platforms`, `strategy_context`, `documents` e `roadmap_meta`. Cada iniciativa/plataforma é um registro JSONB validado pelos schemas Zod.
+- **Importação inicial**: com o banco vazio, o app importa os dados existentes (`data/local/db.json`, se houver, ou os dados iniciais de `data/seed/`) e o conteúdo de todos os `.md` de `initiatives/`. Isso acontece uma única vez (`roadmap_meta.schema_version`).
+- Alterações rodam em transação com lock consultivo (`pg_advisory_xact_lock`), gravando apenas os registros alterados.
+- Documentos: o conteúdo salvo pela interface fica na tabela `documents`. Os arquivos em `initiatives/` são a versão inicial versionada no git; editar pela interface **não** altera o arquivo do repositório.
+- Para trabalhar localmente no mesmo banco, coloque a `DATABASE_URL` da Neon em `.env.local` (nunca no código).
+
+### Arquivo local
+
+Sem banco configurado, os dados ficam em `data/local/db.json` (gitignored), com escrita atômica. Em ambientes com disco somente leitura e sem banco, o app funciona apenas para leitura, mostra um aviso no topo e responde 503 às edições.
 
 ## PRDs e protótipos
 
@@ -165,7 +173,8 @@ Para trocar uma arte, substitua o arquivo mantendo o nome. Para gerar a versão 
 
 | Decisão | Motivo |
 | --- | --- |
-| Persistência em JSON local atrás de `RoadmapRepository` | Não há credenciais do Supabase; permite migrar sem refazer a aplicação. |
+| Persistência atrás de `RoadmapRepository` | Postgres (Neon) em produção e JSON local no desenvolvimento, sem mudar o restante da aplicação. |
+| Registros JSONB por entidade no Postgres | Mantém o formato validado pelo Zod e a evolução do modelo sem migrações de colunas a cada campo novo. |
 | Estado no cliente via contexto React + API | Volume de dados pequeno; o drawer é compartilhado entre Iniciativas, Roadmap e Contexto sem bibliotecas extras. |
 | Iniciativa selecionada na URL (`?iniciativa=&aba=`) | Links compartilháveis e navegação voltar/avançar preservando a lista. |
 | Prioridade começa "A definir" | O briefing pede validação de prioridades; nenhuma pontuação automática. |

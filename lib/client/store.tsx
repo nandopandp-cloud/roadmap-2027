@@ -34,6 +34,7 @@ const EMPTY: Snapshot = {
   platforms: [],
   context: { intro: "", drivers: [], principles: [], problems: [] },
   writable: true,
+  storage: "arquivo",
 };
 
 const StoreContext = createContext<RoadmapStore | null>(null);

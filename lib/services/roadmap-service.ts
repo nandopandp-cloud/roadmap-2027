@@ -1,7 +1,7 @@
 import "server-only";
 import type { z } from "zod";
 import type { Database, Initiative, InitiativeInput, Platform, StrategyContext } from "@/lib/domain/types";
-import { getRepository } from "@/lib/repositories";
+import { getRepository, storageKind, type StorageKind } from "@/lib/repositories";
 import { DomainError, notFound } from "@/lib/services/errors";
 import { describeChanges, historyEntry } from "@/lib/services/history";
 import { initiativeFolder, slugify } from "@/lib/validation/paths";
@@ -14,7 +14,7 @@ import {
 } from "@/lib/validation/schemas";
 
 /** Snapshot exposto ao cliente. */
-export type Snapshot = Omit<Database, "schemaVersion"> & { writable: boolean };
+export type Snapshot = Omit<Database, "schemaVersion"> & { writable: boolean; storage: StorageKind };
 
 function parse<S extends z.ZodType>(schema: S, data: unknown): z.infer<S> {
   const result = schema.safeParse(data);
@@ -76,7 +76,7 @@ function cleanPlatformNotes(input: InitiativeInput): InitiativeInput {
 export async function getSnapshot(): Promise<Snapshot> {
   const repo = getRepository();
   const [{ schemaVersion: _v, ...rest }, writable] = await Promise.all([repo.read(), repo.isWritable()]);
-  return { ...rest, writable };
+  return { ...rest, writable, storage: storageKind() };
 }
 
 export async function createInitiative(data: unknown): Promise<Initiative> {

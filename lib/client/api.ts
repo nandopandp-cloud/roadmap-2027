@@ -6,6 +6,8 @@ export interface Snapshot {
   context: StrategyContext;
   /** false quando a implantação não consegue gravar alterações (ex.: Vercel). */
   writable: boolean;
+  /** Onde os dados estão sendo gravados. */
+  storage: "postgres" | "arquivo";
 }
 
 /** Erro retornado pela API, com mensagens por campo quando houver validação. */

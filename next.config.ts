@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/api/documents": ["./initiatives/**/*"],
     "/api/artifacts/status": ["./initiatives/**/*"],
+    "/api/**/*": ["./initiatives/**/*.md"],
     "/api/initiatives/[id]/documents": ["./initiatives/**/*"],
     "/prototipos/[...path]": ["./initiatives/**/*"],
     "/*": ["./public/illustrations/**/*"],

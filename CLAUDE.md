@@ -44,7 +44,8 @@ Instruções permanentes para trabalhar neste repositório. Leia o [README](READ
   - `prototype/index.html` — protótipo navegável autocontido.
 - Caminhos de artefatos são sempre relativos à raiz, começam com `initiatives/` e são validados por `isSafeRepoPath`.
 - Protótipos são servidos por `/prototipos/...` com CSP `sandbox`; o iframe não pode receber `allow-same-origin`.
-- Dados iniciais ficam em `data/seed/`. O banco local (`data/local/db.json`) é gerado e ignorado pelo git; `npm run db:reset` recria a partir do seed.
+- Dados iniciais ficam em `data/seed/`. Em produção os dados vivem no Postgres (Neon "Roadmap-JG", variável `DATABASE_URL`/`POSTGRES_URL`); no desenvolvimento sem banco, em `data/local/db.json` (gitignored; `npm run db:reset` recria a partir do seed).
+- Conteúdo de documentos editados pela interface fica na tabela `documents`; os `.md` do repositório são só a versão inicial.
 
 ## Critérios de qualidade
 
