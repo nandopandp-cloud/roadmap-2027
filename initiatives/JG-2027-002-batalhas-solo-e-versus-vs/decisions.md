@@ -1,4 +1,4 @@
-# Decisões — JG-2027-005 Batalhas Solo e Versus (VS)
+# Decisões — JG-2027-002 Batalhas Solo e Versus (VS)
 
 Registro de decisões e pendências. Todas as decisões abaixo são **propostas iniciais** (PRD v2.0, seção 10)
 e ainda dependem de validação.

@@ -78,7 +78,7 @@ export const seedContext: StrategyContext = {
       ],
       consequences:
         "Mensagens de erro genéricas para o estudante, interrupção de atividades em sala e necessidade de intervenção da equipe técnica.",
-      relatedInitiativeIds: ["JG-2027-004", "JG-2027-001"],
+      relatedInitiativeIds: ["JG-2027-001"],
       validation: "confirmado",
     },
     {
@@ -89,7 +89,7 @@ export const seedContext: StrategyContext = {
       audience: "Equipes administrativas, gestores escolares e, indiretamente, estudantes.",
       evidence: [],
       consequences: "Correções manuais, retrabalho operacional e risco de acessos ou relatórios incorretos.",
-      relatedInitiativeIds: ["JG-2027-002"],
+      relatedInitiativeIds: [],
       validation: "hipotese",
     },
     {
@@ -100,7 +100,7 @@ export const seedContext: StrategyContext = {
       audience: "Estudantes usuários do Exploradores.",
       evidence: [],
       consequences: "Menor continuidade da aprendizagem e maior dependência de professores.",
-      relatedInitiativeIds: ["JG-2027-003"],
+      relatedInitiativeIds: [],
       validation: "hipotese",
     },
   ],

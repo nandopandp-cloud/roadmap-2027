@@ -2,8 +2,9 @@ import { defaultPhases } from "@/lib/domain/progress";
 import type { Initiative, PhaseState } from "@/lib/domain/types";
 
 /**
- * Iniciativas iniciais de demonstração. NÃO representam prioridades aprovadas:
- * quarters e prioridades estão marcados como "a validar" (planningValidated: false).
+ * Iniciativas iniciais (ambientes novos). As iniciativas de demonstração originais foram
+ * removidas por serem fictícias; ficam a 001 (Login simplificado) e a 002 (Batalhas), ambas
+ * com quarter e prioridade "a validar" (planningValidated: false).
  *
  * A JG-2027-001 (Login simplificado do estudante) usa como fonte o PRD recebido em 16/10/2026
  * (initiatives/JG-2027-001-autenticacao-estudante/prd.md).
@@ -94,7 +95,6 @@ export const seedInitiatives: Initiative[] = [
       { id: "m3", title: "Piloto e validação", quarter: "Q3", date: "", done: false },
       { id: "m4", title: "Expansão progressiva", quarter: "Q4", date: "", done: false },
     ],
-    relatedInitiativeIds: ["JG-2027-002"],
     risks: [
       "Compartilhamento do cartão: o QR Code impresso pode ser fotografado ou emprestado.",
       "Baixa segurança do código visual: sequências curtas podem ser adivinhadas ou observadas.",
@@ -248,126 +248,6 @@ export const seedInitiatives: Initiative[] = [
   },
   {
     ...base,
-    id: "JG-2027-002",
-    repoFolder: "initiatives/JG-2027-002-consistencia-cadastros",
-    title: "Consistência de cadastros e vínculos escolares",
-    summary: "Garantir dados consistentes, integrados e atualizados entre escolas, turmas e estudantes.",
-    category: "Dados e operação",
-    tags: ["Cadastro", "Dados", "Integrações"],
-    illustration: "ilha",
-    phases: phases("em_andamento"),
-    problem:
-      "Garantir maior consistência entre estudantes, escolas, turmas e identificadores nos fluxos de cadastro e atualização.",
-    audience: "Equipes administrativas e gestores escolares; indiretamente, estudantes e educadores.",
-    motivator:
-      "Reduzir trabalho manual, inconsistências cadastrais e dependência de intervenções administrativas.",
-    expectedOutcome:
-      "Cadastros e vínculos escolares consistentes entre os fluxos de cadastro e atualização, com menos correções manuais.",
-    quarter: "Q2",
-    status: "discovery",
-    relatedInitiativeIds: ["JG-2027-001"],
-    pendingDecisions: [
-      "Mapear as causas das inconsistências e validar as evidências antes de definir uma solução técnica.",
-    ],
-    platformIds: ["admins"],
-    platformNotes: { admins: "Cadastro e atualização de estudantes, escolas e turmas." },
-    documents: [
-      {
-        id: "contexto",
-        title: "Contexto da iniciativa",
-        kind: "contexto",
-        source: "repo",
-        path: "initiatives/JG-2027-002-consistencia-cadastros/initiative.md",
-        url: "",
-        version: "",
-        status: "rascunho",
-        updatedAt: "2026-10-16",
-        versions: [],
-      },
-    ],
-    history: [created("JG-2027-002")],
-  },
-  {
-    ...base,
-    id: "JG-2027-003",
-    repoFolder: "initiatives/JG-2027-003-autonomia-estudante",
-    title: "Autonomia do estudante no aprendizado",
-    summary: "Evoluir a experiência do Exploradores com mais autonomia, personalização e engajamento.",
-    category: "Experiência de aprendizagem",
-    tags: ["Aprendizagem", "Gamificação", "Experiência"],
-    illustration: "foguete",
-    phases: phases("pendente"),
-    problem:
-      "Investigar oportunidades para tornar a experiência do Exploradores mais clara, autônoma e favorável à continuidade da aprendizagem.",
-    audience: "Estudantes usuários do Exploradores.",
-    motivator: "Facilitar a descoberta, o acesso e a continuidade das experiências de aprendizagem.",
-    expectedOutcome: "Estudantes descobrindo, retomando e concluindo atividades com menos mediação.",
-    quarter: "Q3",
-    status: "ideia",
-    relatedInitiativeIds: ["JG-2027-001"],
-    pendingDecisions: ["Definir quais jornadas do Exploradores serão investigadas primeiro."],
-    platformIds: ["exploradores"],
-    platformNotes: { exploradores: "Descoberta, continuidade e conclusão de atividades." },
-    documents: [
-      {
-        id: "contexto",
-        title: "Contexto da iniciativa",
-        kind: "contexto",
-        source: "repo",
-        path: "initiatives/JG-2027-003-autonomia-estudante/initiative.md",
-        url: "",
-        version: "",
-        status: "rascunho",
-        updatedAt: "2026-10-16",
-        versions: [],
-      },
-    ],
-    history: [created("JG-2027-003")],
-  },
-  {
-    ...base,
-    id: "JG-2027-004",
-    repoFolder: "initiatives/JG-2027-004-qualidade-jornadas",
-    title: "Qualidade das jornadas críticas",
-    summary: "Aprimorar as jornadas essenciais para aumentar estabilidade, desempenho e satisfação dos usuários.",
-    category: "Confiabilidade",
-    tags: ["Performance", "Confiabilidade", "Jornadas"],
-    illustration: "satelite",
-    phases: phases("em_andamento"),
-    problem:
-      "Identificar oportunidades de melhoria nas principais jornadas, priorizando confiabilidade, conclusão e redução de fricções.",
-    audience: "Estudantes, educadores e equipes administrativas nas jornadas mais utilizadas.",
-    motivator:
-      "Resolver problemas recorrentes que comprometem a estabilidade, a previsibilidade e a conclusão das principais jornadas.",
-    evidence: [
-      "Relato interno “Problemas de acesso – SJC”: bloqueios por limite de requisições (HTTP 429) em acessos simultâneos de uma mesma rede escolar.",
-    ],
-    expectedOutcome: "Jornadas críticas mais estáveis e previsíveis, com maior taxa de conclusão e menos fricções.",
-    quarter: "Q4",
-    status: "discovery",
-    pendingDecisions: [
-      "Definir as plataformas impactadas conforme o mapeamento das jornadas (Admins e Exploradores registrados como ponto de partida).",
-      "Mapear e priorizar as jornadas críticas.",
-    ],
-    platformIds: ["admins", "exploradores"],
-    documents: [
-      {
-        id: "contexto",
-        title: "Contexto da iniciativa",
-        kind: "contexto",
-        source: "repo",
-        path: "initiatives/JG-2027-004-qualidade-jornadas/initiative.md",
-        url: "",
-        version: "",
-        status: "rascunho",
-        updatedAt: "2026-10-16",
-        versions: [],
-      },
-    ],
-    history: [created("JG-2027-004")],
-  },
-  {
-    ...base,
     "title": "Batalhas Solo e Versus (VS)",
     "summary": "Transformar a prática de questões em desafios: enfrente o Nexo (Solo) ou desafie um colega (VS) em 10 questões.",
     "category": "Engajamento e gamificação",
@@ -504,7 +384,7 @@ export const seedInitiatives: Initiative[] = [
         "title": "Batalhas Solo e Versus (VS) | Geniex",
         "kind": "prd",
         "source": "repo",
-        "path": "initiatives/JG-2027-005-batalhas-solo-e-versus-vs/prd.md",
+        "path": "initiatives/JG-2027-002-batalhas-solo-e-versus-vs/prd.md",
         "url": "",
         "version": "2.0",
         "status": "em_revisao",
@@ -522,7 +402,7 @@ export const seedInitiatives: Initiative[] = [
         "title": "Decisões e pendências",
         "kind": "decisoes",
         "source": "repo",
-        "path": "initiatives/JG-2027-005-batalhas-solo-e-versus-vs/decisions.md",
+        "path": "initiatives/JG-2027-002-batalhas-solo-e-versus-vs/decisions.md",
         "url": "",
         "version": "",
         "status": "rascunho",
@@ -534,7 +414,7 @@ export const seedInitiatives: Initiative[] = [
         "title": "Contexto da iniciativa",
         "kind": "contexto",
         "source": "repo",
-        "path": "initiatives/JG-2027-005-batalhas-solo-e-versus-vs/initiative.md",
+        "path": "initiatives/JG-2027-002-batalhas-solo-e-versus-vs/initiative.md",
         "url": "",
         "version": "",
         "status": "rascunho",
@@ -548,7 +428,7 @@ export const seedInitiatives: Initiative[] = [
         "name": "Telas de referência do fluxo",
         "description": "Galeria navegável com 12 mockups do fluxo de Batalhas (área de batalhas, introdução Solo e VS, escolha de oponente, seleção de disciplinas e tópicos, quiz com cronômetro, resultados, gabarito, histórico) e a ficha do Nexo. Não há lógica de quiz nem dados reais.",
         "source": "repo",
-        "path": "initiatives/JG-2027-005-batalhas-solo-e-versus-vs/prototype/index.html",
+        "path": "initiatives/JG-2027-002-batalhas-solo-e-versus-vs/prototype/index.html",
         "url": "",
         "platformIds": [
           "geniex"
@@ -689,13 +569,13 @@ export const seedInitiatives: Initiative[] = [
         "lastEvaluatedAt": ""
       }
     ],
-    "id": "JG-2027-005",
-    "repoFolder": "initiatives/JG-2027-005-batalhas-solo-e-versus-vs",
+    "id": "JG-2027-002",
+    "repoFolder": "initiatives/JG-2027-002-batalhas-solo-e-versus-vs",
     "createdAt": "2026-10-16T16:00:00.000Z",
     "updatedAt": "2026-10-16T16:00:00.000Z",
     "history": [
       {
-        "id": "JG-2027-005-h1",
+        "id": "JG-2027-002-h1",
         "at": "2026-10-16T16:00:00.000Z",
         "description": "Iniciativa criada a partir do PRD de Batalhas Solo e Versus (v2.0)."
       }

@@ -1,4 +1,4 @@
-# JG-2027-005 — Batalhas Solo e Versus (VS)
+# JG-2027-002 — Batalhas Solo e Versus (VS)
 
 > Os campos operacionais (status, quarter, prioridade, métricas, etapas) vivem no banco da aplicação.
 > Este arquivo registra a narrativa da iniciativa e aponta para os artefatos versionados.
