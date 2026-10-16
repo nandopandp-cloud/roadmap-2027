@@ -1,7 +1,11 @@
+"use client";
+
 import { ChevronRight, House } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/client/cn";
+import { useFirstAvailable } from "@/lib/client/assets";
+import { HERO_BANNER } from "@/lib/domain/labels";
 
 interface Crumb {
   label: string;
@@ -62,17 +66,19 @@ export function PageHero({
   subtitle?: ReactNode;
   children?: ReactNode;
 }) {
+  const banner = useFirstAvailable([HERO_BANNER.src, HERO_BANNER.fallback]);
   return (
-    <div className="relative">
-      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[270px] overflow-hidden">
-        {/* eslint-disable-next-line @next/next/no-img-element -- SVG decorativo local */}
-        <img
-          src="/illustrations/hero-ceu.svg"
-          alt=""
-          className="absolute inset-0 h-full w-full object-cover object-right opacity-35 sm:opacity-100"
-          draggable={false}
+    <div className="relative pb-4">
+      {/* A arte fica contida no bloco do hero, para não cobrir o conteúdo seguinte. */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+        {/* Banner enviado pelo time; o cenário em SVG aparece enquanto o arquivo não existir. */}
+        <div
+          className="absolute inset-0 bg-cover bg-[position:right_center] opacity-35 sm:opacity-100"
+          style={{ backgroundImage: `url(${banner})` }}
         />
-        <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-b from-transparent to-canvas" />
+        {/* Clareia o lado esquerdo para manter o título legível sobre a arte. */}
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(244,247,252,0.92)_0%,rgba(244,247,252,0.7)_32%,rgba(244,247,252,0)_62%)]" />
+        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-b from-transparent to-canvas" />
       </div>
       <PageContainer className="relative pt-6">
         <Breadcrumbs crumbs={crumbs} />

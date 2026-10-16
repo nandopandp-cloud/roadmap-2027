@@ -12,4 +12,6 @@ export interface RoadmapRepository {
    * cópia do estado, pode alterá-la ou lançar erro (nada é gravado nesse caso).
    */
   transaction<T>(mutate: (db: Database) => T | Promise<T>): Promise<T>;
+  /** Indica se o armazenamento aceita gravações neste ambiente. */
+  isWritable(): Promise<boolean>;
 }

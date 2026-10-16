@@ -149,7 +149,7 @@ export function InitiativesView() {
         </div>
       </PageHero>
 
-      <PageContainer className="pb-16 pt-7">
+      <PageContainer className="pb-16 pt-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div role="radiogroup" aria-label="Filtrar por status" className="-mx-1 flex gap-2.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
             <button type="button" role="radio" aria-checked={filters.status === "todos"} className={pill(filters.status === "todos")} onClick={() => set("status", "todos")}>

@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 
 import { DocumentsTab, PrototypesTab } from "@/components/initiatives/drawer/artifacts-tabs";
 import { OverviewTab } from "@/components/initiatives/drawer/overview-tab";
 import { DependenciesTab, RoadmapTab } from "@/components/initiatives/drawer/planning-tabs";
-import { illustrationFor } from "@/components/initiatives/initiative-illustration";
+import { FallbackImg, illustrationFor } from "@/components/initiatives/initiative-illustration";
 import { PLATFORM_GLYPHS, PlatformPill } from "@/components/platforms/platform-icon";
 import { StatusBadge } from "@/components/ui/badges";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,7 @@ import { isTransversal } from "@/lib/client/filtering";
 import { DRAWER_TABS, useInitiativeSelection, type DrawerTab } from "@/lib/client/selection";
 import { useRoadmap } from "@/lib/client/store";
 import { ACCENT_TONE } from "@/lib/client/tones";
-import { ILLUSTRATION_SRC, QUARTER_LABEL } from "@/lib/domain/labels";
+import { ILLUSTRATION_ASSET, QUARTER_LABEL } from "@/lib/domain/labels";
 import type { Initiative, Platform } from "@/lib/domain/types";
 
 const TAB_LABEL: Record<DrawerTab, string> = {
@@ -93,22 +93,33 @@ function ActionsMenu({ onEdit, onCopy, onDelete }: { onEdit: () => void; onCopy:
 /** Arte do cabeçalho: ilustração da iniciativa com nuvens e selos das plataformas. */
 function HeaderArt({ initiative, platforms }: { initiative: Initiative; platforms: Platform[] }) {
   const key = illustrationFor(initiative.id, initiative.illustration);
+  const asset = ILLUSTRATION_ASSET[key];
+
+  // Artes de fundo claro (ex.: astronauta com QR Code) já trazem a composição completa:
+  // são exibidas grandes e fundidas ao fundo do cabeçalho.
+  if (asset.fit === "contain") {
+    return (
+      <div aria-hidden className="pointer-events-none absolute bottom-0 right-0 hidden h-full w-[300px] sm:block">
+        <FallbackImg
+          src={asset.header ?? asset.src}
+          fallback={asset.header ? asset.src : asset.fallback}
+          finalFallback={asset.fallback}
+          className="absolute bottom-0 right-0 h-[96%] w-full object-contain object-right-bottom mix-blend-multiply"
+        />
+      </div>
+    );
+  }
+
   const badges = platforms.slice(0, 2);
   return (
     <div aria-hidden className="pointer-events-none absolute bottom-0 right-5 hidden h-[220px] w-[240px] sm:block">
       <div className="absolute -bottom-8 right-[-30px] h-24 w-[300px] rounded-[50%] bg-white/90 blur-[6px]" />
       <div className="absolute -bottom-4 right-24 h-16 w-40 rounded-[50%] bg-[#e7defd] blur-[4px]" />
-      {key === "astronauta" ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src="/illustrations/astronauta-recorte.svg" alt="" className="absolute bottom-2 right-6 w-[178px] drop-shadow-[0_14px_24px_rgba(74,45,184,0.25)]" />
-      ) : (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={ILLUSTRATION_SRC[key]}
-          alt=""
-          className="absolute bottom-8 right-10 h-[150px] w-[150px] rotate-[4deg] rounded-[28px] object-cover shadow-[0_18px_36px_rgba(23,20,91,0.28)]"
-        />
-      )}
+      <FallbackImg
+        src={asset.src}
+        fallback={asset.fallback}
+        className="absolute bottom-8 right-10 h-[150px] w-[150px] rotate-[4deg] rounded-[28px] object-cover shadow-[0_18px_36px_rgba(23,20,91,0.28)]"
+      />
       {badges.map((p, idx) => {
         const Glyph = PLATFORM_GLYPHS[p.icon];
         return (
@@ -278,11 +289,11 @@ export function InitiativeDrawer() {
                 </div>
               </div>
               <p className="relative z-10 mt-3 text-[12.5px] font-extrabold tracking-wide text-subtle">{initiative.id}</p>
-              <h2 className="relative z-10 mt-1 max-w-full text-[28px] font-black leading-[1.1] tracking-[-0.015em] text-navy sm:max-w-[calc(100%-230px)] sm:text-[32px]">
+              <h2 className="relative z-10 mt-1 max-w-full text-[28px] font-black leading-[1.1] tracking-[-0.015em] text-navy sm:max-w-[calc(100%-250px)] sm:text-[32px]">
                 {initiative.title}
               </h2>
               {initiative.summary && (
-                <p className="relative z-10 mt-3 max-w-full text-[15px] leading-relaxed text-[#4a5680] sm:max-w-[calc(100%-230px)]">{initiative.summary}</p>
+                <p className="relative z-10 mt-3 max-w-full text-[15px] leading-relaxed text-[#4a5680] sm:max-w-[calc(100%-250px)]">{initiative.summary}</p>
               )}
               {impacted.length > 0 && (
                 <div className="relative z-10 mt-5 flex flex-wrap gap-2">

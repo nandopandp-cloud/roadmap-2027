@@ -14,7 +14,7 @@ import {
 } from "@/lib/validation/schemas";
 
 /** Snapshot exposto ao cliente. */
-export type Snapshot = Omit<Database, "schemaVersion">;
+export type Snapshot = Omit<Database, "schemaVersion"> & { writable: boolean };
 
 function parse<S extends z.ZodType>(schema: S, data: unknown): z.infer<S> {
   const result = schema.safeParse(data);
@@ -74,8 +74,9 @@ function cleanPlatformNotes(input: InitiativeInput): InitiativeInput {
 }
 
 export async function getSnapshot(): Promise<Snapshot> {
-  const { schemaVersion: _v, ...rest } = await getRepository().read();
-  return rest;
+  const repo = getRepository();
+  const [{ schemaVersion: _v, ...rest }, writable] = await Promise.all([repo.read(), repo.isWritable()]);
+  return { ...rest, writable };
 }
 
 export async function createInitiative(data: unknown): Promise<Initiative> {

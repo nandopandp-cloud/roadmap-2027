@@ -6,7 +6,10 @@ const nextConfig: NextConfig = {
   // pelas rotas de API; garantimos que sejam incluídos no bundle do servidor.
   outputFileTracingIncludes: {
     "/api/documents": ["./initiatives/**/*"],
+    "/api/artifacts/status": ["./initiatives/**/*"],
+    "/api/initiatives/[id]/documents": ["./initiatives/**/*"],
     "/prototipos/[...path]": ["./initiatives/**/*"],
+    "/*": ["./public/illustrations/**/*"],
   },
 };
 

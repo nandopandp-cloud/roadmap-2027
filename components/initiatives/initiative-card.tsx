@@ -41,10 +41,7 @@ export function InitiativeCard({ initiative: i, platforms, selected, layout, onO
   if (layout === "grid") {
     return (
       <button type="button" onClick={onOpen} aria-pressed={selected} aria-label={`${i.title} — abrir detalhes`} className={cn(frame, "flex h-full flex-col overflow-hidden")}>
-        <span className="relative block h-44 w-full overflow-hidden rounded-t-[21px] bg-[#1d1660]">
-          <InitiativeIllustration id={i.id} illustration={i.illustration} className="absolute inset-0 h-full w-full scale-125 rounded-none opacity-60 blur-xl" />
-          <InitiativeIllustration id={i.id} illustration={i.illustration} className="relative mx-auto h-full w-auto rounded-none object-contain" />
-        </span>
+        <InitiativeIllustration id={i.id} illustration={i.illustration} className="h-44 w-full rounded-none rounded-t-[21px]" />
         <span className="flex flex-1 flex-col p-5">
           <span className="flex items-center justify-between gap-2">
             <span className="text-[13.5px] font-semibold text-muted">{quarter}</span>

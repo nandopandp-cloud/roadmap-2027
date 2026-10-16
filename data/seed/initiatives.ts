@@ -58,7 +58,7 @@ export const seedInitiatives: Initiative[] = [
     summary: "Permitir que estudantes acessem a plataforma por QR Code ou código de ícones, além de e-mail e senha.",
     category: "Acesso e identidade",
     tags: ["Acesso", "Experiência do estudante", "Segurança"],
-    illustration: "astronauta",
+    illustration: "login-qr",
     objectives: [
       "Oferecer acesso por QR Code e por código de ícones espaciais.",
       "Manter o login por e-mail e senha.",

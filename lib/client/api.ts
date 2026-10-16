@@ -4,6 +4,8 @@ export interface Snapshot {
   initiatives: Initiative[];
   platforms: Platform[];
   context: StrategyContext;
+  /** false quando a implantação não consegue gravar alterações (ex.: Vercel). */
+  writable: boolean;
 }
 
 /** Erro retornado pela API, com mensagens por campo quando houver validação. */

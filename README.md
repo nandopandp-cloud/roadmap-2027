@@ -122,7 +122,7 @@ scripts/reset-db.mjs
 
 Hoje: **arquivo JSON local** em `data/local/db.json`, criado automaticamente a partir de `data/seed/` na primeira requisição. As escritas são serializadas e atômicas (arquivo temporário + rename). Os dados persistem entre recarregamentos e reinícios do servidor.
 
-Limitação: exige sistema de arquivos gravável. **Não funciona** em ambientes serverless com disco efêmero/somente leitura (ex.: Vercel) — lá as alterações não persistiriam. Use em máquina/servidor próprio ou migre o repositório.
+Limitação: exige sistema de arquivos gravável. Em ambientes serverless com disco somente leitura (ex.: Vercel) a aplicação funciona **apenas para leitura**: exibe os dados iniciais, mostra um aviso no topo e responde às tentativas de edição com uma mensagem clara (HTTP 503), sem simular gravação. Para editar em produção, migre para um banco persistente (abaixo).
 
 ### Migrar para Supabase
 
@@ -139,6 +139,20 @@ Limitação: exige sistema de arquivos gravável. **Não funciona** em ambientes
 - **Protótipos**: coloque o HTML em `initiatives/<pasta>/prototype/` e cadastre o caminho na mesma etapa. Arquivos ausentes aparecem como "Arquivo não encontrado" — nunca como disponíveis.
 
 Caminhos são validados (precisam começar com `initiatives/`, sem `..`) e resolvidos no servidor por `/api/documents` e `/prototipos/…`; não são URLs públicas de arquivo.
+
+## Ilustrações enviadas pelo time
+
+A interface já procura estes arquivos em `public/illustrations/`. Enquanto um arquivo não existir, é usada a arte de fallback indicada, sem erro:
+
+| Arquivo | Onde aparece | Fallback |
+| --- | --- | --- |
+| `hero-banner.png` | Banner do topo de Contexto, Iniciativas e Roadmap | `hero-ceu.svg` |
+| `sidebar-espaco.png` | Fundo da sidebar (arte vertical) | gradiente + cena em SVG |
+| `login-astronauta-qr.png` | Card da JG-2027-001 (ilustração "Astronauta com QR Code") | `astronauta.svg` |
+| `login-astronauta-celular.png` | Cabeçalho do drawer da JG-2027-001 | `login-astronauta-qr.png` |
+| `astronauta-acenando.png` | Ilustração "Astronauta" (cards e formulário) | `astronauta.svg` |
+
+Artes com fundo branco são exibidas sobre fundo lilás (`mix-blend-mode: multiply`). Depois de adicionar ou trocar um arquivo, reinicie o servidor (`npm run dev`) para ele ser detectado.
 
 ## Segurança e limitações
 

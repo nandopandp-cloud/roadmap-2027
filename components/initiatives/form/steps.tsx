@@ -3,7 +3,7 @@
 import { Plus, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { newDocument, newMetric, newMilestone, newPhase, newPrototype } from "@/components/initiatives/form/defaults";
-import { illustrationFor } from "@/components/initiatives/initiative-illustration";
+import { illustrationFor, InitiativeIllustration } from "@/components/initiatives/initiative-illustration";
 import { PLATFORM_GLYPHS } from "@/components/platforms/platform-icon";
 import { Button, IconButton } from "@/components/ui/button";
 import { Checkbox, ChipMultiSelect, LinesField, SelectField, TextAreaField, TextField } from "@/components/ui/fields";
@@ -24,7 +24,6 @@ import {
   DOCUMENT_KIND_LABEL,
   DOCUMENT_STATUS_LABEL,
   ILLUSTRATION_LABEL,
-  ILLUSTRATION_SRC,
   METRIC_TARGET_STATE_LABEL,
   METRIC_VALUE_STATE_LABEL,
   PHASE_STATE_LABEL,
@@ -158,8 +157,7 @@ export function IdentificationStep({ draft, set, errors, others, editingId, next
             )}
           >
             <input type="radio" name="illustration" className="sr-only" checked={draft.illustration === null} onChange={() => set("illustration", null)} />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={ILLUSTRATION_SRC[previewKey]} alt="" className="h-9 w-9 rounded-lg opacity-70" />
+            <InitiativeIllustration id={editingId ?? nextId} illustration={previewKey} className="h-9 w-9 rounded-lg opacity-70" />
             Automática
           </label>
           {ILLUSTRATIONS.map((key) => (
@@ -171,8 +169,7 @@ export function IdentificationStep({ draft, set, errors, others, editingId, next
               )}
             >
               <input type="radio" name="illustration" className="sr-only" checked={draft.illustration === key} onChange={() => set("illustration", key)} />
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={ILLUSTRATION_SRC[key]} alt="" className="h-[60px] w-[60px] rounded-xl" />
+              <InitiativeIllustration id={editingId ?? nextId} illustration={key} className="h-[60px] w-[60px] rounded-xl" />
               {ILLUSTRATION_LABEL[key]}
             </label>
           ))}

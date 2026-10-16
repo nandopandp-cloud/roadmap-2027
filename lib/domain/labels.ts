@@ -88,6 +88,7 @@ export const PROBLEM_VALIDATION_LABEL: Record<ProblemValidation, string> = {
 };
 
 export const ILLUSTRATION_LABEL: Record<IllustrationKey, string> = {
+  "login-qr": "Astronauta com QR Code",
   astronauta: "Astronauta",
   ilha: "Ilha flutuante",
   foguete: "Foguete",
@@ -96,15 +97,36 @@ export const ILLUSTRATION_LABEL: Record<IllustrationKey, string> = {
   tecnologia: "Planeta da Tecnologia",
 };
 
-/** Arquivos da biblioteca de ilustrações (public/illustrations). */
-export const ILLUSTRATION_SRC: Record<IllustrationKey, string> = {
-  astronauta: "/illustrations/astronauta.svg",
-  ilha: "/illustrations/ilha.jpg",
-  foguete: "/illustrations/foguete.jpg",
-  satelite: "/illustrations/satelite.jpg",
-  planeta: "/illustrations/planeta.jpg",
-  tecnologia: "/illustrations/tecnologia.jpg",
+/**
+ * Biblioteca de ilustrações (public/illustrations).
+ * - `src`: arquivo principal. Arte enviada pelo time (PNG com fundo branco) ou recorte da arte oficial.
+ * - `fallback`: usado enquanto o arquivo principal não existir.
+ * - `header`: arte opcional específica para o cabeçalho do drawer.
+ * - `fit`: "contain" para artes com fundo claro (exibidas sobre fundo lilás), "cover" para artes com fundo escuro.
+ */
+export const ILLUSTRATION_ASSET: Record<
+  IllustrationKey,
+  { src: string; fallback?: string; fit: "cover" | "contain"; header?: string }
+> = {
+  "login-qr": {
+    src: "/illustrations/login-astronauta-qr.png",
+    fallback: "/illustrations/astronauta.svg",
+    fit: "contain",
+    header: "/illustrations/login-astronauta-celular.png",
+  },
+  astronauta: { src: "/illustrations/astronauta-acenando.png", fallback: "/illustrations/astronauta.svg", fit: "contain" },
+  ilha: { src: "/illustrations/ilha.jpg", fit: "cover" },
+  foguete: { src: "/illustrations/foguete.jpg", fit: "cover" },
+  satelite: { src: "/illustrations/satelite.jpg", fit: "cover" },
+  planeta: { src: "/illustrations/planeta.jpg", fit: "cover" },
+  tecnologia: { src: "/illustrations/tecnologia.jpg", fit: "cover" },
 };
+
+/** Fundo da sidebar (arte vertical enviada pelo time). Sem ele, a sidebar usa o gradiente + cena em SVG. */
+export const SIDEBAR_ART = "/illustrations/sidebar-espaco.png";
+
+/** Banner do topo das páginas: arte enviada pelo time, com cenário em SVG como fallback. */
+export const HERO_BANNER = { src: "/illustrations/hero-banner.png", fallback: "/illustrations/hero-ceu.svg" };
 
 export const PHASE_STATE_LABEL: Record<PhaseState, string> = {
   pendente: "Pendente",

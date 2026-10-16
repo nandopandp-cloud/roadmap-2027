@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 import { AppShell } from "@/components/layout/app-shell";
 import { ConfirmProvider } from "@/components/ui/dialog";
 import { ToastProvider } from "@/components/ui/toast";
+import { listIllustrationFiles } from "@/lib/assets/available";
+import { AssetsProvider } from "@/lib/client/assets";
 import { RoadmapProvider } from "@/lib/client/store";
 import "./globals.css";
 
@@ -26,13 +28,15 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="pt-BR" className={nunito.variable}>
       <body className="font-sans">
-        <ToastProvider>
-          <ConfirmProvider>
-            <RoadmapProvider>
-              <AppShell>{children}</AppShell>
-            </RoadmapProvider>
-          </ConfirmProvider>
-        </ToastProvider>
+        <AssetsProvider files={listIllustrationFiles()}>
+          <ToastProvider>
+            <ConfirmProvider>
+              <RoadmapProvider>
+                <AppShell>{children}</AppShell>
+              </RoadmapProvider>
+            </ConfirmProvider>
+          </ToastProvider>
+        </AssetsProvider>
       </body>
     </html>
   );

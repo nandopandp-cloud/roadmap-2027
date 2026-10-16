@@ -2,6 +2,7 @@ import "server-only";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { PROJECT_ROOT } from "@/lib/repositories";
+import { READ_ONLY_MESSAGE } from "@/lib/repositories/json-file-repository";
 import { DomainError } from "@/lib/services/errors";
 import { DOCUMENT_EXTENSIONS, isSafeRepoPath } from "@/lib/validation/paths";
 
@@ -40,10 +41,15 @@ export async function readDocument(relPath: string): Promise<{ content: string; 
 
 export async function writeDocument(relPath: string, content: string): Promise<{ modifiedAt: string }> {
   const file = resolveSafe(relPath, DOCUMENT_EXTENSIONS);
-  await fs.mkdir(path.dirname(file), { recursive: true });
-  const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
-  await fs.writeFile(tmp, content.endsWith("\n") ? content : `${content}\n`, "utf8");
-  await fs.rename(tmp, file);
+  try {
+    await fs.mkdir(path.dirname(file), { recursive: true });
+    const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
+    await fs.writeFile(tmp, content.endsWith("\n") ? content : `${content}\n`, "utf8");
+    await fs.rename(tmp, file);
+  } catch (error) {
+    if (["EROFS", "EACCES", "EPERM"].includes((error as NodeJS.ErrnoException).code ?? "")) throw new DomainError(503, READ_ONLY_MESSAGE);
+    throw error;
+  }
   const stat = await fs.stat(file);
   return { modifiedAt: stat.mtime.toISOString() };
 }

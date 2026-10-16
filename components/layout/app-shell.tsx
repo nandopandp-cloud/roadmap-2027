@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu } from "lucide-react";
+import { Info, Menu } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { InitiativeDrawer } from "@/components/initiatives/initiative-drawer";
@@ -8,8 +8,21 @@ import { InitiativeFormHost } from "@/components/initiatives/initiative-form";
 import { BrandLogo } from "@/components/layout/brand-logo";
 import { Sidebar } from "@/components/layout/sidebar";
 import { useFocusTrap } from "@/components/ui/dialog";
+import { useRoadmap } from "@/lib/client/store";
 
 const COLLAPSE_KEY = "jg-roadmap:sidebar-collapsed";
+
+/** Aviso quando a implantação não grava alterações (armazenamento somente leitura). */
+function ReadOnlyNotice() {
+  const { load, data } = useRoadmap();
+  if (load.status !== "ready" || data.writable) return null;
+  return (
+    <div role="status" className="flex shrink-0 items-center gap-2 border-b border-[#f1d9a6] bg-[#fff8e6] px-4 py-2 text-[13px] font-semibold text-[#7a5200]">
+      <Info size={16} className="shrink-0" aria-hidden />
+      Ambiente de visualização: as alterações não são salvas nesta implantação. Para editar, use o ambiente local ou configure um banco persistente.
+    </div>
+  );
+}
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -72,6 +85,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </button>
           <BrandLogo className="w-[118px]" />
         </header>
+        <ReadOnlyNotice />
         <main id="conteudo" tabIndex={-1} className="min-h-0 min-w-0 flex-1 overflow-y-auto focus:outline-none">
           {children}
         </main>

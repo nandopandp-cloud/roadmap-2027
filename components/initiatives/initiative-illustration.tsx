@@ -1,5 +1,9 @@
+"use client";
+
+import { useState } from "react";
+import { useFirstAvailable } from "@/lib/client/assets";
 import { cn } from "@/lib/client/cn";
-import { ILLUSTRATION_LABEL, ILLUSTRATION_SRC } from "@/lib/domain/labels";
+import { ILLUSTRATION_ASSET, ILLUSTRATION_LABEL } from "@/lib/domain/labels";
 import type { IllustrationKey } from "@/lib/domain/types";
 
 /** Fallback visual estável por iniciativa quando nenhuma ilustração foi escolhida. */
@@ -11,9 +15,39 @@ export function illustrationFor(id: string, chosen: IllustrationKey | null): Ill
   return FALLBACK_ORDER[n % FALLBACK_ORDER.length];
 }
 
+/** Imagem que troca para o arquivo de fallback se o principal ainda não existir. */
+export function FallbackImg({
+  src,
+  fallback,
+  finalFallback,
+  className,
+}: {
+  src: string;
+  fallback?: string;
+  /** Segundo nível de fallback (ex.: arte principal → SVG). */
+  finalFallback?: string;
+  className?: string;
+}) {
+  const first = useFirstAvailable([src, fallback, finalFallback]);
+  const chain = [first, fallback, finalFallback].filter((v, i, all): v is string => !!v && all.indexOf(v) === i);
+  const [index, setIndex] = useState(0);
+  const current = chain[Math.min(index, chain.length - 1)];
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- ilustrações locais; next/image não agrega aqui
+    <img
+      src={current}
+      alt=""
+      draggable={false}
+      onError={() => index < chain.length - 1 && setIndex(index + 1)}
+      className={className}
+    />
+  );
+}
+
 /**
- * Ilustração da iniciativa (biblioteca em public/illustrations; arte oficial do
- * Exploradores e astronauta em SVG). Decorativa: o título já identifica a iniciativa.
+ * Ilustração da iniciativa (biblioteca em public/illustrations). Artes de fundo
+ * claro são exibidas inteiras sobre um fundo lilás; artes de fundo escuro preenchem o quadro.
+ * Decorativa: o título já identifica a iniciativa.
  */
 export function InitiativeIllustration({
   id,
@@ -25,16 +59,25 @@ export function InitiativeIllustration({
   className?: string;
 }) {
   const key = illustrationFor(id, illustration);
+  const asset = ILLUSTRATION_ASSET[key];
   return (
-    // eslint-disable-next-line @next/next/no-img-element -- imagens locais pequenas; next/image não agrega aqui
-    <img
-      src={ILLUSTRATION_SRC[key]}
-      alt=""
+    <span
       aria-hidden
       title={ILLUSTRATION_LABEL[key]}
-      loading="lazy"
-      className={cn("shrink-0 rounded-2xl object-cover", className)}
-      draggable={false}
-    />
+      className={cn(
+        "relative block shrink-0 overflow-hidden rounded-2xl",
+        asset.fit === "contain" ? "bg-[radial-gradient(circle_at_50%_40%,#ffffff_0%,#efe9ff_60%,#e2d8ff_100%)]" : "bg-[#1d1660]",
+        className,
+      )}
+    >
+      <FallbackImg
+        src={asset.src}
+        fallback={asset.fallback}
+        className={cn(
+          "absolute inset-0 h-full w-full",
+          asset.fit === "contain" ? "object-contain p-[6%] mix-blend-multiply" : "object-cover",
+        )}
+      />
+    </span>
   );
 }
