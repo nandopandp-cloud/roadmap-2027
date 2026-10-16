@@ -97,7 +97,7 @@ function HeaderArt({ initiative, platforms }: { initiative: Initiative; platform
 
   // Artes de fundo claro (ex.: astronauta com QR Code) já trazem a composição completa:
   // são exibidas grandes e fundidas ao fundo do cabeçalho.
-  if (asset.fit === "contain") {
+  if (asset.fit === "contain" || asset.header) {
     return (
       <div aria-hidden className="pointer-events-none absolute bottom-0 right-0 hidden h-full w-[300px] sm:block">
         <FallbackImg

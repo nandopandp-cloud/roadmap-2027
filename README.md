@@ -142,17 +142,17 @@ Caminhos são validados (precisam começar com `initiatives/`, sem `..`) e resol
 
 ## Ilustrações enviadas pelo time
 
-A interface já procura estes arquivos em `public/illustrations/`. Enquanto um arquivo não existir, é usada a arte de fallback indicada, sem erro:
+Artes usadas pela interface (versões otimizadas em `public/illustrations/`; originais em alta resolução em `assets/ilustracoes-originais/`). Se um arquivo não existir, a arte de fallback é usada sem erro:
 
 | Arquivo | Onde aparece | Fallback |
 | --- | --- | --- |
-| `hero-banner.png` | Banner do topo de Contexto, Iniciativas e Roadmap | `hero-ceu.svg` |
-| `sidebar-espaco.png` | Fundo da sidebar (arte vertical) | gradiente + cena em SVG |
-| `login-astronauta-qr.png` | Card da JG-2027-001 (ilustração "Astronauta com QR Code") | `astronauta.svg` |
-| `login-astronauta-celular.png` | Cabeçalho do drawer da JG-2027-001 | `login-astronauta-qr.png` |
-| `astronauta-acenando.png` | Ilustração "Astronauta" (cards e formulário) | `astronauta.svg` |
+| `hero-banner.jpg` | Banner do topo de Contexto, Iniciativas e Roadmap | `hero-ceu.svg` |
+| `sidebar-espaco.jpg` | Fundo da sidebar | gradiente + cena em SVG |
+| `login-astronauta-qr.jpg` | Card da JG-2027-001 | `astronauta.svg` |
+| `login-astronauta-celular.jpg` | Cabeçalho do drawer da JG-2027-001 | `login-astronauta-qr.jpg` |
+| `astronauta-acenando.jpg` | Ilustração "Astronauta" (cards e formulário) | `astronauta.svg` |
 
-Artes com fundo branco são exibidas sobre fundo lilás (`mix-blend-mode: multiply`). Depois de adicionar ou trocar um arquivo, reinicie o servidor (`npm run dev`) para ele ser detectado.
+Para trocar uma arte, substitua o arquivo mantendo o nome. Para gerar a versão otimizada a partir de um PNG grande (macOS): `sips -s format jpeg -s formatOptions 85 -Z 1100 original.png --out public/illustrations/nome.jpg`. O mockup de referência visual está em `docs/referencias/`.
 
 ## Segurança e limitações
 

@@ -84,9 +84,9 @@ export function Sidebar({ collapsed, onToggleCollapsed, mobile, onNavigate }: Si
       {hasArt ? (
         <div className="pointer-events-none absolute inset-0 z-0 select-none" aria-hidden>
           {/* eslint-disable-next-line @next/next/no-img-element -- arte decorativa local */}
-          <img src={SIDEBAR_ART} alt="" draggable={false} className="h-full w-full object-cover object-bottom" />
+          <img src={SIDEBAR_ART} alt="" draggable={false} className="h-full w-full object-cover object-[16%_100%]" />
           {/* Escurece o topo para manter logo e menu legíveis sobre o céu. */}
-          <div className="absolute inset-x-0 top-0 h-[42%] bg-gradient-to-b from-[#1b1466]/85 via-[#1b1466]/45 to-transparent" />
+          <div className="absolute inset-x-0 top-0 h-[48%] bg-gradient-to-b from-[#1b1466] via-[#1b1466]/75 to-transparent" />
         </div>
       ) : (
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-0 select-none" aria-hidden>

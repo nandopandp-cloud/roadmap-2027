@@ -21,12 +21,14 @@ export function FallbackImg({
   fallback,
   finalFallback,
   className,
+  style,
 }: {
   src: string;
   fallback?: string;
   /** Segundo nível de fallback (ex.: arte principal → SVG). */
   finalFallback?: string;
   className?: string;
+  style?: React.CSSProperties;
 }) {
   const first = useFirstAvailable([src, fallback, finalFallback]);
   const chain = [first, fallback, finalFallback].filter((v, i, all): v is string => !!v && all.indexOf(v) === i);
@@ -40,6 +42,7 @@ export function FallbackImg({
       draggable={false}
       onError={() => index < chain.length - 1 && setIndex(index + 1)}
       className={className}
+      style={style}
     />
   );
 }
@@ -66,7 +69,7 @@ export function InitiativeIllustration({
       title={ILLUSTRATION_LABEL[key]}
       className={cn(
         "relative block shrink-0 overflow-hidden rounded-2xl",
-        asset.fit === "contain" ? "bg-[radial-gradient(circle_at_50%_40%,#ffffff_0%,#efe9ff_60%,#e2d8ff_100%)]" : "bg-[#1d1660]",
+        asset.fit === "contain" ? "bg-[radial-gradient(circle_at_50%_40%,#ffffff_0%,#efe9ff_60%,#e2d8ff_100%)]" : "bg-[#efeaff]",
         className,
       )}
     >
@@ -77,6 +80,7 @@ export function InitiativeIllustration({
           "absolute inset-0 h-full w-full",
           asset.fit === "contain" ? "object-contain p-[6%] mix-blend-multiply" : "object-cover",
         )}
+        style={asset.focus ? { objectPosition: asset.focus } : undefined}
       />
     </span>
   );

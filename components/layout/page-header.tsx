@@ -73,7 +73,7 @@ export function PageHero({
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
         {/* Banner enviado pelo time; o cenário em SVG aparece enquanto o arquivo não existir. */}
         <div
-          className="absolute inset-0 bg-cover bg-[position:right_center] opacity-35 sm:opacity-100"
+          className="absolute inset-0 bg-cover bg-[position:78%_42%] opacity-35 sm:opacity-100"
           style={{ backgroundImage: `url(${banner})` }}
         />
         {/* Clareia o lado esquerdo para manter o título legível sobre a arte. */}

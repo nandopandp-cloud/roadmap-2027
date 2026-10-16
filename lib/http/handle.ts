@@ -14,7 +14,12 @@ export async function handle<T>(fn: () => Promise<T>, status = 200): Promise<Nex
     if (error instanceof SyntaxError) {
       return NextResponse.json({ error: "Corpo da requisição inválido." }, { status: 400 });
     }
-    console.error(error);
-    return NextResponse.json({ error: "Erro inesperado ao processar a solicitação." }, { status: 500 });
+    console.error("[roadmap] erro inesperado:", error);
+    // Código técnico (ex.: ENOENT) para diagnóstico, sem expor caminhos ou stack.
+    const code = (error as { code?: unknown })?.code ?? (error as Error)?.name;
+    return NextResponse.json(
+      { error: "Erro inesperado ao processar a solicitação.", code: typeof code === "string" ? code : undefined },
+      { status: 500 },
+    );
   }
 }

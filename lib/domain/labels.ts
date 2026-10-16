@@ -101,20 +101,22 @@ export const ILLUSTRATION_LABEL: Record<IllustrationKey, string> = {
  * Biblioteca de ilustrações (public/illustrations).
  * - `src`: arquivo principal. Arte enviada pelo time (PNG com fundo branco) ou recorte da arte oficial.
  * - `fallback`: usado enquanto o arquivo principal não existir.
+ * - `focus`: ponto focal (object-position) quando a arte é recortada no card.
  * - `header`: arte opcional específica para o cabeçalho do drawer.
  * - `fit`: "contain" para artes com fundo claro (exibidas sobre fundo lilás), "cover" para artes com fundo escuro.
  */
 export const ILLUSTRATION_ASSET: Record<
   IllustrationKey,
-  { src: string; fallback?: string; fit: "cover" | "contain"; header?: string }
+  { src: string; fallback?: string; fit: "cover" | "contain"; header?: string; focus?: string }
 > = {
   "login-qr": {
-    src: "/illustrations/login-astronauta-qr.png",
+    src: "/illustrations/login-astronauta-qr.jpg",
     fallback: "/illustrations/astronauta.svg",
-    fit: "contain",
-    header: "/illustrations/login-astronauta-celular.png",
+    fit: "cover",
+    focus: "52% 62%",
+    header: "/illustrations/login-astronauta-celular.jpg",
   },
-  astronauta: { src: "/illustrations/astronauta-acenando.png", fallback: "/illustrations/astronauta.svg", fit: "contain" },
+  astronauta: { src: "/illustrations/astronauta-acenando.jpg", fallback: "/illustrations/astronauta.svg", fit: "contain" },
   ilha: { src: "/illustrations/ilha.jpg", fit: "cover" },
   foguete: { src: "/illustrations/foguete.jpg", fit: "cover" },
   satelite: { src: "/illustrations/satelite.jpg", fit: "cover" },
@@ -123,10 +125,10 @@ export const ILLUSTRATION_ASSET: Record<
 };
 
 /** Fundo da sidebar (arte vertical enviada pelo time). Sem ele, a sidebar usa o gradiente + cena em SVG. */
-export const SIDEBAR_ART = "/illustrations/sidebar-espaco.png";
+export const SIDEBAR_ART = "/illustrations/sidebar-espaco.jpg";
 
 /** Banner do topo das páginas: arte enviada pelo time, com cenário em SVG como fallback. */
-export const HERO_BANNER = { src: "/illustrations/hero-banner.png", fallback: "/illustrations/hero-ceu.svg" };
+export const HERO_BANNER = { src: "/illustrations/hero-banner.jpg", fallback: "/illustrations/hero-ceu.svg" };
 
 export const PHASE_STATE_LABEL: Record<PhaseState, string> = {
   pendente: "Pendente",

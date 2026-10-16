@@ -47,7 +47,8 @@ export async function writeDocument(relPath: string, content: string): Promise<{
     await fs.writeFile(tmp, content.endsWith("\n") ? content : `${content}\n`, "utf8");
     await fs.rename(tmp, file);
   } catch (error) {
-    if (["EROFS", "EACCES", "EPERM"].includes((error as NodeJS.ErrnoException).code ?? "")) throw new DomainError(503, READ_ONLY_MESSAGE);
+    // Qualquer erro de sistema de arquivos ao gravar indica ambiente sem escrita.
+    if ((error as NodeJS.ErrnoException).code) throw new DomainError(503, READ_ONLY_MESSAGE);
     throw error;
   }
   const stat = await fs.stat(file);
