@@ -1,12 +1,13 @@
 "use client";
 
-import { CalendarDays, ChevronsLeft, ChevronsRight, FileText, House, X } from "lucide-react";
+import { CalendarDays, Lock, ChevronsLeft, ChevronsRight, FileText, House, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BrandLogo } from "@/components/layout/brand-logo";
 import { SidebarSpace } from "@/components/illustrations/sidebar-space";
 import { useHasAsset } from "@/lib/client/assets";
 import { cn } from "@/lib/client/cn";
+import { CONTEXT_LOCKED } from "@/lib/features";
 import { SIDEBAR_ART } from "@/lib/domain/labels";
 
 /** As três (e somente três) seções de primeiro nível. */
@@ -57,6 +58,23 @@ export function Sidebar({ collapsed, onToggleCollapsed, mobile, onNavigate }: Si
       <ul className={cn("relative z-10 mt-9 flex flex-col gap-2.5", compact ? "px-3" : "px-3")}>
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`);
+          if (href === "/contexto" && CONTEXT_LOCKED) {
+            return (
+              <li key={href}>
+                <span
+                  role="link"
+                  aria-disabled="true"
+                  title="Em breve"
+                  className={cn("flex h-[50px] cursor-not-allowed items-center gap-3.5 rounded-[14px] text-[16px] font-semibold text-white/40", compact ? "justify-center" : "px-4")}
+                >
+                  <Icon size={24} strokeWidth={1.8} aria-hidden />
+                  {!compact && <span className="flex-1">{label}</span>}
+                  {!compact && <Lock size={16} aria-hidden />}
+                  <span className="sr-only">{compact ? `${label} (bloqueado)` : "(bloqueado)"}</span>
+                </span>
+              </li>
+            );
+          }
           return (
             <li key={href}>
               <Link
