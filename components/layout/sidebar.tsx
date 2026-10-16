@@ -46,8 +46,8 @@ export function Sidebar({ collapsed, onToggleCollapsed, mobile, onNavigate }: Si
               src={SIDEBAR_ART}
               alt=""
               draggable={false}
-              // Escala fixa nos dois estados: o cartão recolhido apenas "corta" a mesma arte, como na referência.
-              className="absolute bottom-0 left-0 h-auto w-[360px] max-w-none [mask-image:linear-gradient(to_bottom,transparent_0%,#000_26%)]"
+              // Recolhida: arte menor e deslocada para a esquerda, para o astronauta aparecer inteiro no cartão estreito.
+              className={cn("absolute bottom-0 h-auto max-w-none transition-all duration-200 [mask-image:linear-gradient(to_bottom,transparent_0%,#000_26%)]", compact ? "-left-[10px] w-[215px]" : "left-0 w-[360px]")}
             />
           </div>
         )}

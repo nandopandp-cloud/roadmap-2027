@@ -7,6 +7,7 @@ import { InitiativeDrawer } from "@/components/initiatives/initiative-drawer";
 import { InitiativeFormHost } from "@/components/initiatives/initiative-form";
 import { BrandLogo } from "@/components/layout/brand-logo";
 import { Sidebar } from "@/components/layout/sidebar";
+import { GlobalSearchProvider } from "@/components/search/global-search";
 import { useFocusTrap } from "@/components/ui/dialog";
 import { useRoadmap } from "@/lib/client/store";
 
@@ -51,6 +52,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     });
 
   return (
+    <GlobalSearchProvider>
     <div className="flex h-dvh overflow-hidden">
       <a
         href="#conteudo"
@@ -96,5 +98,6 @@ export function AppShell({ children }: { children: ReactNode }) {
       </Suspense>
       <InitiativeFormHost />
     </div>
+    </GlobalSearchProvider>
   );
 }

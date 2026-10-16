@@ -1,9 +1,10 @@
 "use client";
 
 import { ChevronDown, LayoutGrid, List, Plus, Rocket, Search, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { InitiativeCard } from "@/components/initiatives/initiative-card";
 import { PageContainer, PageHero } from "@/components/layout/page-header";
+import { useGlobalSearch } from "@/components/search/global-search";
 import { Button } from "@/components/ui/button";
 import { EmptyState, ErrorBanner, Skeleton } from "@/components/ui/feedback";
 import { cn, plural } from "@/lib/client/cn";
@@ -62,7 +63,7 @@ export function InitiativesView() {
   const [filters, setFilters] = useState<InitiativeFilters>(DEFAULT_FILTERS);
   const [layout, setLayout] = useState<"list" | "grid">("list");
   const [shortcut, setShortcut] = useState("Ctrl K");
-  const searchRef = useRef<HTMLInputElement>(null);
+  const { open: openSearch } = useGlobalSearch();
 
   useEffect(() => {
     try {
@@ -71,16 +72,6 @@ export function InitiativesView() {
       /* preferência opcional */
     }
     if (/Mac|iPhone|iPad/.test(navigator.userAgent)) setShortcut("⌘ K");
-    // ⌘K / Ctrl+K leva o foco à busca.
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        searchRef.current?.focus();
-        searchRef.current?.select();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
   }, []);
 
   const changeLayout = (next: "list" | "grid") => {
@@ -119,30 +110,22 @@ export function InitiativesView() {
       <PageHero
         crumbs={[{ label: "Iniciativas" }]}
         title="Iniciativas do Roadmap 2027"
-        subtitle="Projetos que vão levar a educação da Jovens Gênios para o próximo nível."
+        subtitle="Projetos que serão discutidos para o roadmap de produto 2027."
       >
         <div role="search" aria-label="Buscar iniciativas" className="mt-8 flex flex-col gap-3 sm:flex-row">
-          <label className="relative flex h-[52px] min-w-0 flex-1 items-center rounded-[14px] border border-white/70 bg-white/90 shadow-[0_6px_24px_rgba(23,27,77,0.08)] backdrop-blur transition-colors has-[:focus-visible]:border-violet has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-[#6045d8]/15">
+          <button
+            type="button"
+            onClick={openSearch}
+            aria-haspopup="dialog"
+            aria-label="Buscar iniciativas por nome, tema ou palavra-chave"
+            className="relative flex h-[52px] min-w-0 flex-1 items-center rounded-[14px] border border-white/70 bg-white/90 pl-12 pr-4 text-left shadow-[0_6px_24px_rgba(23,27,77,0.08)] backdrop-blur transition-all hover:border-violet/40 hover:shadow-[0_8px_28px_rgba(96,69,216,0.18)]"
+          >
             <Search size={20} aria-hidden className="absolute left-4 text-navy" />
-            <span className="sr-only">Buscar iniciativas por nome, tema ou palavra-chave</span>
-            <input
-              ref={searchRef}
-              type="search"
-              value={filters.query}
-              onChange={(e) => set("query", e.target.value)}
-              placeholder="Buscar iniciativas por nome, tema ou palavra-chave..."
-              className="h-full w-full rounded-[14px] bg-transparent pl-12 pr-20 text-[14.5px] text-ink placeholder:text-subtle focus:outline-none [&::-webkit-search-cancel-button]:hidden"
-            />
-            {filters.query ? (
-              <button type="button" onClick={() => set("query", "")} className="absolute right-3 rounded-lg p-1 text-muted hover:text-ink" aria-label="Limpar busca">
-                <X size={16} />
-              </button>
-            ) : (
-              <kbd aria-hidden className="absolute right-3.5 rounded-md border border-line bg-[#f6f8fc] px-1.5 py-0.5 font-sans text-[11.5px] font-semibold text-muted">
-                {shortcut}
-              </kbd>
-            )}
-          </label>
+            <span className="flex-1 truncate text-[14.5px] text-subtle">Buscar iniciativas por nome, tema ou palavra-chave...</span>
+            <kbd aria-hidden className="rounded-md border border-line bg-[#f6f8fc] px-1.5 py-0.5 font-sans text-[11.5px] font-semibold text-muted">
+              {shortcut}
+            </kbd>
+          </button>
           <Button variant="primary" className="h-[52px] rounded-[14px] px-6 text-[15px] shadow-[0_8px_20px_rgba(0,133,124,0.25)]" icon={<Plus size={19} />} onClick={() => openForm(null)}>
             Nova iniciativa
           </Button>
@@ -151,7 +134,7 @@ export function InitiativesView() {
 
       <PageContainer className="pb-16 pt-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div role="radiogroup" aria-label="Filtrar por status" className="-mx-1 flex gap-2.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
+          <div role="radiogroup" aria-label="Filtrar por status" className="-mx-4 -my-4 flex gap-2.5 overflow-x-auto px-4 py-4 [scrollbar-width:none]">
             <button type="button" role="radio" aria-checked={filters.status === "todos"} className={pill(filters.status === "todos")} onClick={() => set("status", "todos")}>
               Todas ({statusBase.length})
             </button>
