@@ -8,3 +8,5 @@ next-env.d.ts
 .DS_Store
 # Banco local de desenvolvimento (gerado a partir de data/seed)
 data/local/
+.vercel
+.env*
