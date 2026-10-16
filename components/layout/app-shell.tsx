@@ -73,11 +73,11 @@ export function AppShell({ children }: { children: ReactNode }) {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-16 shrink-0 items-center gap-3 bg-[linear-gradient(90deg,#2a1f86,#17145b)] px-4 lg:hidden">
+        <header className="flex h-16 shrink-0 items-center gap-3 border-b border-line bg-surface px-4 lg:hidden">
           <button
             type="button"
             onClick={() => setMobileOpen(true)}
-            className="rounded-lg p-2 text-white hover:bg-white/10"
+            className="rounded-lg p-2 text-navy hover:bg-[#eef2fa]"
             aria-label="Abrir menu"
             aria-expanded={mobileOpen}
           >

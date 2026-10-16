@@ -126,8 +126,8 @@ export const ILLUSTRATION_ASSET: Record<
   tecnologia: { src: "/illustrations/tecnologia.jpg", fit: "cover" },
 };
 
-/** Fundo da sidebar (arte vertical enviada pelo time). Sem ele, a sidebar usa o gradiente + cena em SVG. */
-export const SIDEBAR_ART = "/illustrations/sidebar-espaco.jpg";
+/** Fundo da sidebar (arte vertical clara enviada pelo time). Sem ele, a sidebar usa só o gradiente claro. */
+export const SIDEBAR_ART = "/illustrations/sidebar-claro.jpg";
 
 /** Banner do topo das páginas: arte enviada pelo time, com cenário em SVG como fallback. */
 export const HERO_BANNER = { src: "/illustrations/hero-banner.jpg", fallback: "/illustrations/hero-ceu.svg" };

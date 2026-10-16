@@ -1,14 +1,13 @@
 "use client";
 
-import { CalendarDays, Lock, ChevronsLeft, ChevronsRight, FileText, House, X } from "lucide-react";
+import { CalendarDays, ChevronsLeft, ChevronsRight, FileText, House, Lock, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BrandLogo } from "@/components/layout/brand-logo";
-import { SidebarSpace } from "@/components/illustrations/sidebar-space";
 import { useHasAsset } from "@/lib/client/assets";
 import { cn } from "@/lib/client/cn";
-import { CONTEXT_LOCKED } from "@/lib/features";
 import { SIDEBAR_ART } from "@/lib/domain/labels";
+import { CONTEXT_LOCKED } from "@/lib/features";
 
 /** As três (e somente três) seções de primeiro nível. */
 export const NAV_ITEMS = [
@@ -25,111 +24,119 @@ interface SidebarProps {
   onNavigate?: () => void;
 }
 
+/**
+ * Sidebar em cartão flutuante claro. Expandida: logo + textos. Recolhida: só ícones
+ * (o rótulo aparece em dica ao passar o mouse ou focar). A arte do astronauta fica no rodapé.
+ */
 export function Sidebar({ collapsed, onToggleCollapsed, mobile, onNavigate }: SidebarProps) {
   const pathname = usePathname();
   const compact = collapsed && !mobile;
   const hasArt = useHasAsset(SIDEBAR_ART);
 
   return (
-    <nav
-      aria-label="Navegação principal"
-      className={cn(
-        "relative flex h-full shrink-0 flex-col overflow-hidden text-white transition-[width] duration-200",
-        "bg-[linear-gradient(180deg,#2b1d8c_0%,#21177a_40%,#17145b_100%)]",
-        compact ? "w-[84px]" : "w-[184px]",
-      )}
-    >
-      <div className={cn("relative z-10 flex items-center pt-6", compact ? "justify-center px-3" : "justify-between px-[18px]")}>
-        <Link href="/iniciativas" onClick={onNavigate} className="rounded-xl" aria-label="Jovens Gênios — Roadmap 2027, ir para Iniciativas">
-          <BrandLogo compact={compact} className={compact ? undefined : "w-[138px]"} />
-        </Link>
-        {mobile && (
-          <button
-            type="button"
-            onClick={onNavigate}
-            className="rounded-lg p-1.5 text-white/80 hover:bg-white/10 hover:text-white"
-            aria-label="Fechar menu"
-          >
-            <X size={20} />
-          </button>
+    <div className={cn("h-full shrink-0 p-3 transition-[width] duration-200", compact ? "w-[84px]" : "w-[208px]", mobile && "w-[232px]")}>
+      <nav
+        aria-label="Navegação principal"
+        className="relative flex h-full flex-col overflow-hidden rounded-[28px] bg-[linear-gradient(180deg,#f7f5ff_0%,#f1eeff_55%,#e9e4ff_100%)] shadow-[0_10px_40px_rgba(70,50,160,0.14),0_0_0_1px_rgba(120,100,220,0.08)]"
+      >
+        {hasArt && (
+          <div aria-hidden className="pointer-events-none absolute inset-0 select-none">
+            {/* eslint-disable-next-line @next/next/no-img-element -- arte decorativa local */}
+            <img
+              src={SIDEBAR_ART}
+              alt=""
+              draggable={false}
+              // Escala fixa nos dois estados: o cartão recolhido apenas "corta" a mesma arte, como na referência.
+              className="absolute bottom-0 left-0 h-auto w-[360px] max-w-none [mask-image:linear-gradient(to_bottom,transparent_0%,#000_26%)]"
+            />
+          </div>
         )}
-      </div>
 
-      <ul className={cn("relative z-10 mt-9 flex flex-col gap-2.5", compact ? "px-3" : "px-3")}>
-        {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href || pathname.startsWith(`${href}/`);
-          if (href === "/contexto" && CONTEXT_LOCKED) {
+        <div className={cn("relative z-10 flex items-center pt-5", compact ? "justify-center px-2" : "justify-between px-4")}>
+          <Link
+            href="/iniciativas"
+            onClick={onNavigate}
+            className={cn("rounded-xl", compact && "rounded-2xl bg-white/80 p-1 shadow-[0_4px_14px_rgba(70,50,160,0.12)]")}
+            aria-label="Jovens Gênios, Roadmap 2027. Ir para Iniciativas"
+          >
+            <BrandLogo compact={compact} className={compact ? undefined : "w-[122px]"} />
+          </Link>
+          {mobile && (
+            <button type="button" onClick={onNavigate} className="rounded-lg p-1.5 text-muted hover:bg-white/70 hover:text-ink" aria-label="Fechar menu">
+              <X size={20} />
+            </button>
+          )}
+        </div>
+
+        <ul className={cn("relative z-10 mt-8 flex flex-col gap-1.5", compact ? "px-2.5" : "px-3")}>
+          {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+            const locked = href === "/contexto" && CONTEXT_LOCKED;
+            const active = !locked && (pathname === href || pathname.startsWith(`${href}/`));
+            const row = cn(
+              "group relative flex h-[50px] items-center rounded-[14px] text-[15.5px] font-semibold transition-all",
+              compact ? "justify-center" : "gap-3.5 px-4",
+            );
+            const tip = compact && (
+              <span
+                role="presentation"
+                className="pointer-events-none absolute left-full top-1/2 z-30 ml-3 -translate-y-1/2 whitespace-nowrap rounded-lg bg-navy px-2.5 py-1.5 text-[12.5px] font-bold text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+              >
+                {label}
+                {locked && " (em breve)"}
+              </span>
+            );
+
+            if (locked) {
+              return (
+                <li key={href}>
+                  <span role="link" aria-disabled="true" title="Em breve" className={cn(row, "cursor-not-allowed text-[#8e97b8]")}>
+                    <Icon size={23} strokeWidth={1.8} aria-hidden />
+                    {!compact && <span className="flex-1">{label}</span>}
+                    {!compact && <Lock size={15} aria-hidden />}
+                    <span className="sr-only">{compact ? `${label} (bloqueado)` : "(bloqueado)"}</span>
+                    {tip}
+                  </span>
+                </li>
+              );
+            }
             return (
               <li key={href}>
-                <span
-                  role="link"
-                  aria-disabled="true"
-                  title="Em breve"
-                  className={cn("flex h-[50px] cursor-not-allowed items-center gap-3.5 rounded-[14px] text-[16px] font-semibold text-white/40", compact ? "justify-center" : "px-4")}
+                <Link
+                  href={href}
+                  onClick={onNavigate}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    row,
+                    active
+                      ? "bg-white font-bold text-violet shadow-[0_8px_22px_rgba(98,66,230,0.16)] before:absolute before:left-0 before:top-1/2 before:h-7 before:w-[4px] before:-translate-y-1/2 before:rounded-r-full before:bg-violet"
+                      : "text-[#4a557f] hover:bg-white/60 hover:text-navy",
+                  )}
                 >
-                  <Icon size={24} strokeWidth={1.8} aria-hidden />
-                  {!compact && <span className="flex-1">{label}</span>}
-                  {!compact && <Lock size={16} aria-hidden />}
-                  <span className="sr-only">{compact ? `${label} (bloqueado)` : "(bloqueado)"}</span>
-                </span>
+                  <Icon size={23} strokeWidth={active ? 2.1 : 1.8} aria-hidden />
+                  {!compact && <span>{label}</span>}
+                  {compact && <span className="sr-only">{label}</span>}
+                  {tip}
+                </Link>
               </li>
             );
-          }
-          return (
-            <li key={href}>
-              <Link
-                href={href}
-                onClick={onNavigate}
-                aria-current={active ? "page" : undefined}
-                title={compact ? label : undefined}
-                className={cn(
-                  "group flex h-[50px] items-center gap-3.5 rounded-[14px] text-[16px] font-semibold transition-colors",
-                  compact ? "justify-center" : "px-4",
-                  active
-                    ? "bg-[linear-gradient(90deg,#7352f5,#5f3fe0)] text-white shadow-[0_8px_22px_rgba(98,66,230,0.5)]"
-                    : "text-white/85 hover:bg-white/8 hover:text-white",
-                )}
-              >
-                <Icon size={24} strokeWidth={1.8} aria-hidden />
-                {!compact && <span>{label}</span>}
-                {compact && <span className="sr-only">{label}</span>}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
+          })}
+        </ul>
 
-      {hasArt ? (
-        <div className="pointer-events-none absolute inset-0 z-0 select-none" aria-hidden>
-          {/* eslint-disable-next-line @next/next/no-img-element -- arte decorativa local */}
-          <img src={SIDEBAR_ART} alt="" draggable={false} className="h-full w-full object-cover object-[16%_100%]" />
-          {/* Escurece o topo para manter logo e menu legíveis sobre o céu. */}
-          <div className="absolute inset-x-0 top-0 h-[48%] bg-gradient-to-b from-[#1b1466] via-[#1b1466]/75 to-transparent" />
-        </div>
-      ) : (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-0 select-none" aria-hidden>
-          <SidebarSpace className={cn("w-full", compact ? "opacity-60" : "")} />
-          {/* eslint-disable-next-line @next/next/no-img-element -- ilustração decorativa local */}
-          <img
-            src="/illustrations/astronauta-recorte.svg"
-            alt=""
-            className={cn("absolute bottom-3 left-1/2 -translate-x-[58%]", compact ? "w-[64px]" : "w-[132px]")}
-            draggable={false}
-          />
-        </div>
-      )}
-
-      {!mobile && (
-        <button
-          type="button"
-          onClick={onToggleCollapsed}
-          className="absolute bottom-4 right-3 z-10 hidden rounded-xl bg-white/10 p-2 text-white/85 backdrop-blur-sm transition-colors hover:bg-white/20 hover:text-white lg:inline-flex"
-          aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
-          title={collapsed ? "Expandir menu" : "Recolher menu"}
-        >
-          {collapsed ? <ChevronsRight size={18} /> : <ChevronsLeft size={18} />}
-        </button>
-      )}
-    </nav>
+        {!mobile && (
+          <button
+            type="button"
+            onClick={onToggleCollapsed}
+            className={cn(
+              "absolute bottom-5 z-10 hidden h-11 w-11 items-center justify-center rounded-full bg-white text-violet shadow-[0_8px_22px_rgba(70,50,160,0.22)] transition-colors hover:bg-[#f4f1ff] lg:flex",
+              compact ? "left-1/2 -translate-x-1/2" : "right-4",
+            )}
+            aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+            title={collapsed ? "Expandir menu" : "Recolher menu"}
+          >
+            {collapsed ? <ChevronsRight size={20} /> : <ChevronsLeft size={20} />}
+          </button>
+        )}
+      </nav>
+    </div>
   );
 }

@@ -3,15 +3,17 @@ import { cn } from "@/lib/client/cn";
 
 /**
  * Logo oficial da Jovens Gênios (arquivo original em public/brand/).
- * A versão horizontal tem ícone roxo e texto claro, adequada ao fundo escuro do menu.
+ * Por padrão usa a variante com texto escuro (fundos claros); `onDark` usa o arquivo original de texto claro.
  * No modo compacto, exibe apenas o ícone recortando o mesmo arquivo — sem redesenhar a marca.
  */
-export function BrandLogo({ compact = false, className }: { compact?: boolean; className?: string }) {
+export function BrandLogo({ compact = false, onDark = false, className }: { compact?: boolean; onDark?: boolean; className?: string }) {
+  // Mesmo arquivo oficial; a variante "escuro" só recolore o texto (azul-marinho) para fundos claros.
+  const src = onDark ? "/brand/jovens-genios-horizontal.png" : "/brand/jovens-genios-horizontal-escuro.png";
   if (compact) {
     return (
       <span className={cn("relative block h-[42px] w-[42px] overflow-hidden", className)}>
         <Image
-          src="/brand/jovens-genios-horizontal.png"
+          src={src}
           alt="Jovens Gênios"
           width={125}
           height={42}
@@ -23,7 +25,7 @@ export function BrandLogo({ compact = false, className }: { compact?: boolean; c
   }
   return (
     <Image
-      src="/brand/jovens-genios-horizontal.png"
+      src={src}
       alt="Jovens Gênios"
       width={256}
       height={86}
