@@ -4,6 +4,15 @@ import { Check, ChevronDown } from "lucide-react";
 import { useId, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { cn } from "@/lib/client/cn";
 
+/**
+ * Checkbox/radio visualmente oculto. O rótulo que o contém DEVE ser `relative`: sem isso, o
+ * navegador posiciona o input em relação a um ancestral distante e, ao focá-lo, rola o modal
+ * inteiro para fora da tela (tela "em branco").
+ */
+export function HiddenInput(props: InputHTMLAttributes<HTMLInputElement>) {
+  return <input {...props} className="peer absolute inset-0 h-full w-full cursor-pointer appearance-none opacity-0" />;
+}
+
 const control =
   "w-full rounded-xl border border-line bg-surface px-3.5 text-[14.5px] text-ink placeholder:text-subtle transition-colors hover:border-line-strong focus:border-violet focus:outline-none focus:ring-4 focus:ring-[#6045d8]/12 aria-[invalid=true]:border-[#c42b3a]";
 
@@ -177,18 +186,13 @@ export function ChipMultiSelect<T extends string>({
               <label
                 key={opt.value}
                 className={cn(
-                  "inline-flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition-colors",
+                  "relative inline-flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition-colors",
                   "has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-[#6045d8]/20",
                   checked ? "border-violet bg-brand-soft text-brand-strong" : "border-line bg-surface text-ink hover:border-line-strong",
                 )}
                 title={opt.description}
               >
-                <input
-                  type="checkbox"
-                  className="sr-only"
-                  checked={checked}
-                  onChange={() => onChange(checked ? value.filter((v) => v !== opt.value) : [...value, opt.value])}
-                />
+                <HiddenInput type="checkbox" checked={checked} onChange={() => onChange(checked ? value.filter((v) => v !== opt.value) : [...value, opt.value])} />
                 <span
                   aria-hidden
                   className={cn(

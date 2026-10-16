@@ -97,7 +97,7 @@ export function Modal({ open, onClose, title, description, children, footer, siz
         aria-describedby={description ? descId : undefined}
         tabIndex={-1}
         className={cn(
-          "relative flex max-h-[100dvh] w-full animate-pop-in flex-col overflow-hidden bg-surface shadow-[var(--shadow-raised)] sm:max-h-[92dvh] sm:rounded-3xl",
+          "relative flex max-h-[100dvh] w-full animate-pop-in flex-col overflow-clip bg-surface shadow-[var(--shadow-raised)] sm:max-h-[92dvh] sm:rounded-3xl",
           "rounded-t-3xl",
           SIZE[size],
         )}

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { PLATFORM_GLYPHS, PLATFORM_ICON_LABEL } from "@/components/platforms/platform-icon";
 import { Button } from "@/components/ui/button";
 import { Modal, useConfirm } from "@/components/ui/dialog";
-import { ChipMultiSelect, LinesField, SelectField, TextAreaField, TextField } from "@/components/ui/fields";
+import { ChipMultiSelect, HiddenInput, LinesField, SelectField, TextAreaField, TextField } from "@/components/ui/fields";
 import { useToast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/client/api";
 import { cn } from "@/lib/client/cn";
@@ -226,11 +226,11 @@ export function PlatformEditor({ platform, onClose }: { platform: Platform | nul
                   key={icon}
                   title={PLATFORM_ICON_LABEL[icon]}
                   className={cn(
-                    "flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border-2 has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-[#6045d8]/20",
+                    "relative flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border-2 has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-[#6045d8]/20",
                     draft.icon === icon ? "border-violet bg-brand-soft text-brand" : "border-line text-muted",
                   )}
                 >
-                  <input type="radio" name="platform-icon" className="sr-only" checked={draft.icon === icon} onChange={() => setDraft({ ...draft, icon })} aria-label={PLATFORM_ICON_LABEL[icon]} />
+                  <HiddenInput type="radio" name="platform-icon" checked={draft.icon === icon} onChange={() => setDraft({ ...draft, icon })} aria-label={PLATFORM_ICON_LABEL[icon]} />
                   <Glyph size={20} />
                 </label>
               );
@@ -244,11 +244,11 @@ export function PlatformEditor({ platform, onClose }: { platform: Platform | nul
               <label
                 key={accent}
                 className={cn(
-                  "flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-2 has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-[#6045d8]/20",
+                  "relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-2 has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-[#6045d8]/20",
                   draft.accent === accent ? "border-navy" : "border-transparent",
                 )}
               >
-                <input type="radio" name="platform-accent" className="sr-only" checked={draft.accent === accent} onChange={() => setDraft({ ...draft, accent })} aria-label={`Cor ${accent}`} />
+                <HiddenInput type="radio" name="platform-accent" checked={draft.accent === accent} onChange={() => setDraft({ ...draft, accent })} aria-label={`Cor ${accent}`} />
                 <span className="h-7 w-7 rounded-full" style={{ background: ACCENT_TONE[accent].solid }} />
               </label>
             ))}

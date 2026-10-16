@@ -6,7 +6,7 @@ import { newDocument, newMetric, newMilestone, newPhase, newPrototype } from "@/
 import { illustrationFor, InitiativeIllustration } from "@/components/initiatives/initiative-illustration";
 import { PLATFORM_GLYPHS } from "@/components/platforms/platform-icon";
 import { Button, IconButton } from "@/components/ui/button";
-import { Checkbox, ChipMultiSelect, LinesField, SelectField, TextAreaField, TextField } from "@/components/ui/fields";
+import { Checkbox, ChipMultiSelect, HiddenInput, LinesField, SelectField, TextAreaField, TextField } from "@/components/ui/fields";
 import { cn } from "@/lib/client/cn";
 import {
   DOCUMENT_KINDS,
@@ -152,11 +152,11 @@ export function IdentificationStep({ draft, set, errors, others, editingId, next
         <div className="flex flex-wrap gap-3">
           <label
             className={cn(
-              "flex h-[88px] w-[84px] cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border-2 text-center text-[11.5px] font-bold has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-[#6045d8]/20",
+              "relative flex h-[88px] w-[84px] cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border-2 text-center text-[11.5px] font-bold has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-[#6045d8]/20",
               draft.illustration === null ? "border-violet bg-brand-soft text-brand" : "border-line text-muted hover:border-line-strong",
             )}
           >
-            <input type="radio" name="illustration" className="sr-only" checked={draft.illustration === null} onChange={() => set("illustration", null)} />
+            <HiddenInput type="radio" name="illustration" checked={draft.illustration === null} onChange={() => set("illustration", null)} />
             <InitiativeIllustration id={editingId ?? nextId} illustration={previewKey} className="h-9 w-9 rounded-lg opacity-70" />
             Automática
           </label>
@@ -164,11 +164,11 @@ export function IdentificationStep({ draft, set, errors, others, editingId, next
             <label
               key={key}
               className={cn(
-                "flex cursor-pointer flex-col items-center gap-1 rounded-2xl border-2 p-1 text-[11.5px] font-bold has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-[#6045d8]/20",
+                "relative flex cursor-pointer flex-col items-center gap-1 rounded-2xl border-2 p-1 text-[11.5px] font-bold has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-[#6045d8]/20",
                 draft.illustration === key ? "border-violet text-brand" : "border-transparent text-muted hover:border-line",
               )}
             >
-              <input type="radio" name="illustration" className="sr-only" checked={draft.illustration === key} onChange={() => set("illustration", key)} />
+              <HiddenInput type="radio" name="illustration" checked={draft.illustration === key} onChange={() => set("illustration", key)} />
               <InitiativeIllustration id={editingId ?? nextId} illustration={key} className="h-[60px] w-[60px] rounded-xl" />
               {ILLUSTRATION_LABEL[key]}
             </label>

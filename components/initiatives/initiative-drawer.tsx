@@ -236,7 +236,7 @@ export function InitiativeDrawer() {
         aria-label={initiative ? `Detalhes: ${initiative.title}` : "Detalhes da iniciativa"}
         tabIndex={-1}
         className={cn(
-          "fixed inset-y-0 right-0 z-50 flex w-full animate-drawer-in flex-col overflow-hidden bg-surface shadow-[-24px_0_60px_rgba(16,12,63,0.28)] focus:outline-none",
+          "fixed inset-y-0 right-0 z-50 flex w-full animate-drawer-in flex-col overflow-clip bg-surface shadow-[-24px_0_60px_rgba(16,12,63,0.28)] focus:outline-none",
           "sm:w-[min(760px,94vw)] sm:rounded-l-[28px] xl:w-[clamp(620px,44vw,820px)]",
         )}
       >
