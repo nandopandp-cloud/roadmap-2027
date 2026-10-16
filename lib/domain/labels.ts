@@ -88,6 +88,7 @@ export const PROBLEM_VALIDATION_LABEL: Record<ProblemValidation, string> = {
 };
 
 export const ILLUSTRATION_LABEL: Record<IllustrationKey, string> = {
+  nexo: "Nexo (Batalhas)",
   "login-qr": "Astronauta com QR Code",
   astronauta: "Astronauta",
   ilha: "Ilha flutuante",
@@ -109,6 +110,7 @@ export const ILLUSTRATION_ASSET: Record<
   IllustrationKey,
   { src: string; fallback?: string; fit: "cover" | "contain"; header?: string; focus?: string }
 > = {
+  nexo: { src: "/illustrations/nexo.jpg", fit: "contain" },
   "login-qr": {
     src: "/illustrations/login-astronauta-qr.jpg",
     fallback: "/illustrations/astronauta.svg",

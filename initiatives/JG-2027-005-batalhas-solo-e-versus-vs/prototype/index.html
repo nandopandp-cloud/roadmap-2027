@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Geniex — Batalhas Solo e VS · Telas de referência</title>
+<style>
+  :root{--navy:#171b4d;--violet:#5b3fe0;--line:#e1e8f4;--bg:#f4f7fc;--muted:#5f6c8f}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--navy);display:flex;flex-direction:column;height:100vh}
+  header{padding:14px 20px;background:#fff;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  header h1{font-size:16px;margin:0;font-weight:800}
+  header p{margin:0;font-size:12.5px;color:var(--muted)}
+  .badge{font-size:11px;font-weight:700;background:#fff4d6;color:#7a5200;border-radius:99px;padding:4px 10px}
+  main{flex:1;display:grid;grid-template-columns:230px 1fr;min-height:0}
+  nav{overflow:auto;border-right:1px solid var(--line);background:#fff;padding:10px}
+  nav button{display:flex;gap:10px;align-items:center;width:100%;text-align:left;border:0;background:none;padding:8px 10px;border-radius:10px;font:inherit;font-size:13px;color:var(--navy);cursor:pointer}
+  nav button:hover{background:#f2f5fb}
+  nav button[aria-current=true]{background:#ece9fd;font-weight:700;color:#3d2a9c}
+  nav b{display:inline-grid;place-items:center;min-width:24px;height:24px;border-radius:8px;background:#eef2f9;font-size:11.5px}
+  nav button[aria-current=true] b{background:var(--violet);color:#fff}
+  nav h2{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8792b0;margin:14px 10px 4px}
+  section{display:flex;flex-direction:column;min-width:0;min-height:0}
+  .bar{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line);background:#fff}
+  .bar h3{margin:0;font-size:15px;flex:1}
+  .bar small{display:block;color:var(--muted);font-weight:400;font-size:12.5px}
+  .bar button{border:1px solid var(--line);background:#fff;border-radius:10px;padding:7px 12px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;color:var(--navy)}
+  .bar button:disabled{opacity:.4;cursor:default}
+  .stage{flex:1;overflow:auto;padding:16px;display:flex;justify-content:center;align-items:flex-start}
+  .stage img{max-width:100%;height:auto;border-radius:12px;box-shadow:0 8px 30px rgba(23,27,77,.12);background:#fff}
+  footer{padding:8px 16px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--line);background:#fff}
+  :focus-visible{outline:3px solid #8e7cf5;outline-offset:2px}
+  @media (max-width:760px){main{grid-template-columns:1fr}nav{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Batalhas Solo e VS — Geniex</h1>
+  <span class="badge">Telas de referência · não navegável</span>
+  <p>Mockups do fluxo do estudante. Não há lógica de quiz, autenticação nem dados reais.</p>
+</header>
+<main>
+  <nav id="menu" aria-label="Telas do fluxo"></nav>
+  <section>
+    <div class="bar">
+      <h3 id="titulo"></h3>
+      <button id="ant" type="button">← Anterior</button>
+      <button id="prox" type="button">Próxima →</button>
+    </div>
+    <div class="stage"><img id="img" alt=""></div>
+    <footer>Use as setas ← → do teclado para navegar entre as telas.</footer>
+  </section>
+</main>
+<script>
+  const telas = [
+    ["Entrada", "Área de Batalhas", "Cards das modalidades Solo (com o Nexo) e VS.", "telas/01-area-de-batalhas.jpg"],
+    ["Batalha Solo", "Introdução com o Nexo", "Apresenta o Nexo e as regras de resultado (7–10 vitória, 5–6 empate, 0–4 derrota).", "telas/02-introducao-solo.jpg"],
+    ["Batalha VS", "Introdução da Batalha VS", "Explica como funciona o desafio assíncrono, o prazo de 24 horas e o W.O.", "telas/03-introducao-vs.jpg"],
+    ["Batalha VS", "Escolha do oponente", "Lista de estudantes elegíveis (mesma sala ou escola e mesmo ano).", "telas/04-escolha-oponente.jpg"],
+    ["Configuração", "Seleção de disciplinas e tópicos", "De 1 a 3 disciplinas e exatamente 1 tópico por disciplina.", "telas/05-selecao-disciplinas-topicos.jpg"],
+    ["Batalha VS", "Confirmação do desafio", "Resumo do oponente e da configuração antes de enviar o desafio.", "telas/06-confirmar-desafio.jpg"],
+    ["Rodada", "Quiz com cronômetro", "10 questões em até 10 minutos, com indicador de progresso.", "telas/07-quiz-cronometro.jpg"],
+    ["Resultado", "Resultado da Batalha Solo", "Nota de 0 a 10, resultado e desempenho por tópico.", "telas/08-resultado-solo.jpg"],
+    ["Resultado", "Resultado da Batalha VS", "Comparação das notas dos dois participantes.", "telas/09-resultado-vs.jpg"],
+    ["Aprendizagem", "Gabarito", "Resposta marcada, resposta correta e situação de cada questão.", "telas/10-gabarito.jpg"],
+    ["Histórico", "Minhas batalhas", "Batalhas pendentes e concluídas, incluindo W.O. e revanche.", "telas/11-historico-minhas-batalhas.jpg"],
+    ["Personagem", "Ficha do Nexo", "Personagem oficial do modo Solo: expressões, poses e elementos gráficos.", "telas/12-ficha-nexo.jpg"]
+  ];
+  const menu = document.getElementById("menu"), img = document.getElementById("img");
+  const titulo = document.getElementById("titulo"), ant = document.getElementById("ant"), prox = document.getElementById("prox");
+  let atual = 0, grupo = "";
+  telas.forEach((t, i) => {
+    if (t[0] !== grupo) { grupo = t[0]; const h = document.createElement("h2"); h.textContent = grupo; menu.appendChild(h); }
+    const b = document.createElement("button"); b.type = "button";
+    b.innerHTML = "<b>" + (i + 1) + "</b><span></span>"; b.lastChild.textContent = t[1];
+    b.addEventListener("click", () => ir(i)); menu.appendChild(b);
+  });
+  function ir(i) {
+    atual = Math.max(0, Math.min(telas.length - 1, i));
+    const t = telas[atual];
+    img.src = t[3]; img.alt = t[1] + " — " + t[2];
+    titulo.innerHTML = "<small></small>"; titulo.firstChild.textContent = (atual + 1) + " de " + telas.length + " · " + t[2];
+    titulo.insertBefore(document.createTextNode(t[1]), titulo.firstChild);
+    ant.disabled = atual === 0; prox.disabled = atual === telas.length - 1;
+    menu.querySelectorAll("button").forEach((b, k) => b.setAttribute("aria-current", k === atual));
+    document.querySelector(".stage").scrollTo(0, 0);
+  }
+  ant.addEventListener("click", () => ir(atual - 1)); prox.addEventListener("click", () => ir(atual + 1));
+  document.addEventListener("keydown", (e) => { if (e.key === "ArrowRight") ir(atual + 1); if (e.key === "ArrowLeft") ir(atual - 1); });
+  ir(0);
+</script>
+</body>
+</html>

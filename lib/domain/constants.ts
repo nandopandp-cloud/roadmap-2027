@@ -38,7 +38,7 @@ export const PROBLEM_VALIDATION = ["confirmado", "em_validacao", "hipotese"] as 
 
 export const PLATFORM_ICONS = ["settings", "explorer", "teacher", "family", "book", "sparkles", "layers"] as const;
 
-export const ILLUSTRATIONS = ["login-qr", "astronauta", "ilha", "foguete", "satelite", "planeta", "tecnologia"] as const;
+export const ILLUSTRATIONS = ["nexo", "login-qr", "astronauta", "ilha", "foguete", "satelite", "planeta", "tecnologia"] as const;
 
 /** Estado de cada etapa de progresso. O percentual é derivado das etapas concluídas. */
 export const PHASE_STATES = ["pendente", "em_andamento", "concluida"] as const;
