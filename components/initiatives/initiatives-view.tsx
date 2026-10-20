@@ -1,12 +1,13 @@
 "use client";
 
-import { ChevronDown, LayoutGrid, List, Plus, Rocket, Search, X } from "lucide-react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { LayoutGrid, List, Plus, Rocket, Search, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { InitiativeCard } from "@/components/initiatives/initiative-card";
 import { PageContainer, PageHero } from "@/components/layout/page-header";
 import { useGlobalSearch } from "@/components/search/global-search";
 import { Button } from "@/components/ui/button";
 import { EmptyState, ErrorBanner, Skeleton } from "@/components/ui/feedback";
+import { FilterSelect } from "@/components/ui/filter-select";
 import { cn, plural } from "@/lib/client/cn";
 import { DEFAULT_FILTERS, filterExceptStatus, filterInitiatives, type InitiativeFilters, type SortKey } from "@/lib/client/filtering";
 import { useInitiativeSelection } from "@/lib/client/selection";
@@ -29,33 +30,6 @@ const STATUS_TAB_LABEL: Record<InitiativeStatus, string> = {
   pausada: "Pausadas",
   cancelada: "Canceladas",
 };
-
-/** Select de filtro com rótulo interno (padrão visual da referência). */
-function FilterSelect({
-  label,
-  value,
-  onChange,
-  children,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  children: ReactNode;
-}) {
-  return (
-    <label className="relative flex h-[54px] w-full flex-col justify-center rounded-[14px] border border-[#e3e9f4] bg-surface pl-4 pr-10 shadow-[0_1px_3px_rgba(23,27,77,0.04)] transition-colors hover:border-line-strong has-[:focus-visible]:border-violet has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-[#6045d8]/12 sm:w-[172px]">
-      <span className="text-[11.5px] font-semibold text-muted">{label}</span>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full cursor-pointer appearance-none truncate bg-transparent text-[15px] font-semibold text-ink focus:outline-none"
-      >
-        {children}
-      </select>
-      <ChevronDown size={18} aria-hidden className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-ink" />
-    </label>
-  );
-}
 
 export function InitiativesView() {
   const { load, data, reload, openForm } = useRoadmap();

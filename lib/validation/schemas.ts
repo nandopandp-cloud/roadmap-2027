@@ -231,6 +231,69 @@ export const platformInputSchema = z.object({
 
 export const platformSchema = platformInputSchema.extend({ id: localId });
 
+/* ---------- Times & Squads ---------- */
+
+const optionalEmail = z
+  .string()
+  .trim()
+  .max(200)
+  .refine((v) => v === "" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), "Informe um e-mail válido.")
+  .default("");
+
+/** Campos editáveis de um colaborador (o que o formulário envia). */
+export const personInputSchema = z.object({
+  name: required("O nome", 120),
+  role: required("O cargo", 120),
+  area: text(80).default(""),
+  email: optionalEmail,
+  location: text(120).default(""),
+  /** Liderança direta cadastrada no organograma. */
+  managerId: localId.nullable().default(null),
+  /** Liderança direta fora do organograma (ex.: "CEO · Jovens Gênios"), usada quando managerId é nulo. */
+  externalManager: text(160).default(""),
+  squadId: localId.nullable().default(null),
+  responsibilities: list(),
+  photo: customImageSchema.nullable().default(null),
+});
+
+export const personSchema = personInputSchema.extend({
+  id: localId,
+  /** Posição dentro do squad; alterada ao arrastar no organograma. */
+  squadOrder: z.number().int().min(0).default(0),
+});
+
+export const squadInputSchema = z.object({
+  name: required("O nome", 80),
+  description: text(400).default(""),
+  icon: z.enum(PLATFORM_ICONS).default("layers"),
+  accent: z.enum(PLATFORM_ACCENTS).default("indigo"),
+  /** Pessoa a quem o squad responde; aparece acima do squad no organograma. */
+  leaderId: localId.nullable().default(null),
+  /** Plataformas sob responsabilidade do squad (base das iniciativas relacionadas). */
+  platformIds: z.array(localId).max(20).default([]),
+});
+
+export const squadSchema = squadInputSchema.extend({ id: localId });
+
+/** Realocar um colaborador: squad de destino (null = sem squad) e vizinho no ponto de inserção. */
+export const personMoveSchema = z.object({
+  squadId: localId.nullable(),
+  beforeId: localId.nullable().default(null),
+  afterId: localId.nullable().default(null),
+});
+
+/** Substituir um colaborador por outro (existente ou novo), transferindo squad, liderança e equipe. */
+export const personReplaceSchema = z
+  .object({
+    substituteId: localId.nullable().default(null),
+    newPerson: z.object({ name: required("O nome", 120), email: optionalEmail }).nullable().default(null),
+    /** O substituto assume o cargo e as responsabilidades de quem sai. */
+    takeRole: z.boolean().default(true),
+    /** O que acontece com quem sai: fica no cadastro sem squad ou é removido. */
+    outgoing: z.enum(["manter", "remover"]).default("manter"),
+  })
+  .refine((v) => !!v.substituteId !== !!v.newPerson, { message: "Escolha um colaborador ou cadastre um novo.", path: ["substituteId"] });
+
 export const driverSchema = z.object({
   id: localId,
   title: required("O título", 120),

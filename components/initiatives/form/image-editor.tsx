@@ -54,7 +54,19 @@ async function upload(blob: Blob): Promise<string> {
 }
 
 /** Editor: escolher arquivo, mover, ampliar, girar, espelhar e recortar (quadro 1:1). */
-export function ImageEditor({ current, onApply, onClose }: { current: CustomImage | null; onApply: (image: CustomImage) => void; onClose: () => void }) {
+export function ImageEditor({
+  current,
+  onApply,
+  onClose,
+  title = "Imagem da iniciativa",
+  description = "Envie uma imagem e ajuste o enquadramento. O resultado é um quadrado, usado na lista e no cabeçalho dos detalhes.",
+}: {
+  current: CustomImage | null;
+  onApply: (image: CustomImage) => void;
+  onClose: () => void;
+  title?: string;
+  description?: string;
+}) {
   const notify = useToast();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -166,8 +178,8 @@ export function ImageEditor({ current, onApply, onClose }: { current: CustomImag
       open
       onClose={onClose}
       size="lg"
-      title="Imagem da iniciativa"
-      description="Envie uma imagem e ajuste o enquadramento. O resultado é um quadrado, usado na lista e no cabeçalho dos detalhes."
+      title={title}
+      description={description}
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={saving}>

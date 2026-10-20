@@ -2,7 +2,7 @@ import "server-only";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { Pool, PoolClient } from "pg";
-import type { Database, Initiative, Platform } from "@/lib/domain/types";
+import type { Database, Initiative, Person, Platform, Squad } from "@/lib/domain/types";
 import { buildSeedDatabase } from "@/lib/repositories/json-file-repository";
 import { migrateDatabase, SCHEMA_VERSION } from "@/lib/repositories/migrations";
 import { ensureSchema, ROADMAP_LOCK_KEY } from "@/lib/repositories/postgres";
@@ -86,6 +86,8 @@ export class PostgresRepository implements RoadmapRepository {
           initiatives: [],
           platforms: [],
           context: { intro: "", drivers: [], principles: [], problems: [] },
+          people: [],
+          squads: [],
         };
         await this.persistChanges(client, empty, source);
         await this.importDocuments(client);
@@ -123,16 +125,20 @@ export class PostgresRepository implements RoadmapRepository {
   }
 
   private async load(q: Queryable): Promise<Database> {
-    const [initiatives, platforms, context] = await Promise.all([
+    const [initiatives, platforms, context, people, squads] = await Promise.all([
       q.query<{ data: Initiative }>("SELECT data FROM initiatives ORDER BY id"),
       q.query<{ data: Platform }>("SELECT data FROM platforms ORDER BY position, id"),
       q.query<{ data: Database["context"] }>("SELECT data FROM strategy_context WHERE id = 1"),
+      q.query<{ data: Person }>("SELECT data FROM people ORDER BY id"),
+      q.query<{ data: Squad }>("SELECT data FROM squads ORDER BY position, id"),
     ]);
     const db: Database = {
       schemaVersion: SCHEMA_VERSION,
       initiatives: initiatives.rows.map((r) => r.data),
       platforms: platforms.rows.map((r) => r.data),
       context: context.rows[0]?.data ?? { intro: "", drivers: [], principles: [], problems: [] },
+      people: people.rows.map((r) => r.data),
+      squads: squads.rows.map((r) => r.data),
     };
     // Registros gravados em versões anteriores do esquema são normalizados em memória.
     return migrateDatabase({ ...db, schemaVersion: 1 }).db;
@@ -140,31 +146,10 @@ export class PostgresRepository implements RoadmapRepository {
 
   /** Grava somente o que mudou entre `before` e `after`. */
   private async persistChanges(client: PoolClient, before: Database, after: Database): Promise<void> {
-    const prevInitiatives = new Map(before.initiatives.map((i) => [i.id, JSON.stringify(i)]));
-    for (const i of after.initiatives) {
-      const json = JSON.stringify(i);
-      if (prevInitiatives.get(i.id) === json) continue;
-      await client.query(
-        `INSERT INTO initiatives (id, data, updated_at) VALUES ($1, $2, now())
-         ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = now()`,
-        [i.id, json],
-      );
-    }
-    const removedInitiatives = before.initiatives.filter((b) => !after.initiatives.some((a) => a.id === b.id)).map((b) => b.id);
-    if (removedInitiatives.length) await client.query("DELETE FROM initiatives WHERE id = ANY($1)", [removedInitiatives]);
-
-    const prevPlatforms = new Map(before.platforms.map((p, idx) => [p.id, `${idx}:${JSON.stringify(p)}`]));
-    for (const [idx, p] of after.platforms.entries()) {
-      const json = JSON.stringify(p);
-      if (prevPlatforms.get(p.id) === `${idx}:${json}`) continue;
-      await client.query(
-        `INSERT INTO platforms (id, position, data, updated_at) VALUES ($1, $2, $3, now())
-         ON CONFLICT (id) DO UPDATE SET position = EXCLUDED.position, data = EXCLUDED.data, updated_at = now()`,
-        [p.id, idx, json],
-      );
-    }
-    const removedPlatforms = before.platforms.filter((b) => !after.platforms.some((a) => a.id === b.id)).map((b) => b.id);
-    if (removedPlatforms.length) await client.query("DELETE FROM platforms WHERE id = ANY($1)", [removedPlatforms]);
+    await persistCollection(client, "initiatives", before.initiatives, after.initiatives, false);
+    await persistCollection(client, "platforms", before.platforms, after.platforms, true);
+    await persistCollection(client, "people", before.people, after.people, false);
+    await persistCollection(client, "squads", before.squads, after.squads, true);
 
     if (JSON.stringify(before.context) !== JSON.stringify(after.context)) {
       await client.query(
@@ -174,6 +159,39 @@ export class PostgresRepository implements RoadmapRepository {
       );
     }
   }
+}
+
+/**
+ * Grava os registros alterados de uma coleção (um JSONB por id) e remove os excluídos.
+ * `ordered`: a tabela guarda a posição do registro na lista (plataformas, squads).
+ */
+async function persistCollection<T extends { id: string }>(
+  client: PoolClient,
+  table: "initiatives" | "platforms" | "people" | "squads",
+  before: T[],
+  after: T[],
+  ordered: boolean,
+): Promise<void> {
+  const key = (item: T, idx: number) => (ordered ? `${idx}:${JSON.stringify(item)}` : JSON.stringify(item));
+  const previous = new Map(before.map((item, idx) => [item.id, key(item, idx)]));
+  for (const [idx, item] of after.entries()) {
+    if (previous.get(item.id) === key(item, idx)) continue;
+    if (ordered) {
+      await client.query(
+        `INSERT INTO ${table} (id, position, data, updated_at) VALUES ($1, $2, $3, now())
+         ON CONFLICT (id) DO UPDATE SET position = EXCLUDED.position, data = EXCLUDED.data, updated_at = now()`,
+        [item.id, idx, JSON.stringify(item)],
+      );
+    } else {
+      await client.query(
+        `INSERT INTO ${table} (id, data, updated_at) VALUES ($1, $2, now())
+         ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = now()`,
+        [item.id, JSON.stringify(item)],
+      );
+    }
+  }
+  const removed = before.filter((b) => !after.some((a) => a.id === b.id)).map((b) => b.id);
+  if (removed.length) await client.query(`DELETE FROM ${table} WHERE id = ANY($1)`, [removed]);
 }
 
 async function listMarkdown(dir: string): Promise<string[]> {

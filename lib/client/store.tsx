@@ -2,8 +2,9 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api, ApiError, type Snapshot } from "@/lib/client/api";
+import { placeInSquad, type PersonTarget } from "@/lib/domain/org";
 import { placeInColumn, type RoadmapTarget } from "@/lib/domain/roadmap-order";
-import type { Initiative, Platform, StrategyContext } from "@/lib/domain/types";
+import type { Initiative, Person, Platform, Squad, StrategyContext } from "@/lib/domain/types";
 
 type LoadState = { status: "loading" } | { status: "error"; message: string } | { status: "ready" };
 
@@ -27,6 +28,14 @@ interface RoadmapStore {
   savePlatform: (id: string | null, data: unknown) => Promise<Platform>;
   removePlatform: (id: string) => Promise<void>;
   saveContext: (context: StrategyContext) => Promise<StrategyContext>;
+  savePerson: (id: string | null, data: unknown) => Promise<Person>;
+  /** Exclusão e substituição alteram outros registros (lideranças, squads): recarregam o estado. */
+  removePerson: (id: string) => Promise<void>;
+  replacePerson: (id: string, data: unknown) => Promise<Person>;
+  /** Realoca um colaborador (squad e posição), com atualização imediata da tela. */
+  movePerson: (id: string, target: PersonTarget) => Promise<void>;
+  saveSquad: (id: string | null, data: unknown) => Promise<Squad>;
+  removeSquad: (id: string) => Promise<void>;
   form: FormRequest | null;
   openForm: (initiativeId: string | null, step?: number) => void;
   closeForm: () => void;
@@ -36,6 +45,8 @@ const EMPTY: Snapshot = {
   initiatives: [],
   platforms: [],
   context: { intro: "", drivers: [], principles: [], problems: [] },
+  people: [],
+  squads: [],
   writable: true,
   storage: "arquivo",
 };
@@ -143,6 +154,73 @@ export function RoadmapProvider({ children }: { children: ReactNode }) {
     return saved;
   }, []);
 
+  const savePerson = useCallback(async (id: string | null, payload: unknown) => {
+    const person = id ? await api.updatePerson(id, payload) : await api.createPerson(payload);
+    setData((prev) => ({
+      ...prev,
+      people: id ? prev.people.map((p) => (p.id === id ? person : p)) : [...prev.people, person],
+    }));
+    return person;
+  }, []);
+
+  const removePerson = useCallback(
+    async (id: string) => {
+      await api.deletePerson(id);
+      await reload();
+    },
+    [reload],
+  );
+
+  const replacePerson = useCallback(
+    async (id: string, payload: unknown) => {
+      const substitute = await api.replacePerson(id, payload);
+      await reload();
+      return substitute;
+    },
+    [reload],
+  );
+
+  const movePerson = useCallback<RoadmapStore["movePerson"]>(async (id, target) => {
+    const previous = new Map<string, Person>();
+    setData((prev) => {
+      const orders = placeInSquad(prev.people, id, target);
+      if (!orders) return prev;
+      return {
+        ...prev,
+        people: prev.people.map((p) => {
+          const order = orders.get(p.id);
+          if (order === undefined) return p;
+          previous.set(p.id, p);
+          return { ...p, squadId: p.id === id ? target.squadId : p.squadId, squadOrder: order };
+        }),
+      };
+    });
+    try {
+      const changed = await api.movePerson(id, target);
+      setData((prev) => ({ ...prev, people: prev.people.map((p) => changed.find((c) => c.id === p.id) ?? p) }));
+    } catch (error) {
+      setData((prev) => ({ ...prev, people: prev.people.map((p) => previous.get(p.id) ?? p) }));
+      throw error;
+    }
+  }, []);
+
+  const saveSquad = useCallback(async (id: string | null, payload: unknown) => {
+    const squad = id ? await api.updateSquad(id, payload) : await api.createSquad(payload);
+    setData((prev) => ({
+      ...prev,
+      squads: id ? prev.squads.map((s) => (s.id === id ? squad : s)) : [...prev.squads, squad],
+    }));
+    return squad;
+  }, []);
+
+  const removeSquad = useCallback(
+    async (id: string) => {
+      await api.deleteSquad(id);
+      await reload();
+    },
+    [reload],
+  );
+
   const value = useMemo<RoadmapStore>(
     () => ({
       load,
@@ -157,11 +235,17 @@ export function RoadmapProvider({ children }: { children: ReactNode }) {
       savePlatform,
       removePlatform,
       saveContext,
+      savePerson,
+      removePerson,
+      replacePerson,
+      movePerson,
+      saveSquad,
+      removeSquad,
       form,
       openForm: (initiativeId, step) => setForm({ initiativeId, step }),
       closeForm: () => setForm(null),
     }),
-    [load, data, reload, upsertInitiative, removeInitiative, patchPlanning, moveInitiative, savePlatform, removePlatform, saveContext, form],
+    [load, data, reload, upsertInitiative, removeInitiative, patchPlanning, moveInitiative, savePlatform, removePlatform, saveContext, savePerson, removePerson, replacePerson, movePerson, saveSquad, removeSquad, form],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

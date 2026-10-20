@@ -3,7 +3,7 @@
 import { ArrowDownToLine, CircleDashed, Flag, GitFork, GripVertical } from "lucide-react";
 import type { KeyboardEvent, PointerEvent, ReactNode } from "react";
 import { PLATFORM_GLYPHS } from "@/components/platforms/platform-icon";
-import { useCardDrag, type ActiveDrag, type DropTarget } from "@/components/roadmap/use-card-drag";
+import { useCardDrag, type ActiveDrag, type DropTarget } from "@/components/ui/use-card-drag";
 import { PriorityBadge, StatusBadge, TransversalBadge } from "@/components/ui/badges";
 import { Skeleton } from "@/components/ui/feedback";
 import { ProgressBar } from "@/components/ui/progress";

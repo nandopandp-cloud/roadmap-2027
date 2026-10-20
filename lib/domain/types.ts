@@ -14,11 +14,15 @@ import type {
   initiativeSchema,
   metricSchema,
   milestoneSchema,
+  personInputSchema,
+  personSchema,
   phaseSchema,
   platformInputSchema,
   platformSchema,
   principleSchema,
   prototypeRefSchema,
+  squadInputSchema,
+  squadSchema,
   strategyContextSchema,
   structuralProblemSchema,
 } from "@/lib/validation/schemas";
@@ -67,6 +71,11 @@ export type InitiativeInput = z.infer<typeof initiativeInputSchema>;
 export type Platform = z.infer<typeof platformSchema>;
 export type PlatformInput = z.infer<typeof platformInputSchema>;
 
+export type Person = z.infer<typeof personSchema>;
+export type PersonInput = z.infer<typeof personInputSchema>;
+export type Squad = z.infer<typeof squadSchema>;
+export type SquadInput = z.infer<typeof squadInputSchema>;
+
 export type Driver = z.infer<typeof driverSchema>;
 export type Principle = z.infer<typeof principleSchema>;
 export type StructuralProblem = z.infer<typeof structuralProblemSchema>;
@@ -77,4 +86,6 @@ export interface Database {
   initiatives: Initiative[];
   platforms: Platform[];
   context: StrategyContext;
+  people: Person[];
+  squads: Squad[];
 }

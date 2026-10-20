@@ -17,6 +17,9 @@ export function buildSeedDatabase(): Database {
     initiatives: seedInitiatives,
     platforms: seedPlatforms,
     context: seedContext,
+    // Sem colaboradores fictícios: o organograma é montado pelo time.
+    people: [],
+    squads: [],
   });
 }
 

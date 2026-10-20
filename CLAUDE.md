@@ -6,7 +6,8 @@ Instruções permanentes para trabalhar neste repositório. Leia o [README](READ
 
 - Ferramenta interna de **gestão estratégica de iniciativas**, documentação e roadmap. Não é gestão de projetos: não adicionar sprints, tarefas, kanban de execução ou dashboards de gráficos.
 - Toda a interface é em **português brasileiro**.
-- A sidebar tem **exatamente três** itens: Contexto, Iniciativas, Roadmap. Não adicionar itens de primeiro nível; PRDs, protótipos e plataformas ficam vinculados às iniciativas ou ao contexto.
+- A sidebar tem **exatamente quatro** itens: Contexto, Iniciativas, Roadmap, Times & Squads. Não adicionar outros itens de primeiro nível; PRDs, protótipos e plataformas ficam vinculados às iniciativas ou ao contexto.
+- **Times & Squads** (`/times`) é o organograma: colaboradores (`people`) e squads (`squads`). Detalhes do colaborador abrem no painel lateral (`?colaborador=<id>`); a aba fica em `?visao=`. Iniciativas relacionadas são sempre derivadas (plataformas dos squads e campo "responsável"); não cadastrar pessoas fictícias.
 - Detalhes de iniciativa abrem no **drawer lateral sobreposto** com camada escura (`?iniciativa=<id>&aba=<aba>`), nunca em página própria. `/iniciativas/<id>` apenas redireciona.
 - A referência visual aprovada é o layout com hero ilustrado, abas de status, cards com progresso e drawer com cabeçalho ilustrado. Mudanças visuais devem preservar essa composição.
 - Progresso é sempre derivado das etapas (`lib/domain/progress.ts`); nunca aceitar percentual digitado.

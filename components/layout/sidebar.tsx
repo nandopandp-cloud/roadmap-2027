@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, ChevronLeft, ChevronRight, FileText, House, Lock, X } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, FileText, House, Lock, Users, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BrandLogo } from "@/components/layout/brand-logo";
@@ -9,11 +9,12 @@ import { cn } from "@/lib/client/cn";
 import { SIDEBAR_ART } from "@/lib/domain/labels";
 import { CONTEXT_LOCKED } from "@/lib/features";
 
-/** As três (e somente três) seções de primeiro nível. */
+/** As quatro (e somente quatro) seções de primeiro nível. */
 export const NAV_ITEMS = [
   { href: "/contexto", label: "Contexto", icon: House },
   { href: "/iniciativas", label: "Iniciativas", icon: FileText },
   { href: "/roadmap", label: "Roadmap", icon: CalendarDays },
+  { href: "/times", label: "Times & Squads", icon: Users },
 ] as const;
 
 interface SidebarProps {
@@ -34,7 +35,7 @@ export function Sidebar({ collapsed, onToggleCollapsed, mobile, onNavigate }: Si
   const hasArt = useHasAsset(SIDEBAR_ART);
 
   return (
-    <div className={cn("relative z-20 h-full shrink-0 p-3 transition-[width] duration-200", compact ? "w-[84px]" : "w-[208px]", mobile && "w-[232px]")}>
+    <div className={cn("relative z-20 h-full shrink-0 p-3 transition-[width] duration-200", compact ? "w-[84px]" : "w-[240px]", mobile && "w-[240px]")}>
       <nav
         aria-label="Navegação principal"
         className="relative flex h-full flex-col overflow-hidden rounded-[28px] bg-[linear-gradient(180deg,#f7f5ff_0%,#f1eeff_55%,#e9e4ff_100%)] shadow-[0_10px_40px_rgba(70,50,160,0.14),0_0_0_1px_rgba(120,100,220,0.08)]"
@@ -74,7 +75,7 @@ export function Sidebar({ collapsed, onToggleCollapsed, mobile, onNavigate }: Si
             const active = !locked && (pathname === href || pathname.startsWith(`${href}/`));
             const row = cn(
               "group relative flex h-[50px] items-center rounded-[14px] text-[15.5px] font-semibold transition-all",
-              compact ? "justify-center" : "gap-3.5 px-4",
+              compact ? "justify-center" : "gap-3 whitespace-nowrap px-4",
             );
             const tip = compact && (
               <span

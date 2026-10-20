@@ -1,10 +1,13 @@
+import type { PersonTarget } from "@/lib/domain/org";
 import type { RoadmapTarget } from "@/lib/domain/roadmap-order";
-import type { Initiative, Platform, StrategyContext } from "@/lib/domain/types";
+import type { Initiative, Person, Platform, Squad, StrategyContext } from "@/lib/domain/types";
 
 export interface Snapshot {
   initiatives: Initiative[];
   platforms: Platform[];
   context: StrategyContext;
+  people: Person[];
+  squads: Squad[];
   /** false quando a implantação não consegue gravar alterações (ex.: Vercel). */
   writable: boolean;
   /** Onde os dados estão sendo gravados. */
@@ -60,6 +63,18 @@ export const api = {
   updatePlatform: (id: string, data: unknown) =>
     request<Platform>(`/api/platforms/${id}`, { method: "PUT", body: json(data) }),
   deletePlatform: (id: string) => request<{ ok: true }>(`/api/platforms/${id}`, { method: "DELETE" }),
+
+  createPerson: (data: unknown) => request<Person>("/api/people", { method: "POST", body: json(data) }),
+  updatePerson: (id: string, data: unknown) => request<Person>(`/api/people/${id}`, { method: "PUT", body: json(data) }),
+  deletePerson: (id: string) => request<{ ok: true }>(`/api/people/${id}`, { method: "DELETE" }),
+  movePerson: (id: string, target: PersonTarget) =>
+    request<Person[]>(`/api/people/${id}/move`, { method: "POST", body: json(target) }),
+  replacePerson: (id: string, data: unknown) =>
+    request<Person>(`/api/people/${id}/replace`, { method: "POST", body: json(data) }),
+
+  createSquad: (data: unknown) => request<Squad>("/api/squads", { method: "POST", body: json(data) }),
+  updateSquad: (id: string, data: unknown) => request<Squad>(`/api/squads/${id}`, { method: "PUT", body: json(data) }),
+  deleteSquad: (id: string) => request<{ ok: true }>(`/api/squads/${id}`, { method: "DELETE" }),
 
   updateContext: (data: StrategyContext) =>
     request<StrategyContext>("/api/context", { method: "PUT", body: json(data) }),
