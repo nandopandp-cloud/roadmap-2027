@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPoi
  * Marcação esperada: cada coluna tem `data-drop-zone="<chave>"` (e `data-drop-grid`
  * quando os cards ficam em grade); cada card tem `data-drag-card="<id>"`.
  * No toque, o arraste começa com um toque longo, para não bloquear a rolagem.
+ * Segurar Alt (Option no Mac) durante o arraste marca `copy` (incluir sem tirar da origem).
  */
 
 /** Coluna e posição entre os cards visíveis da coluna, sem contar o card arrastado. */
@@ -30,6 +31,8 @@ export interface ActiveDrag {
   target: DropTarget;
   /** O ponteiro está sobre uma coluna. */
   over: boolean;
+  /** Alt/Option pressionado: incluir no destino sem tirar da origem. */
+  copy: boolean;
 }
 
 const MOUSE_THRESHOLD = 5;
@@ -76,7 +79,7 @@ export function useCardDrag({
   onDrop,
 }: {
   enabled: boolean;
-  onDrop: (id: string, target: DropTarget, origin: DropTarget) => void;
+  onDrop: (id: string, target: DropTarget, origin: DropTarget, copy: boolean) => void;
 }) {
   const [drag, setDrag] = useState<ActiveDrag | null>(null);
   const dragRef = useRef<ActiveDrag | null>(null);
@@ -104,6 +107,7 @@ export function useCardDrag({
       const start = { x: e.clientX, y: e.clientY };
       const scroller = scrollParent(card);
       let pointer = start;
+      let copy = e.altKey;
       let active = false;
       let finished = false;
       let timer: ReturnType<typeof setTimeout> | undefined;
@@ -114,7 +118,7 @@ export function useCardDrag({
         if (!current) return;
         const over = zoneAt(pointer.x, pointer.y);
         const target = over ? { zone: over.dataset.dropZone ?? "", index: indexIn(over, pointer.x, pointer.y, id) } : current.origin;
-        update({ ...current, x: pointer.x, y: pointer.y, target, over: !!over });
+        update({ ...current, x: pointer.x, y: pointer.y, target, over: !!over, copy });
       };
 
       const autoScroll = () => {
@@ -152,6 +156,7 @@ export function useCardDrag({
           origin,
           target: origin,
           over: true,
+          copy,
         });
         frame = requestAnimationFrame(autoScroll);
       };
@@ -159,6 +164,7 @@ export function useCardDrag({
       const move = (ev: PointerEvent) => {
         if (ev.pointerId !== pointerId || (touch && active)) return;
         pointer = { x: ev.clientX, y: ev.clientY };
+        copy = ev.altKey;
         if (active) return retarget();
         const distance = Math.hypot(pointer.x - start.x, pointer.y - start.y);
         if (touch && distance > TOUCH_TOLERANCE) finish(false);
@@ -168,7 +174,12 @@ export function useCardDrag({
       // No toque, o navegador cancela o ponteiro ao primeiro movimento; o arraste segue pelos eventos de toque.
       const cancel = (ev: PointerEvent) => ev.pointerId === pointerId && !(touch && active) && finish(false);
       const key = (ev: KeyboardEvent) => {
-        if (ev.key !== "Escape" || !active) return;
+        if (ev.key === "Alt") {
+          copy = ev.type === "keydown";
+          if (active) retarget();
+          return;
+        }
+        if (ev.type !== "keydown" || ev.key !== "Escape" || !active) return;
         ev.preventDefault();
         ev.stopPropagation();
         finish(false);
@@ -192,6 +203,7 @@ export function useCardDrag({
         window.removeEventListener("pointerup", up);
         window.removeEventListener("pointercancel", cancel);
         window.removeEventListener("keydown", key, true);
+        window.removeEventListener("keyup", key, true);
         window.removeEventListener("touchmove", touchMove);
         window.removeEventListener("touchend", touchEnd);
         window.removeEventListener("touchcancel", touchEnd);
@@ -206,13 +218,14 @@ export function useCardDrag({
         const swallow = (ev: Event) => ev.stopPropagation();
         window.addEventListener("click", swallow, { capture: true, once: true });
         setTimeout(() => window.removeEventListener("click", swallow, { capture: true }), 0);
-        if (drop && current) onDropRef.current(id, current.target, current.origin);
+        if (drop && current) onDropRef.current(id, current.target, current.origin, current.copy);
       }
 
       window.addEventListener("pointermove", move);
       window.addEventListener("pointerup", up);
       window.addEventListener("pointercancel", cancel);
       window.addEventListener("keydown", key, true);
+      window.addEventListener("keyup", key, true);
       if (touch) {
         window.addEventListener("touchmove", touchMove, { passive: false });
         window.addEventListener("touchend", touchEnd);

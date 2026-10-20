@@ -1,6 +1,6 @@
 import "server-only";
 import type { z } from "zod";
-import { createsCycle, nextSquadOrder, placeInSquad } from "@/lib/domain/org";
+import { applyMove, createsCycle, nextSquadOrder, orderIn } from "@/lib/domain/org";
 import type { Database, Person, PersonInput, Squad, SquadInput } from "@/lib/domain/types";
 import { getRepository } from "@/lib/repositories";
 import { DomainError, notFound } from "@/lib/services/errors";
@@ -37,7 +37,7 @@ function assertPersonReferences(db: Database, input: PersonInput, selfId?: strin
     else if (selfId && createsCycle(db.people, selfId, input.managerId))
       fields.managerId = "Essa liderança criaria um ciclo (a pessoa escolhida responde, direta ou indiretamente, a este colaborador).";
   }
-  if (input.squadId && !db.squads.some((s) => s.id === input.squadId)) fields.squadId = "O squad escolhido não existe mais.";
+  if (input.squadIds.some((id) => !db.squads.some((s) => s.id === id))) fields.squadIds = "Um dos squads escolhidos não existe mais.";
   if (input.email && db.people.some((p) => p.id !== selfId && p.email.toLowerCase() === input.email.toLowerCase())) {
     fields.email = "Já existe um colaborador com este e-mail.";
   }
@@ -46,7 +46,7 @@ function assertPersonReferences(db: Database, input: PersonInput, selfId?: strin
 
 function assertSquadReferences(db: Database, input: SquadInput, selfId?: string) {
   const fields: Record<string, string> = {};
-  if (input.leaderId && !db.people.some((p) => p.id === input.leaderId)) fields.leaderId = "A liderança escolhida não existe mais.";
+  if (input.leaderIds.some((id) => !db.people.some((p) => p.id === id))) fields.leaderIds = "Uma das lideranças escolhidas não existe mais.";
   const badPlatform = input.platformIds.find((id) => !db.platforms.some((p) => p.id === id));
   if (badPlatform) fields.platformIds = `Plataforma ${badPlatform} não existe.`;
   if (db.squads.some((s) => s.id !== selfId && slugify(s.name) === slugify(input.name))) fields.name = "Já existe um squad com este nome.";
@@ -54,17 +54,27 @@ function assertSquadReferences(db: Database, input: SquadInput, selfId?: string)
 }
 
 /** A liderança externa só vale quando não há liderança cadastrada. */
-const cleanPerson = (input: PersonInput): PersonInput => (input.managerId ? { ...input, externalManager: "" } : input);
+const cleanPerson = (input: PersonInput): PersonInput => ({
+  ...input,
+  externalManager: input.managerId ? "" : input.externalManager,
+  squadIds: [...new Set(input.squadIds)],
+});
+
+/** Participações do formulário: mantém a posição nos squads que continuam e entra no fim dos novos. */
+function membershipsFor(db: Database, input: PersonInput, before?: Person): Person["memberships"] {
+  return input.squadIds.map((squadId) => {
+    const order = before ? orderIn(before, squadId) : undefined;
+    return { squadId, order: order ?? nextSquadOrder(db.people, squadId, before?.id) };
+  });
+}
+
+const toPerson = ({ squadIds: _squadIds, ...input }: PersonInput, id: string, memberships: Person["memberships"]): Person => ({ ...input, id, memberships });
 
 export async function createPerson(data: unknown): Promise<Person> {
   const input = cleanPerson(parse(personInputSchema, data));
   return getRepository().transaction((db) => {
     assertPersonReferences(db, input);
-    const person: Person = {
-      ...input,
-      id: uniqueId(input.name, db.people, "colaborador"),
-      squadOrder: nextSquadOrder(db.people, input.squadId),
-    };
+    const person = toPerson(input, uniqueId(input.name, db.people, "colaborador"), membershipsFor(db, input));
     db.people.push(person);
     return person;
   });
@@ -76,9 +86,7 @@ export async function updatePerson(id: string, data: unknown): Promise<Person> {
     const index = db.people.findIndex((p) => p.id === id);
     if (index < 0) throw notFound("Colaborador");
     assertPersonReferences(db, input, id);
-    const before = db.people[index];
-    const squadOrder = before.squadId === input.squadId ? before.squadOrder : nextSquadOrder(db.people, input.squadId, id);
-    db.people[index] = { ...before, ...input, squadOrder };
+    db.people[index] = toPerson(input, id, membershipsFor(db, input, db.people[index]));
     return db.people[index];
   });
 }
@@ -86,7 +94,7 @@ export async function updatePerson(id: string, data: unknown): Promise<Person> {
 /** Remove o colaborador e desfaz as referências (liderados e squads liderados ficam sem liderança). */
 function detach(db: Database, id: string) {
   db.people = db.people.filter((p) => p.id !== id).map((p) => (p.managerId === id ? { ...p, managerId: null } : p));
-  db.squads = db.squads.map((s) => (s.leaderId === id ? { ...s, leaderId: null } : s));
+  db.squads = db.squads.map((s) => (s.leaderIds.includes(id) ? { ...s, leaderIds: s.leaderIds.filter((x) => x !== id) } : s));
 }
 
 export async function deletePerson(id: string): Promise<void> {
@@ -96,30 +104,26 @@ export async function deletePerson(id: string): Promise<void> {
   });
 }
 
-/** Realoca um colaborador para outro squad (ou sem squad) e posição. Devolve os colaboradores alterados. */
-export async function movePerson(id: string, data: unknown): Promise<Person[]> {
-  const target = parse(personMoveSchema, data);
+/**
+ * Realoca um colaborador entre squads e o topo (lideranças), ou o inclui em mais um lugar
+ * (`keep`). Devolve colaboradores e squads atualizados.
+ */
+export async function movePerson(id: string, data: unknown): Promise<{ people: Person[]; squads: Squad[] }> {
+  const move = parse(personMoveSchema, data);
   return getRepository().transaction((db) => {
     if (!db.people.some((p) => p.id === id)) throw notFound("Colaborador");
-    if (target.squadId && !db.squads.some((s) => s.id === target.squadId)) throw new DomainError(422, "O squad de destino não existe mais.");
-    const orders = placeInSquad(db.people, id, target);
-    if (!orders) throw new DomainError(409, "O organograma mudou desde que a página foi carregada. Atualize e tente novamente.");
-    const changed: Person[] = [];
-    db.people = db.people.map((p) => {
-      const order = orders.get(p.id);
-      if (order === undefined) return p;
-      const squadId = p.id === id ? target.squadId : p.squadId;
-      if (order === p.squadOrder && squadId === p.squadId) return p;
-      const updated = { ...p, squadId, squadOrder: order };
-      changed.push(updated);
-      return updated;
-    });
-    return changed;
+    const ids = move.to.kind === "squad" ? (move.to.squadId ? [move.to.squadId] : []) : move.to.squadIds;
+    if (ids.some((squadId) => !db.squads.some((s) => s.id === squadId))) throw new DomainError(422, "O squad de destino não existe mais.");
+    const result = applyMove(db, id, move);
+    if (!result) throw new DomainError(409, "O organograma mudou desde que a página foi carregada. Atualize e tente novamente.");
+    db.people = result.people;
+    db.squads = result.squads;
+    return result;
   });
 }
 
 /**
- * Substitui um colaborador: o substituto assume o squad e a posição, os squads liderados,
+ * Substitui um colaborador: o substituto assume os squads e as posições, os squads liderados,
  * os liderados diretos e a liderança de quem sai (e, opcionalmente, cargo e responsabilidades).
  */
 export async function replacePerson(id: string, data: unknown): Promise<Person> {
@@ -138,7 +142,7 @@ export async function replacePerson(id: string, data: unknown): Promise<Person> 
       substitute = {
         ...parse(personInputSchema, { name: options.newPerson.name, email, role: outgoing.role }),
         id: uniqueId(options.newPerson.name, db.people, "colaborador"),
-        squadOrder: 0,
+        memberships: [],
       };
       db.people.push(substitute);
     } else {
@@ -153,25 +157,28 @@ export async function replacePerson(id: string, data: unknown): Promise<Person> 
       if (p.id === subId) {
         return {
           ...p,
-          squadId: outgoing.squadId,
-          squadOrder: outgoing.squadOrder,
+          memberships: outgoing.memberships,
           managerId,
           externalManager: managerId ? "" : outgoing.externalManager,
           ...(options.takeRole ? { role: outgoing.role, responsibilities: outgoing.responsibilities } : {}),
         };
       }
-      if (p.id === id) return { ...p, squadId: null, managerId: null, squadOrder: nextSquadOrder(db.people, null, id) };
+      if (p.id === id) return { ...p, memberships: [], managerId: null };
       if (p.managerId === id) return { ...p, managerId: subId };
       return p;
     });
-    db.squads = db.squads.map((s) => (s.leaderId === id ? { ...s, leaderId: subId } : s));
+    db.squads = db.squads.map((s) =>
+      s.leaderIds.includes(id) ? { ...s, leaderIds: [...new Set(s.leaderIds.map((x) => (x === id ? subId : x)))] } : s,
+    );
     if (options.outgoing === "remover") detach(db, id);
     return db.people.find((p) => p.id === subId)!;
   });
 }
 
+const cleanSquad = (input: SquadInput): SquadInput => ({ ...input, leaderIds: [...new Set(input.leaderIds)] });
+
 export async function createSquad(data: unknown): Promise<Squad> {
-  const input = parse(squadInputSchema, data);
+  const input = cleanSquad(parse(squadInputSchema, data));
   return getRepository().transaction((db) => {
     assertSquadReferences(db, input);
     const squad: Squad = { ...input, id: uniqueId(input.name, db.squads, "squad") };
@@ -181,7 +188,7 @@ export async function createSquad(data: unknown): Promise<Squad> {
 }
 
 export async function updateSquad(id: string, data: unknown): Promise<Squad> {
-  const input = parse(squadInputSchema, data);
+  const input = cleanSquad(parse(squadInputSchema, data));
   return getRepository().transaction((db) => {
     const index = db.squads.findIndex((s) => s.id === id);
     if (index < 0) throw notFound("Squad");
@@ -191,12 +198,11 @@ export async function updateSquad(id: string, data: unknown): Promise<Squad> {
   });
 }
 
-/** Exclui o squad; os integrantes continuam cadastrados, sem squad. */
+/** Exclui o squad; os integrantes continuam cadastrados (nos demais squads ou sem squad). */
 export async function deleteSquad(id: string): Promise<void> {
   await getRepository().transaction((db) => {
     if (!db.squads.some((s) => s.id === id)) throw notFound("Squad");
-    let order = nextSquadOrder(db.people, null);
     db.squads = db.squads.filter((s) => s.id !== id);
-    db.people = db.people.map((p) => (p.squadId === id ? { ...p, squadId: null, squadOrder: order++ } : p));
+    db.people = db.people.map((p) => (orderIn(p, id) === undefined ? p : { ...p, memberships: p.memberships.filter((m) => m.squadId !== id) }));
   });
 }

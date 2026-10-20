@@ -10,36 +10,68 @@ import { useToast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/client/api";
 import { cn, plural } from "@/lib/client/cn";
 import { useRoadmap } from "@/lib/client/store";
-import { directReports, squadMembers, squadsLedBy } from "@/lib/domain/org";
-import type { Person } from "@/lib/domain/types";
+import { directReports, orderIn, sameZone, squadMembers, squadsLedBy } from "@/lib/domain/org";
+import type { OrgZone, Person, PersonMove, Squad } from "@/lib/domain/types";
 
 const squadName = (squads: { id: string; name: string }[], id: string | null) => squads.find((s) => s.id === id)?.name ?? "Sem squad";
+
+const names = (squads: Squad[], ids: string[]) => {
+  const list = ids.map((id) => squadName(squads, id));
+  return list.length > 1 ? `${list.slice(0, -1).join(", ")} e ${list.at(-1)}` : (list[0] ?? "");
+};
+
+/** Mensagem de sucesso de uma realocação (arrastar ou diálogo). */
+export function describeMove(squads: Squad[], person: Person, move: PersonMove): string {
+  const { from = null, to, keep = false } = move;
+  const leaders = (zone: OrgZone) => (zone.kind === "leaders" ? names(squads, zone.squadIds) : "");
+  if (from && sameZone(from, to)) return to.kind === "leaders" ? "Ordem das lideranças atualizada." : `Ordem de ${squadName(squads, to.squadId)} atualizada.`;
+  if (to.kind === "leaders") return keep ? `${person.name} agora também lidera ${leaders(to)}.` : `${person.name} passou a liderar ${leaders(to)}.`;
+  const target = squadName(squads, to.squadId);
+  if (!to.squadId) return from?.kind === "leaders" ? `${person.name} deixou a liderança de ${leaders(from)}.` : `${person.name} saiu de ${from?.squadId ? squadName(squads, from.squadId) : "todos os squads"}.`;
+  if (keep) return `${person.name} agora também participa de ${target}.`;
+  if (from?.kind === "leaders") return `${person.name} deixou a liderança de ${leaders(from)} e entrou em ${target}.`;
+  if (!from?.squadId) return `${person.name} entrou em ${target}.`;
+  return `${person.name} foi realocado de ${squadName(squads, from.squadId)} para ${target}.`;
+}
 
 /** Realocar pelo teclado ou toque: alternativa ao arrastar no organograma. */
 export function MoveDialog({ person, onClose }: { person: Person; onClose: () => void }) {
   const { data, movePerson } = useRoadmap();
   const notify = useToast();
-  const [squadId, setSquadId] = useState<string | null>(person.squadId);
+  const current = data.squads.filter((s) => orderIn(person, s.id) !== undefined);
+  const [fromId, setFromId] = useState<string | null>(current[0]?.id ?? null);
+  const [squadId, setSquadId] = useState<string | null>(fromId);
+  const [keep, setKeep] = useState(false);
   const members = squadMembers(data.people, squadId, person.id);
-  // Posição = id de quem fica antes ("" = primeira posição); começa na posição atual.
-  const [afterId, setAfterId] = useState<string>(() => {
-    const own = squadMembers(data.people, person.squadId);
+  // Posição = id de quem fica antes ("" = primeira posição); começa na posição atual, se já participa.
+  const positionIn = (target: string | null) => {
+    if (!target) return "";
+    const own = squadMembers(data.people, target);
     const index = own.findIndex((p) => p.id === person.id);
+    if (index < 0) return own.at(-1)?.id ?? "";
     return index > 0 ? own[index - 1].id : "";
-  });
+  };
+  const [afterId, setAfterId] = useState<string>(() => positionIn(fromId));
   const [saving, setSaving] = useState(false);
+  const canKeep = !!fromId && !!squadId && squadId !== fromId;
 
   const changeSquad = (next: string | null) => {
     setSquadId(next);
-    setAfterId(squadMembers(data.people, next, person.id).at(-1)?.id ?? "");
+    setAfterId(positionIn(next));
   };
 
   async function submit() {
     setSaving(true);
     try {
       const first = members[0]?.id ?? null;
-      await movePerson(person.id, afterId ? { squadId, afterId } : { squadId, beforeId: first });
-      notify("success", squadId === person.squadId ? "Posição atualizada." : `${person.name} foi realocado para ${squadName(data.squads, squadId)}.`);
+      const move: PersonMove = {
+        from: { kind: "squad", squadId: fromId },
+        to: { kind: "squad", squadId },
+        keep: keep && canKeep,
+        ...(afterId ? { afterId } : { beforeId: first }),
+      };
+      await movePerson(person.id, move);
+      notify("success", fromId === squadId ? "Posição atualizada." : describeMove(data.squads, person, move));
       onClose();
     } catch (error) {
       notify("error", error instanceof ApiError ? error.message : "Não foi possível realocar o colaborador.");
@@ -54,43 +86,62 @@ export function MoveDialog({ person, onClose }: { person: Person; onClose: () =>
       onClose={onClose}
       size="sm"
       title={`Realocar ${person.name}`}
-      description="Escolha o squad de destino e a posição. No organograma, você também pode arrastar o card."
+      description="Escolha o squad de destino e a posição. No organograma, você também pode arrastar o card (segure Alt/Option ao soltar para adicionar sem tirar do squad atual)."
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={saving}>
             Cancelar
           </Button>
           <Button variant="primary" loading={saving} onClick={submit}>
-            Realocar
+            {keep && canKeep ? "Adicionar" : "Realocar"}
           </Button>
         </>
       }
     >
       <div className="flex flex-col gap-4">
+        {current.length > 1 && (
+          <SelectField label="Sair de" value={fromId ?? ""} onChange={(e) => setFromId(e.target.value || null)}>
+            {current.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </SelectField>
+        )}
         <SelectField label="Squad de destino" value={squadId ?? ""} onChange={(e) => changeSquad(e.target.value || null)} data-autofocus>
           {data.squads.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}
-              {s.id === person.squadId ? " (atual)" : ""}
+              {orderIn(person, s.id) !== undefined ? " (atual)" : ""}
             </option>
           ))}
           <option value="">Sem squad</option>
         </SelectField>
-        <SelectField label="Posição" value={afterId} onChange={(e) => setAfterId(e.target.value)}>
-          <option value="">Primeira posição</option>
-          {members.map((m) => (
-            <option key={m.id} value={m.id}>
-              Depois de {m.name}
-            </option>
-          ))}
-        </SelectField>
+        {squadId && (
+          <SelectField label="Posição" value={afterId} onChange={(e) => setAfterId(e.target.value)}>
+            <option value="">Primeira posição</option>
+            {members.map((m) => (
+              <option key={m.id} value={m.id}>
+                Depois de {m.name}
+              </option>
+            ))}
+          </SelectField>
+        )}
+        {canKeep && (
+          <Checkbox
+            label={`Continuar também em ${squadName(data.squads, fromId)}`}
+            hint="A pessoa passa a aparecer nos dois squads."
+            checked={keep}
+            onChange={setKeep}
+          />
+        )}
       </div>
     </Modal>
   );
 }
 
 /**
- * Substituir: o substituto assume squad e posição, squads liderados, liderados diretos e a
+ * Substituir: o substituto assume squads e posições, squads liderados, liderados diretos e a
  * liderança de quem sai; opcionalmente também o cargo e as responsabilidades.
  */
 export function ReplaceDialog({ person, onClose, onDone }: { person: Person; onClose: () => void; onDone: (substitute: Person) => void }) {
@@ -108,7 +159,9 @@ export function ReplaceDialog({ person, onClose, onDone }: { person: Person; onC
   const led = squadsLedBy(data.squads, person.id);
   const reports = directReports(data.people, person.id).filter((p) => p.id !== substituteId);
   const transfers = [
-    person.squadId ? `posição no squad ${squadName(data.squads, person.squadId)}` : null,
+    person.memberships.length
+      ? `posição ${person.memberships.length > 1 ? "nos squads" : "no squad"} ${names(data.squads, person.memberships.map((m) => m.squadId))}`
+      : null,
     led.length ? `liderança de ${led.map((s) => s.name).join(", ")}` : null,
     reports.length ? plural(reports.length, "liderado direto", "liderados diretos") : null,
     person.managerId || person.externalManager ? "a mesma liderança direta" : null,

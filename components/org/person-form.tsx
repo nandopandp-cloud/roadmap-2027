@@ -6,7 +6,7 @@ import { ImageEditor } from "@/components/initiatives/form/image-editor";
 import { Avatar } from "@/components/org/avatar";
 import { Button } from "@/components/ui/button";
 import { Modal, useConfirm } from "@/components/ui/dialog";
-import { LinesField, SelectField, TextField } from "@/components/ui/fields";
+import { ChipMultiSelect, LinesField, SelectField, TextField } from "@/components/ui/fields";
 import { useToast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/client/api";
 import { useRoadmap } from "@/lib/client/store";
@@ -25,13 +25,13 @@ export const emptyPerson = (defaults: Partial<PersonInput> = {}): PersonInput =>
   location: "",
   managerId: null,
   externalManager: "",
-  squadId: null,
+  squadIds: [],
   responsibilities: [],
   photo: null,
   ...defaults,
 });
 
-const toInput = ({ id: _id, squadOrder: _order, ...input }: Person): PersonInput => input;
+const toInput = ({ id: _id, memberships, ...input }: Person): PersonInput => ({ ...input, squadIds: memberships.map((m) => m.squadId) });
 
 export function PersonForm({
   person,
@@ -171,14 +171,6 @@ export function PersonForm({
                 <option key={a} value={a} />
               ))}
             </datalist>
-            <SelectField label="Squad" value={draft.squadId ?? ""} error={errors.squadId} onChange={(e) => set("squadId", e.target.value || null)}>
-              <option value="">Sem squad</option>
-              {data.squads.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </SelectField>
             <TextField label="E-mail" type="email" value={draft.email} error={errors.email} onChange={(e) => set("email", e.target.value)} />
             <TextField label="Localização" value={draft.location} error={errors.location} placeholder="Ex.: Rio de Janeiro, RJ" onChange={(e) => set("location", e.target.value)} />
             <SelectField
@@ -210,6 +202,15 @@ export function PersonForm({
               />
             )}
           </div>
+
+          <ChipMultiSelect
+            legend="Squads"
+            hint="A pessoa pode participar de mais de um squad. Sem nenhum marcado, fica em “Sem squad”."
+            error={errors.squadIds}
+            options={data.squads.map((s) => ({ value: s.id, label: s.name }))}
+            value={draft.squadIds}
+            onChange={(v) => set("squadIds", v)}
+          />
 
           <LinesField
             label="Responsabilidades"

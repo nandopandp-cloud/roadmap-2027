@@ -251,15 +251,21 @@ export const personInputSchema = z.object({
   managerId: localId.nullable().default(null),
   /** Liderança direta fora do organograma (ex.: "CEO · Jovens Gênios"), usada quando managerId é nulo. */
   externalManager: text(160).default(""),
-  squadId: localId.nullable().default(null),
+  /** Squads de que a pessoa participa (pode ser mais de um). */
+  squadIds: z.array(localId).max(20).default([]),
   responsibilities: list(),
   photo: customImageSchema.nullable().default(null),
 });
 
-export const personSchema = personInputSchema.extend({
+/** Participação em um squad, com a posição do card; alterada ao arrastar no organograma. */
+export const membershipSchema = z.object({
+  squadId: localId,
+  order: z.number().int().min(0).default(0),
+});
+
+export const personSchema = personInputSchema.omit({ squadIds: true }).extend({
   id: localId,
-  /** Posição dentro do squad; alterada ao arrastar no organograma. */
-  squadOrder: z.number().int().min(0).default(0),
+  memberships: z.array(membershipSchema).default([]),
 });
 
 export const squadInputSchema = z.object({
@@ -267,19 +273,30 @@ export const squadInputSchema = z.object({
   description: text(400).default(""),
   icon: z.enum(PLATFORM_ICONS).default("layers"),
   accent: z.enum(PLATFORM_ACCENTS).default("indigo"),
-  /** Pessoa a quem o squad responde; aparece acima do squad no organograma. */
-  leaderId: localId.nullable().default(null),
+  /** Pessoas a quem o squad responde, na ordem exibida acima do squad no organograma. */
+  leaderIds: z.array(localId).max(10).default([]),
   /** Plataformas sob responsabilidade do squad (base das iniciativas relacionadas). */
   platformIds: z.array(localId).max(20).default([]),
 });
 
 export const squadSchema = squadInputSchema.extend({ id: localId });
 
-/** Realocar um colaborador: squad de destino (null = sem squad) e vizinho no ponto de inserção. */
+/** Lugar do organograma: integrantes de um squad (null = sem squad) ou o topo (lideranças) de um grupo de squads. */
+export const orgZoneSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("squad"), squadId: localId.nullable() }),
+  z.object({ kind: z.literal("leaders"), squadIds: z.array(localId).min(1).max(50) }),
+]);
+
+/**
+ * Realocar um colaborador: de onde sai (null = não sai de lugar nenhum), para onde vai e o
+ * vizinho no ponto de inserção. Com `keep`, continua também na origem (participa dos dois).
+ */
 export const personMoveSchema = z.object({
-  squadId: localId.nullable(),
+  from: orgZoneSchema.nullable().default(null),
+  to: orgZoneSchema,
   beforeId: localId.nullable().default(null),
   afterId: localId.nullable().default(null),
+  keep: z.boolean().default(false),
 });
 
 /** Substituir um colaborador por outro (existente ou novo), transferindo squad, liderança e equipe. */

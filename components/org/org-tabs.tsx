@@ -10,8 +10,15 @@ import { EmptyState } from "@/components/ui/feedback";
 import { cn, plural } from "@/lib/client/cn";
 import { useRoadmap } from "@/lib/client/store";
 import { STATUS_TONE } from "@/lib/client/tones";
-import { squadInitiatives, squadsLedBy } from "@/lib/domain/org";
-import type { Person } from "@/lib/domain/types";
+import { orderIn, squadInitiatives, squadsLedBy } from "@/lib/domain/org";
+import type { Person, Squad } from "@/lib/domain/types";
+
+/** Nomes dos squads da pessoa, separados por vírgula (undefined = sem squad). */
+const squadNames = (squads: Squad[], person: Person) =>
+  squads
+    .filter((s) => orderIn(person, s.id) !== undefined)
+    .map((s) => s.name)
+    .join(", ") || undefined;
 
 function PersonChip({ person, detail }: { person: Person; detail?: string }) {
   const { openPerson, selectedId } = useOrgActions();
@@ -43,7 +50,7 @@ export function SquadsTab({ filter }: { filter: OrgFilter }) {
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
       {entries.map(({ squad, members, total }) => {
-        const leader = data.people.find((p) => p.id === squad.leaderId);
+        const leaders = squad.leaderIds.map((id) => data.people.find((p) => p.id === id)).filter((p): p is Person => !!p);
         const initiatives = squadInitiatives(squad, data.initiatives);
         const menu = squadMenu(squad);
         return (
@@ -59,11 +66,18 @@ export function SquadsTab({ filter }: { filter: OrgFilter }) {
             <p className={cn("text-[13.5px] leading-snug", squad.description ? "text-[#4a5680]" : "text-subtle")}>{squad.description || "Sem descrição."}</p>
             <div className="flex items-center gap-2 text-[13px]">
               <Crown size={14} className="shrink-0 text-[#e3a21a]" aria-hidden />
-              <span className="text-muted">Liderança:</span>
-              {leader ? (
-                <button type="button" onClick={() => openPerson(leader.id)} className="truncate font-bold text-ink hover:text-violet hover:underline">
-                  {leader.name}
-                </button>
+              <span className="shrink-0 text-muted">{leaders.length > 1 ? "Lideranças:" : "Liderança:"}</span>
+              {leaders.length ? (
+                <span className="min-w-0 truncate">
+                  {leaders.map((leader, idx) => (
+                    <span key={leader.id}>
+                      {idx > 0 && ", "}
+                      <button type="button" onClick={() => openPerson(leader.id)} className="font-bold text-ink hover:text-violet hover:underline">
+                        {leader.name}
+                      </button>
+                    </span>
+                  ))}
+                </span>
               ) : (
                 <span className="text-subtle">não definida</span>
               )}
@@ -129,7 +143,7 @@ export function PeopleTab({ people }: { people: Person[] }) {
   const { data } = useRoadmap();
   const { openPerson, selectedId, personMenu } = useOrgActions();
   if (!people.length) return NO_RESULTS;
-  const squadOf = (p: Person) => data.squads.find((s) => s.id === p.squadId)?.name;
+  const squadOf = (p: Person) => squadNames(data.squads, p);
   const managerOf = (p: Person) => data.people.find((x) => x.id === p.managerId)?.name ?? (p.externalManager || undefined);
   const dash = <span className="text-subtle">—</span>;
 
@@ -191,7 +205,7 @@ export function AreasTab({ people }: { people: Person[] }) {
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
       {areas.map((area) => {
         const members = people.filter((p) => p.area === area);
-        const squads = data.squads.filter((s) => members.some((m) => m.squadId === s.id));
+        const squads = data.squads.filter((s) => members.some((m) => orderIn(m, s.id) !== undefined));
         const leaders = members.filter((m) => squadsLedBy(data.squads, m.id).length > 0);
         return (
           <section key={area || "sem-area"} aria-label={area || "Sem área definida"} className="flex flex-col gap-3 rounded-[22px] border border-[#e3e9f4] bg-surface p-4 shadow-[var(--shadow-card)]">
@@ -206,7 +220,7 @@ export function AreasTab({ people }: { people: Person[] }) {
             <ul className="flex flex-col gap-0.5 border-t border-line pt-2">
               {members.map((m) => (
                 <li key={m.id}>
-                  <PersonChip person={m} detail={[m.role, data.squads.find((s) => s.id === m.squadId)?.name].filter(Boolean).join(" · ")} />
+                  <PersonChip person={m} detail={[m.role, squadNames(data.squads, m)].filter(Boolean).join(" · ")} />
                 </li>
               ))}
             </ul>

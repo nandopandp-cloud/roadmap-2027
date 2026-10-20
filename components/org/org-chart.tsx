@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDownToLine, ChevronDown, ChevronRight, ChevronUp, Crown, UserPlus, Users } from "lucide-react";
+import { ArrowDownToLine, ArrowLeftRight, ChevronDown, ChevronRight, ChevronUp, Crown, Plus, UserPlus, Users } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Avatar, AvatarStack } from "@/components/org/avatar";
@@ -16,8 +16,9 @@ import { ApiError } from "@/lib/client/api";
 import { cn, plural } from "@/lib/client/cn";
 import { useRoadmap } from "@/lib/client/store";
 import { ACCENT_TONE } from "@/lib/client/tones";
+import { describeMove } from "@/components/org/person-dialogs";
 import { squadMembers } from "@/lib/domain/org";
-import type { Person, Squad } from "@/lib/domain/types";
+import type { OrgZone, Person, PersonMove, Squad } from "@/lib/domain/types";
 
 const NOTHING_FOUND = <EmptyState compact title="Nada encontrado com os filtros atuais" description="Ajuste a busca ou limpe os filtros." />;
 
@@ -25,6 +26,12 @@ const NOTHING_FOUND = <EmptyState compact title="Nada encontrado com os filtros 
 const PREVIEW = 3;
 /** Zona de soltura dos colaboradores sem squad. */
 export const NO_SQUAD = "sem-squad";
+/** Prefixo da zona de soltura do topo de um grupo (lideranças), seguido dos ids dos squads. */
+const LEADERS = "lideres:";
+
+/** Zona do arraste (data-drop-zone) → lugar do organograma. */
+const zoneOf = (zone: string): OrgZone =>
+  zone.startsWith(LEADERS) ? { kind: "leaders", squadIds: zone.slice(LEADERS.length).split(",") } : { kind: "squad", squadId: zone === NO_SQUAD ? null : zone };
 
 export interface OrgFilter {
   /** Squad selecionado no filtro ("todos", id do squad ou NO_SQUAD). */
@@ -36,9 +43,14 @@ export interface OrgFilter {
 }
 
 export interface OrgGroup {
-  leader: Person | null;
+  /** Ids das lideranças, na ordem exibida no topo (vazio = sem liderança). */
+  key: string;
+  leaders: Person[];
   squads: Array<{ squad: Squad; members: Person[]; total: number }>;
 }
+
+/** Zona de soltura do topo do grupo (os squads exibidos sob as lideranças). */
+const leadersZone = (group: OrgGroup) => LEADERS + group.squads.map((s) => s.squad.id).join(",");
 
 /** Estrutura exibida: lideranças → squads → integrantes, já com os filtros aplicados. */
 export function buildOrg(people: Person[], squads: Squad[], filter: OrgFilter) {
@@ -48,14 +60,15 @@ export function buildOrg(people: Person[], squads: Squad[], filter: OrgFilter) {
     const all = squadMembers(people, squad.id);
     const members = !filter.active || filter.squadMatches(squad) ? all : all.filter(filter.person);
     if (filter.active && !members.length && !filter.squadMatches(squad)) continue;
-    const leader = people.find((p) => p.id === squad.leaderId) ?? null;
-    let group = groups.find((g) => g.leader?.id === leader?.id);
-    if (!group) groups.push((group = { leader, squads: [] }));
+    const leaders = squad.leaderIds.map((id) => people.find((p) => p.id === id)).filter((p): p is Person => !!p);
+    const key = leaders.map((p) => p.id).join(",");
+    let group = groups.find((g) => g.key === key);
+    if (!group) groups.push((group = { key, leaders, squads: [] }));
     group.squads.push({ squad, members, total: all.length });
   }
   // Grupo sem liderança vai por último.
-  groups.sort((a, b) => Number(!a.leader) - Number(!b.leader));
-  const leaderIds = new Set(squads.map((s) => s.leaderId).filter(Boolean));
+  groups.sort((a, b) => Number(!a.leaders.length) - Number(!b.leaders.length));
+  const leaderIds = new Set(squads.flatMap((s) => s.leaderIds));
   const unassigned =
     filter.squad === "todos" || filter.squad === NO_SQUAD
       ? squadMembers(people, null).filter((p) => !leaderIds.has(p.id) && (!filter.active || filter.person(p)))
@@ -114,18 +127,27 @@ function MemberCard({ person, draggable, onPointerDown }: { person: Person; drag
   );
 }
 
-function LeaderCard({ person }: { person: Person }) {
+function LeaderCard({ person, draggable, onPointerDown }: { person: Person; draggable: boolean; onPointerDown: (e: React.PointerEvent<HTMLElement>) => void }) {
   const { selectedId, openPerson, personMenu } = useOrgActions();
   const selected = selectedId === person.id;
   const menu = personMenu(person);
   return (
     <div
       className={cn(
-        "relative flex w-[min(100%,340px)] items-center gap-4 rounded-[22px] border-[1.5px] bg-surface p-4 pr-3 shadow-[0_8px_26px_rgba(70,50,160,0.10)] transition-colors",
+        "relative flex w-full items-center gap-4 rounded-[22px] border-[1.5px] bg-surface p-4 pr-3 shadow-[0_8px_26px_rgba(70,50,160,0.10)] transition-colors [-webkit-touch-callout:none]",
+        draggable && "cursor-grab select-none active:cursor-grabbing",
         selected ? "border-[#3f6fe6]" : "border-[#b9b0f0] hover:border-violet",
       )}
+      onPointerDown={onPointerDown}
     >
-      <button type="button" onClick={() => openPerson(person.id)} aria-pressed={selected} aria-label={`${person.name}, ${person.role}`} className="absolute inset-0 rounded-[22px]" />
+      <button
+        type="button"
+        onClick={() => openPerson(person.id)}
+        aria-pressed={selected}
+        aria-label={`${person.name}, ${person.role}`}
+        aria-describedby={draggable ? "org-drag-hint" : undefined}
+        className="absolute inset-0 rounded-[22px]"
+      />
       <Avatar person={person} size={64} />
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-1.5 text-[15.5px] font-extrabold text-navy">
@@ -171,12 +193,15 @@ function SquadHeader({ squad, total }: { squad: Squad; total: number }) {
   );
 }
 
-function DropSlot({ drag, label }: { drag: ActiveDrag; label: string }) {
+function DropSlot({ drag, label, leader }: { drag: ActiveDrag; label: string; leader?: boolean }) {
   return (
     <li
       aria-hidden
-      className="flex animate-fade-in items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-violet bg-brand-soft/70 px-3 text-center text-[12px] font-bold leading-tight text-brand"
-      style={{ height: drag.height }}
+      className={cn(
+        "flex animate-fade-in items-center justify-center gap-2 border-2 border-dashed border-violet bg-brand-soft/70 px-3 text-center text-[12px] font-bold leading-tight text-brand",
+        leader ? "h-[98px] w-[340px] max-w-full rounded-[22px]" : "rounded-2xl",
+      )}
+      style={leader ? undefined : { height: drag.height }}
     >
       <ArrowDownToLine size={15} className="shrink-0" />
       {label}
@@ -204,31 +229,34 @@ export function OrgChart({ filter, expandAll }: { filter: OrgFilter; expandAll: 
       return next;
     });
 
-  /** Integrantes exibidos de uma zona (o resumo "+N" esconde o restante). */
+  /** Cards exibidos de uma zona (o resumo "+N" esconde o restante dos squads recolhidos). */
   const shownIn = (zone: string, exceptId?: string) => {
     if (zone === NO_SQUAD) return unassigned.filter((p) => p.id !== exceptId);
+    if (zone.startsWith(LEADERS)) return (groups.find((g) => leadersZone(g) === zone)?.leaders ?? []).filter((p) => p.id !== exceptId);
     const entry = groups.flatMap((g) => g.squads).find((s) => s.squad.id === zone);
     const members = (entry?.members ?? []).filter((p) => p.id !== exceptId);
     return isExpanded(zone) ? members : members.slice(0, PREVIEW);
   };
   const hiddenIn = (zone: string, exceptId?: string) => {
-    if (zone === NO_SQUAD || isExpanded(zone)) return 0;
+    if (zone === NO_SQUAD || zone.startsWith(LEADERS) || isExpanded(zone)) return 0;
     const entry = groups.flatMap((g) => g.squads).find((s) => s.squad.id === zone);
     return Math.max(0, (entry?.members ?? []).filter((p) => p.id !== exceptId).length - PREVIEW);
   };
+  /** Com Alt/Option, a pessoa entra no destino sem sair da origem (não vale para "Sem squad"). */
+  const keepsOrigin = (target: string, origin: string, copy: boolean) => copy && target !== origin && target !== NO_SQUAD;
 
-  async function move(id: string, zone: string, index: number) {
-    const shown = shownIn(zone, id);
-    const squadId = zone === NO_SQUAD ? null : zone;
+  async function move(id: string, zone: string, index: number, origin: string, copy: boolean) {
+    // "Sem squad" é ordenado por nome: não há posição a escolher.
+    const shown = zone === NO_SQUAD ? [] : shownIn(zone, id);
     // Depois do último exibido com integrantes recolhidos: vai para o fim do squad.
     const beforeId = shown[index]?.id ?? null;
     const afterId = beforeId || hiddenIn(zone, id) ? null : (shown[index - 1]?.id ?? null);
     const person = data.people.find((p) => p.id === id);
+    const request: PersonMove = { from: zoneOf(origin), to: zoneOf(zone), beforeId, afterId, keep: keepsOrigin(zone, origin, copy) };
     try {
-      await movePerson(id, { squadId, beforeId, afterId });
-      if (squadId && !beforeId && hiddenIn(zone, id)) setExpanded((prev) => new Set(prev).add(zone));
-      const name = data.squads.find((s) => s.id === squadId)?.name ?? "Sem squad";
-      notify("success", person?.squadId === squadId ? `Ordem de ${name} atualizada.` : `${person?.name ?? "Colaborador"} foi realocado para ${name}.`);
+      await movePerson(id, request);
+      if (!beforeId && hiddenIn(zone, id)) setExpanded((prev) => new Set(prev).add(zone));
+      if (person) notify("success", describeMove(data.squads, person, request));
     } catch (error) {
       notify("error", error instanceof ApiError ? error.message : "Não foi possível realocar o colaborador.");
     }
@@ -236,32 +264,57 @@ export function OrgChart({ filter, expandAll }: { filter: OrgFilter; expandAll: 
 
   const { drag, onPointerDown } = useCardDrag({
     enabled: canEdit,
-    onDrop: (id, target: DropTarget, origin: DropTarget) => {
-      if (target.zone === origin.zone && target.index === origin.index) return;
-      void move(id, target.zone, target.index);
+    onDrop: (id, target: DropTarget, origin: DropTarget, copy) => {
+      if (target.zone === origin.zone && (target.index === origin.index || target.zone === NO_SQUAD)) return;
+      void move(id, target.zone, target.index, origin.zone, copy);
     },
   });
+  const copying = !!drag && keepsOrigin(drag.target.zone, drag.origin.zone, drag.copy);
 
   const slotLabel = (zone: string, index: number) => {
-    const name = zone === NO_SQUAD ? "Sem squad" : (data.squads.find((s) => s.id === zone)?.name ?? "");
+    const verb = copying ? "Adicionar" : "Soltar";
+    if (zone.startsWith(LEADERS)) return `${verb} na liderança · posição ${index + 1}`;
+    const name = data.squads.find((s) => s.id === zone)?.name ?? "";
     const hidden = hiddenIn(zone, drag?.id);
     const position = index >= shownIn(zone, drag?.id).length && hidden ? shownIn(zone, drag?.id).length + hidden + 1 : index + 1;
-    return `Soltar em ${name} · posição ${position}`;
+    return `${verb} em ${name} · posição ${position}`;
   };
 
-  /** Cards de uma zona; o arrastado continua montado (oculto) para o toque seguir funcionando. */
-  const renderMembers = (zone: string, members: Person[]) => {
-    const items: ReactNode[] = members.map((p) => (
-      <li key={p.id} data-drag-card={p.id} className={cn(drag?.id === p.id && "hidden")}>
-        <MemberCard person={p} draggable={canEdit} onPointerDown={(e) => onPointerDown(p.id, e)} />
-      </li>
-    ));
-    if (drag && drag.target.zone === zone) {
+  /** O card arrastado some da origem (salvo ao copiar) e do destino, onde a pessoa já pode estar. */
+  const isLifted = (zone: string, id: string) => drag?.id === id && (zone === drag.target.zone || (zone === drag.origin.zone && !copying));
+
+  /** Slot de soltura na posição de destino ("Sem squad" só destaca a área). */
+  const withSlot = (zone: string, members: Person[], items: ReactNode[], leader?: boolean) => {
+    if (drag && drag.target.zone === zone && zone !== NO_SQUAD) {
       const anchor = shownIn(zone, drag.id)[drag.target.index];
-      items.splice(anchor ? members.indexOf(anchor) : members.length, 0, <DropSlot key="slot" drag={drag} label={slotLabel(zone, drag.target.index)} />);
+      items.splice(anchor ? members.indexOf(anchor) : members.length, 0, <DropSlot key="slot" drag={drag} leader={leader} label={slotLabel(zone, drag.target.index)} />);
     }
     return items;
   };
+
+  /** Cards de uma zona; o arrastado continua montado (oculto) para o toque seguir funcionando. */
+  const renderMembers = (zone: string, members: Person[]) =>
+    withSlot(
+      zone,
+      members,
+      members.map((p) => (
+        <li key={p.id} data-drag-card={p.id} className={cn(isLifted(zone, p.id) && "hidden")}>
+          <MemberCard person={p} draggable={canEdit} onPointerDown={(e) => onPointerDown(p.id, e)} />
+        </li>
+      )),
+    );
+
+  const renderLeaders = (zone: string, leaders: Person[]) =>
+    withSlot(
+      zone,
+      leaders,
+      leaders.map((p) => (
+        <li key={p.id} data-drag-card={p.id} className={cn("w-[340px] max-w-full", isLifted(zone, p.id) && "hidden")}>
+          <LeaderCard person={p} draggable={canEdit} onPointerDown={(e) => onPointerDown(p.id, e)} />
+        </li>
+      )),
+      true,
+    );
 
   const dragged = drag ? data.people.find((p) => p.id === drag.id) : undefined;
   if (!groups.length && !unassigned.length && !drag) return NOTHING_FOUND;
@@ -269,73 +322,86 @@ export function OrgChart({ filter, expandAll }: { filter: OrgFilter; expandAll: 
   return (
     <>
       <p id="org-drag-hint" className="sr-only">
-        Arraste o card para realocar a pessoa em outro squad ou posição. Pelo teclado, use a opção Realocar no menu de ações.
+        Arraste o card para realocar a pessoa em outro squad, posição ou no topo (liderança) de um grupo de squads. Segure Alt ou Option ao soltar para adicionar sem tirar do lugar atual. Pelo teclado,
+        use a opção Realocar no menu de ações ou edite o colaborador e o squad.
       </p>
 
-      {groups.map((group, gIdx) => (
-        <div key={group.leader?.id ?? `sem-lideranca-${gIdx}`} className="overflow-x-auto pb-2 [scrollbar-width:thin]">
-          <div className="mx-auto flex w-fit min-w-full flex-col items-center pt-2">
-            {group.leader ? (
-              <LeaderCard person={group.leader} />
-            ) : (
-              <p className="rounded-full border border-dashed border-line-strong bg-surface px-4 py-2 text-[13px] font-bold text-muted">Squads sem liderança definida</p>
-            )}
-            <span aria-hidden className="h-7 w-[1.5px] bg-[#c3cdea]" />
-            <ul className="flex w-full">
-              {group.squads.map(({ squad, members, total }) => {
-                const shown = isExpanded(squad.id) ? members : members.slice(0, PREVIEW);
-                const rest = members.slice(shown.length);
-                const isTarget = drag?.over && drag.target.zone === squad.id;
-                return (
-                  <li key={squad.id} className={cn(BRANCH, "min-w-[236px] flex-1 basis-0")}>
-                    <section
-                      aria-label={`Squad ${squad.name}`}
-                      data-drop-zone={squad.id}
-                      className={cn("rounded-[24px] p-1 transition-colors", isTarget && "bg-[#f1edff] ring-2 ring-violet/50")}
-                    >
-                      <SquadHeader squad={squad} total={total} />
-                      <ul className="relative ml-4 mt-2 flex flex-col gap-2 border-l-[1.5px] border-[#c3cdea] pl-3 pt-1">
-                        {renderMembers(squad.id, shown)}
-                        {rest.length > 0 && !isExpanded(squad.id) && (
-                          <li>
-                            <button
-                              type="button"
-                              onClick={() => toggle(squad.id)}
-                              aria-expanded={false}
-                              className="flex w-full items-center gap-2 rounded-2xl border border-line bg-surface px-2.5 py-2.5 text-left shadow-[var(--shadow-card)] transition-colors hover:border-line-strong"
-                            >
-                              <AvatarStack people={rest} max={3} size={28} />
-                              <span className="min-w-0 flex-1 text-[12.5px] font-bold text-navy">+{plural(rest.length, "colaborador", "colaboradores")}</span>
-                              <ChevronRight size={16} className="text-muted" aria-hidden />
-                            </button>
-                          </li>
-                        )}
-                        {isExpanded(squad.id) && !expandAll && members.length > PREVIEW && (
-                          <li>
-                            <button type="button" onClick={() => toggle(squad.id)} aria-expanded className="flex items-center gap-1.5 px-1 py-1 text-[12.5px] font-bold text-violet hover:underline">
-                              <ChevronUp size={14} aria-hidden /> Recolher
-                            </button>
-                          </li>
-                        )}
-                        {members.length === 0 && !(drag?.target.zone === squad.id) && (
-                          <li className="rounded-2xl border border-dashed border-line-strong px-3 py-4 text-center text-[12.5px] text-muted">
-                            {filter.active && total ? "Ninguém deste squad corresponde aos filtros." : "Nenhum integrante ainda."}
-                            {canEdit && !filter.active && (
-                              <button type="button" onClick={() => newPerson({ squadId: squad.id })} className="mt-1.5 flex w-full items-center justify-center gap-1 font-bold text-violet hover:underline">
-                                <UserPlus size={14} aria-hidden /> Adicionar colaborador
-                              </button>
-                            )}
-                          </li>
-                        )}
-                      </ul>
-                    </section>
+      {groups.map((group) => {
+        const zone = leadersZone(group);
+        const isTarget = drag?.over && drag.target.zone === zone;
+        return (
+          <div key={group.key || zone} className="overflow-x-auto pb-2 [scrollbar-width:thin]">
+            <div className="mx-auto flex w-fit min-w-full flex-col items-center pt-2">
+              <ul
+                aria-label={group.leaders.length ? "Lideranças" : "Squads sem liderança definida"}
+                data-drop-zone={zone}
+                data-drop-grid
+                className={cn("flex max-w-full flex-wrap justify-center gap-3 rounded-[28px] p-1.5 transition-colors", isTarget && "bg-[#f1edff] ring-2 ring-violet/50")}
+              >
+                {renderLeaders(zone, group.leaders)}
+                {!group.leaders.length && !(drag?.target.zone === zone) && (
+                  <li className="rounded-full border border-dashed border-line-strong bg-surface px-4 py-2 text-[13px] font-bold text-muted">
+                    {drag ? "Solte aqui para definir a liderança" : "Squads sem liderança definida"}
                   </li>
-                );
-              })}
-            </ul>
+                )}
+              </ul>
+              <span aria-hidden className="h-7 w-[1.5px] bg-[#c3cdea]" />
+              <ul className="flex w-full">
+                {group.squads.map(({ squad, members, total }) => {
+                  const shown = isExpanded(squad.id) ? members : members.slice(0, PREVIEW);
+                  const rest = members.slice(shown.length);
+                  const isTarget = drag?.over && drag.target.zone === squad.id;
+                  return (
+                    <li key={squad.id} className={cn(BRANCH, "min-w-[236px] flex-1 basis-0")}>
+                      <section
+                        aria-label={`Squad ${squad.name}`}
+                        data-drop-zone={squad.id}
+                        className={cn("rounded-[24px] p-1 transition-colors", isTarget && "bg-[#f1edff] ring-2 ring-violet/50")}
+                      >
+                        <SquadHeader squad={squad} total={total} />
+                        <ul className="relative ml-4 mt-2 flex flex-col gap-2 border-l-[1.5px] border-[#c3cdea] pl-3 pt-1">
+                          {renderMembers(squad.id, shown)}
+                          {rest.length > 0 && !isExpanded(squad.id) && (
+                            <li>
+                              <button
+                                type="button"
+                                onClick={() => toggle(squad.id)}
+                                aria-expanded={false}
+                                className="flex w-full items-center gap-2 rounded-2xl border border-line bg-surface px-2.5 py-2.5 text-left shadow-[var(--shadow-card)] transition-colors hover:border-line-strong"
+                              >
+                                <AvatarStack people={rest} max={3} size={28} />
+                                <span className="min-w-0 flex-1 text-[12.5px] font-bold text-navy">+{plural(rest.length, "colaborador", "colaboradores")}</span>
+                                <ChevronRight size={16} className="text-muted" aria-hidden />
+                              </button>
+                            </li>
+                          )}
+                          {isExpanded(squad.id) && !expandAll && members.length > PREVIEW && (
+                            <li>
+                              <button type="button" onClick={() => toggle(squad.id)} aria-expanded className="flex items-center gap-1.5 px-1 py-1 text-[12.5px] font-bold text-violet hover:underline">
+                                <ChevronUp size={14} aria-hidden /> Recolher
+                              </button>
+                            </li>
+                          )}
+                          {members.length === 0 && !(drag?.target.zone === squad.id) && (
+                            <li className="rounded-2xl border border-dashed border-line-strong px-3 py-4 text-center text-[12.5px] text-muted">
+                              {filter.active && total ? "Ninguém deste squad corresponde aos filtros." : "Nenhum integrante ainda."}
+                              {canEdit && !filter.active && (
+                                <button type="button" onClick={() => newPerson({ squadIds: [squad.id] })} className="mt-1.5 flex w-full items-center justify-center gap-1 font-bold text-violet hover:underline">
+                                  <UserPlus size={14} aria-hidden /> Adicionar colaborador
+                                </button>
+                              )}
+                            </li>
+                          )}
+                        </ul>
+                      </section>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
 
       {(unassigned.length > 0 || (drag && filter.squad !== NO_SQUAD)) && (
         <section
@@ -347,11 +413,13 @@ export function OrgChart({ filter, expandAll }: { filter: OrgFilter; expandAll: 
           <h3 id="org-sem-squad" className="flex items-center gap-2 text-[16px] font-black text-navy">
             <Users size={18} aria-hidden /> Colaboradores sem squad
           </h3>
-          <p className="text-[13px] text-muted">Arraste para um squad para realocar.</p>
+          <p className="text-[13px] text-muted">Arraste para um squad ou para o topo de um grupo para realocar.</p>
           <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {renderMembers(NO_SQUAD, unassigned)}
-            {drag && shownIn(NO_SQUAD, drag.id).length === 0 && drag.target.zone !== NO_SQUAD && (
-              <li className="rounded-2xl border border-dashed border-line-strong px-3 py-4 text-center text-[12.5px] text-muted">Solte aqui para tirar a pessoa do squad.</li>
+            {drag && shownIn(NO_SQUAD, drag.id).length === 0 && (
+              <li className="rounded-2xl border border-dashed border-line-strong px-3 py-4 text-center text-[12.5px] text-muted">
+                {drag.origin.zone.startsWith(LEADERS) ? "Solte aqui para tirar a pessoa da liderança." : "Solte aqui para tirar a pessoa do squad."}
+              </li>
             )}
           </ul>
         </section>
@@ -362,10 +430,24 @@ export function OrgChart({ filter, expandAll }: { filter: OrgFilter; expandAll: 
         dragged &&
         createPortal(
           <div aria-hidden className="pointer-events-none fixed left-0 top-0 z-[60]" style={{ width: drag.width, transform: `translate(${drag.x - drag.offsetX}px, ${drag.y - drag.offsetY}px)` }}>
-            <div className={cn(MEMBER_CARD, "rotate-[1.5deg] border-violet shadow-[0_18px_40px_rgba(23,27,77,0.22)]", !drag.over && "opacity-70")}>
+            <div className={cn(MEMBER_CARD, "relative rotate-[1.5deg] border-violet shadow-[0_18px_40px_rgba(23,27,77,0.22)]", !drag.over && "opacity-70")}>
               <MemberContent person={dragged} />
+              {copying && (
+                <span className="absolute -right-2 -top-2.5 inline-flex items-center gap-1 rounded-full bg-action px-2 py-0.5 text-[11px] font-extrabold text-white shadow-sm">
+                  <Plus size={12} strokeWidth={3} aria-hidden /> Adicionar
+                </span>
+              )}
             </div>
           </div>,
+          document.body,
+        )}
+      {drag &&
+        drag.origin.zone !== NO_SQUAD &&
+        createPortal(
+          <p aria-hidden className="pointer-events-none fixed bottom-6 left-1/2 z-[60] hidden -translate-x-1/2 animate-fade-in items-center gap-2 rounded-full bg-navy px-4 py-2 text-[12.5px] font-bold text-white shadow-[var(--shadow-raised)] sm:flex">
+            {copying ? <Plus size={14} aria-hidden /> : <ArrowLeftRight size={14} aria-hidden />}
+            {copying ? "Adicionando: a pessoa continua também no lugar de origem." : "Segure Alt (⌥ Option) para adicionar sem tirar do lugar atual."}
+          </p>,
           document.body,
         )}
     </>
@@ -407,9 +489,13 @@ export function OrgList({ filter }: { filter: OrgFilter }) {
   return (
     <div className="rounded-[24px] border border-[#e3e9f4] bg-surface p-3 shadow-[0_2px_10px_rgba(23,27,77,0.04)]">
       <ul className="flex flex-col">
-        {groups.map((group, gIdx) => (
-          <li key={group.leader?.id ?? `sem-${gIdx}`} className="py-1">
-            {group.leader ? personRow(group.leader, 0) : <p className="px-2 py-2 text-[13px] font-bold text-muted">Squads sem liderança definida</p>}
+        {groups.map((group) => (
+          <li key={group.key || leadersZone(group)} className="py-1">
+            {group.leaders.length ? (
+              <ul>{group.leaders.map((leader) => personRow(leader, 0))}</ul>
+            ) : (
+              <p className="px-2 py-2 text-[13px] font-bold text-muted">Squads sem liderança definida</p>
+            )}
             <ul>
               {group.squads.map(({ squad, members, total }) => {
                 const open = !collapsed.has(squad.id);

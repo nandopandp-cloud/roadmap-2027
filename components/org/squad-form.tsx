@@ -5,7 +5,7 @@ import { useMemo, useRef, useState } from "react";
 import { PLATFORM_GLYPHS, PLATFORM_ICON_LABEL } from "@/components/platforms/platform-icon";
 import { Button } from "@/components/ui/button";
 import { Modal, useConfirm } from "@/components/ui/dialog";
-import { ChipMultiSelect, HiddenInput, SelectField, TextAreaField, TextField } from "@/components/ui/fields";
+import { ChipMultiSelect, HiddenInput, TextAreaField, TextField } from "@/components/ui/fields";
 import { useToast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/client/api";
 import { cn } from "@/lib/client/cn";
@@ -24,7 +24,7 @@ const ACCENT_LABEL: Record<SquadInput["accent"], string> = {
   indigo: "Índigo",
 };
 
-export const emptySquad = (): SquadInput => ({ name: "", description: "", icon: "layers", accent: "indigo", leaderId: null, platformIds: [] });
+export const emptySquad = (): SquadInput => ({ name: "", description: "", icon: "layers", accent: "indigo", leaderIds: [], platformIds: [] });
 
 export function SquadForm({ squad, onClose, onSaved }: { squad: Squad | null; onClose: () => void; onSaved: (squad: Squad) => void }) {
   const { data, saveSquad } = useRoadmap();
@@ -91,7 +91,7 @@ export function SquadForm({ squad, onClose, onSaved }: { squad: Squad | null; on
       onClose={requestClose}
       size="lg"
       title={squad ? `Editar squad ${squad.name}` : "Novo squad"}
-      description="Squads aparecem no organograma abaixo da liderança escolhida."
+      description="Squads aparecem no organograma abaixo das lideranças escolhidas."
       footer={
         <>
           <Button variant="ghost" onClick={requestClose} disabled={saving}>
@@ -110,24 +110,16 @@ export function SquadForm({ squad, onClose, onSaved }: { squad: Squad | null; on
           void submit();
         }}
       >
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <TextField label="Nome" required value={draft.name} error={errors.name} onChange={(e) => set("name", e.target.value)} data-autofocus />
-          <SelectField
-            label="Liderança"
-            value={draft.leaderId ?? ""}
-            error={errors.leaderId}
-            hint="Pessoa a quem o squad responde (topo do organograma)."
-            onChange={(e) => set("leaderId", e.target.value || null)}
-          >
-            <option value="">Sem liderança definida</option>
-            {people.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name} · {p.role}
-              </option>
-            ))}
-          </SelectField>
-        </div>
+        <TextField label="Nome" required value={draft.name} error={errors.name} onChange={(e) => set("name", e.target.value)} data-autofocus />
         <TextAreaField label="Descrição" value={draft.description} error={errors.description} rows={2} onChange={(e) => set("description", e.target.value)} />
+        <ChipMultiSelect
+          legend="Lideranças"
+          hint="Pessoas a quem o squad responde, no topo do organograma (na ordem em que forem marcadas). No organograma, você também pode arrastar um card para o topo."
+          error={errors.leaderIds}
+          options={people.map((p) => ({ value: p.id, label: p.name, description: p.role }))}
+          value={draft.leaderIds}
+          onChange={(v) => set("leaderIds", v)}
+        />
 
         <fieldset>
           <legend className="mb-2 text-[13px] font-bold text-navy">Ícone</legend>

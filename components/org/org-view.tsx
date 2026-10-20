@@ -16,6 +16,7 @@ import { useToast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/client/api";
 import { cn } from "@/lib/client/cn";
 import { useRoadmap } from "@/lib/client/store";
+import { orderIn } from "@/lib/domain/org";
 import type { Person, Squad } from "@/lib/domain/types";
 
 const TABS = [
@@ -68,7 +69,11 @@ function OrgPage() {
 
   const filter = useMemo<OrgFilter>(() => {
     const terms = normalize(query).split(/\s+/).filter(Boolean);
-    const squadName = (p: Person) => data.squads.find((s) => s.id === p.squadId)?.name ?? "";
+    const squadName = (p: Person) =>
+      data.squads
+        .filter((s) => orderIn(p, s.id) !== undefined)
+        .map((s) => s.name)
+        .join(" ");
     const matchesText = (text: string) => terms.every((t) => normalize(text).includes(t));
     return {
       squad,
@@ -85,7 +90,7 @@ function OrgPage() {
   const people = useMemo(
     () =>
       data.people
-        .filter((p) => (squad === "todos" || (squad === NO_SQUAD ? !p.squadId : p.squadId === squad)) && filter.person(p))
+        .filter((p) => (squad === "todos" || (squad === NO_SQUAD ? !p.memberships.length : orderIn(p, squad) !== undefined)) && filter.person(p))
         .sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
     [data.people, squad, filter],
   );
@@ -107,7 +112,7 @@ function OrgPage() {
     if (!ok) return;
     setCreating(true);
     try {
-      for (const p of missing) await saveSquad(null, { name: p.name, description: "", icon: p.icon, accent: p.accent, leaderId: null, platformIds: [p.id] });
+      for (const p of missing) await saveSquad(null, { name: p.name, description: "", icon: p.icon, accent: p.accent, leaderIds: [], platformIds: [p.id] });
       notify("success", `${missing.length} squads criados.`);
     } catch (error) {
       notify("error", error instanceof ApiError ? error.message : "Não foi possível criar todos os squads.");

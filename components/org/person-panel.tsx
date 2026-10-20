@@ -145,7 +145,7 @@ function PanelBody({ person }: { person: Person }) {
               <span key={s.id} className="inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[12px] font-bold" style={{ background: ACCENT_TONE[s.accent].soft, color: ACCENT_TONE[s.accent].fg }}>
                 <span aria-hidden className="h-2 w-2 rounded-full" style={{ background: ACCENT_TONE[s.accent].solid }} />
                 {s.name}
-                {s.leaderId === person.id && <span className="font-semibold opacity-75">· liderança</span>}
+                {s.leaderIds.includes(person.id) && <span className="font-semibold opacity-75">· liderança</span>}
               </span>
             ))}
           </div>
@@ -213,13 +213,30 @@ function PanelBody({ person }: { person: Person }) {
   );
 }
 
+/** Duração da saída do painel (--animate-panel-out / --animate-dock-out). */
+const PANEL_OUT_MS = 240;
+
+/** Mantém o painel montado durante a animação de saída. */
+function usePresence(id: string | null) {
+  const [shownId, setShownId] = useState(id);
+  if (id && id !== shownId) setShownId(id);
+  const closing = !id && !!shownId;
+  useEffect(() => {
+    if (!closing) return;
+    const timer = setTimeout(() => setShownId(null), PANEL_OUT_MS);
+    return () => clearTimeout(timer);
+  }, [closing]);
+  return { shownId: id ?? shownId, closing };
+}
+
 export function PersonPanel() {
   const { data, load } = useRoadmap();
   const { selectedId, closePerson } = useOrgActions();
   const docked = useDocked();
+  const { shownId, closing } = usePresence(selectedId);
   const trapRef = useFocusTrap(!!selectedId && !docked, closePerson);
-  if (!selectedId || load.status !== "ready") return null;
-  const person = data.people.find((p) => p.id === selectedId);
+  if (!shownId || load.status !== "ready") return null;
+  const person = data.people.find((p) => p.id === shownId);
 
   const body = (
     <>
@@ -229,7 +246,8 @@ export function PersonPanel() {
           <X size={19} />
         </IconButton>
       </header>
-      <div className="px-5 pb-8 pt-4">
+      {/* Ao trocar de colaborador, o conteúdo entra com um leve deslize. */}
+      <div key={shownId} className="animate-panel-content-in px-5 pb-8 pt-4">
         {person ? (
           <PanelBody person={person} />
         ) : (
@@ -245,21 +263,30 @@ export function PersonPanel() {
 
   if (docked) {
     return (
-      <aside aria-label="Detalhes do colaborador" className="sticky top-0 h-dvh w-[360px] shrink-0 self-start overflow-y-auto border-l border-line bg-surface shadow-[var(--shadow-drawer)]">
-        {body}
+      <aside
+        aria-label="Detalhes do colaborador"
+        className={cn(
+          "sticky top-0 flex h-dvh w-[360px] shrink-0 justify-end self-start overflow-hidden border-l border-line bg-surface shadow-[var(--shadow-drawer)]",
+          closing ? "pointer-events-none animate-dock-out" : "animate-dock-in",
+        )}
+      >
+        <div className={cn("h-full w-[360px] shrink-0 overflow-y-auto", closing && "animate-fade-out")}>{body}</div>
       </aside>
     );
   }
   return (
-    <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 animate-fade-in bg-[#171b4d]/40" onClick={closePerson} aria-hidden />
+    <div className={cn("fixed inset-0 z-50", closing && "pointer-events-none")}>
+      <div className={cn("absolute inset-0 bg-[#171b4d]/40", closing ? "animate-fade-out" : "animate-fade-in")} onClick={closePerson} aria-hidden />
       <div
         ref={trapRef}
         data-layer
         role="dialog"
         aria-modal="true"
         aria-label="Detalhes do colaborador"
-        className={cn("absolute inset-y-0 right-0 w-full animate-drawer-in overflow-y-auto bg-surface shadow-[var(--shadow-drawer)] sm:w-[400px]")}
+        className={cn(
+          "absolute inset-y-0 right-0 w-full overflow-y-auto bg-surface shadow-[var(--shadow-drawer)] will-change-transform sm:w-[400px]",
+          closing ? "animate-panel-out" : "animate-panel-in",
+        )}
       >
         {body}
       </div>

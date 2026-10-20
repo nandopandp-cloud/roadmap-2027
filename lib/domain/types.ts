@@ -14,7 +14,9 @@ import type {
   initiativeSchema,
   metricSchema,
   milestoneSchema,
+  orgZoneSchema,
   personInputSchema,
+  personMoveSchema,
   personSchema,
   phaseSchema,
   platformInputSchema,
@@ -75,6 +77,8 @@ export type Person = z.infer<typeof personSchema>;
 export type PersonInput = z.infer<typeof personInputSchema>;
 export type Squad = z.infer<typeof squadSchema>;
 export type SquadInput = z.infer<typeof squadInputSchema>;
+export type OrgZone = z.infer<typeof orgZoneSchema>;
+export type PersonMove = z.input<typeof personMoveSchema>;
 
 export type Driver = z.infer<typeof driverSchema>;
 export type Principle = z.infer<typeof principleSchema>;

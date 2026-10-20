@@ -1,6 +1,5 @@
-import type { PersonTarget } from "@/lib/domain/org";
 import type { RoadmapTarget } from "@/lib/domain/roadmap-order";
-import type { Initiative, Person, Platform, Squad, StrategyContext } from "@/lib/domain/types";
+import type { Initiative, Person, PersonMove, Platform, Squad, StrategyContext } from "@/lib/domain/types";
 
 export interface Snapshot {
   initiatives: Initiative[];
@@ -67,8 +66,8 @@ export const api = {
   createPerson: (data: unknown) => request<Person>("/api/people", { method: "POST", body: json(data) }),
   updatePerson: (id: string, data: unknown) => request<Person>(`/api/people/${id}`, { method: "PUT", body: json(data) }),
   deletePerson: (id: string) => request<{ ok: true }>(`/api/people/${id}`, { method: "DELETE" }),
-  movePerson: (id: string, target: PersonTarget) =>
-    request<Person[]>(`/api/people/${id}/move`, { method: "POST", body: json(target) }),
+  movePerson: (id: string, move: PersonMove) =>
+    request<{ people: Person[]; squads: Squad[] }>(`/api/people/${id}/move`, { method: "POST", body: json(move) }),
   replacePerson: (id: string, data: unknown) =>
     request<Person>(`/api/people/${id}/replace`, { method: "POST", body: json(data) }),
 

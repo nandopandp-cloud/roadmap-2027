@@ -2,9 +2,9 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api, ApiError, type Snapshot } from "@/lib/client/api";
-import { placeInSquad, type PersonTarget } from "@/lib/domain/org";
+import { applyMove } from "@/lib/domain/org";
 import { placeInColumn, type RoadmapTarget } from "@/lib/domain/roadmap-order";
-import type { Initiative, Person, Platform, Squad, StrategyContext } from "@/lib/domain/types";
+import type { Initiative, Person, PersonMove, Platform, Squad, StrategyContext } from "@/lib/domain/types";
 
 type LoadState = { status: "loading" } | { status: "error"; message: string } | { status: "ready" };
 
@@ -32,8 +32,8 @@ interface RoadmapStore {
   /** Exclusão e substituição alteram outros registros (lideranças, squads): recarregam o estado. */
   removePerson: (id: string) => Promise<void>;
   replacePerson: (id: string, data: unknown) => Promise<Person>;
-  /** Realoca um colaborador (squad e posição), com atualização imediata da tela. */
-  movePerson: (id: string, target: PersonTarget) => Promise<void>;
+  /** Realoca um colaborador (squads, lideranças e posição), com atualização imediata da tela. */
+  movePerson: (id: string, move: PersonMove) => Promise<void>;
   saveSquad: (id: string | null, data: unknown) => Promise<Squad>;
   removeSquad: (id: string) => Promise<void>;
   form: FormRequest | null;
@@ -180,26 +180,20 @@ export function RoadmapProvider({ children }: { children: ReactNode }) {
     [reload],
   );
 
-  const movePerson = useCallback<RoadmapStore["movePerson"]>(async (id, target) => {
-    const previous = new Map<string, Person>();
+  const movePerson = useCallback<RoadmapStore["movePerson"]>(async (id, move) => {
+    const previous: { org?: Pick<Snapshot, "people" | "squads"> } = {};
     setData((prev) => {
-      const orders = placeInSquad(prev.people, id, target);
-      if (!orders) return prev;
-      return {
-        ...prev,
-        people: prev.people.map((p) => {
-          const order = orders.get(p.id);
-          if (order === undefined) return p;
-          previous.set(p.id, p);
-          return { ...p, squadId: p.id === id ? target.squadId : p.squadId, squadOrder: order };
-        }),
-      };
+      const next = applyMove(prev, id, move);
+      if (!next) return prev;
+      previous.org = { people: prev.people, squads: prev.squads };
+      return { ...prev, ...next };
     });
     try {
-      const changed = await api.movePerson(id, target);
-      setData((prev) => ({ ...prev, people: prev.people.map((p) => changed.find((c) => c.id === p.id) ?? p) }));
+      const saved = await api.movePerson(id, move);
+      setData((prev) => ({ ...prev, ...saved }));
     } catch (error) {
-      setData((prev) => ({ ...prev, people: prev.people.map((p) => previous.get(p.id) ?? p) }));
+      const restore = previous.org;
+      if (restore) setData((prev) => ({ ...prev, ...restore }));
       throw error;
     }
   }, []);

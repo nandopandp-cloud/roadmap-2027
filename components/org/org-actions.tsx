@@ -143,7 +143,7 @@ export function OrgActionsProvider({ children }: { children: ReactNode }) {
         canEdit
           ? [
               { label: "Editar squad", icon: Pencil, onSelect: () => setDialog({ type: "squad", squad }) },
-              { label: "Adicionar colaborador", icon: UserPlus, onSelect: () => setDialog({ type: "person", person: null, defaults: { squadId: squad.id } }) },
+              { label: "Adicionar colaborador", icon: UserPlus, onSelect: () => setDialog({ type: "person", person: null, defaults: { squadIds: [squad.id] } }) },
               { label: "Excluir squad", icon: Trash2, onSelect: () => void removeSquad(squad), danger: true },
             ]
           : [],
