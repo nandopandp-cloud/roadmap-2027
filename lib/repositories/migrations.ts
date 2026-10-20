@@ -1,7 +1,8 @@
 import { ILLUSTRATIONS } from "@/lib/domain/constants";
+import { defaultRoadmapOrder } from "@/lib/domain/roadmap-order";
 import type { Database, IllustrationKey } from "@/lib/domain/types";
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 /** Ilustrações removidas da biblioteca → equivalentes atuais. */
 const RENAMED_ILLUSTRATIONS: Record<string, IllustrationKey | null> = { cometa: null, lua: null };
@@ -10,6 +11,7 @@ const RENAMED_ILLUSTRATIONS: Record<string, IllustrationKey | null> = { cometa: 
  * Atualiza um banco gravado em versão anterior sem perder dados:
  * v1 → v2: objetivos, entregas e etapas de progresso; nova biblioteca de ilustrações.
  * v2 → v3: imagem própria da iniciativa (customImage).
+ * v3 → v4: ordem manual dos cards no roadmap (roadmapOrder), iniciada pela ordem de prioridade.
  */
 export function migrateDatabase(db: Database): { db: Database; changed: boolean } {
   if ((db.schemaVersion ?? 1) >= SCHEMA_VERSION) return { db, changed: false };
@@ -26,6 +28,7 @@ export function migrateDatabase(db: Database): { db: Database; changed: boolean 
       deliverables: raw.deliverables ?? [],
       phases: raw.phases ?? [],
       customImage: raw.customImage ?? null,
+      roadmapOrder: raw.roadmapOrder ?? defaultRoadmapOrder(raw),
     };
   });
   return { db: { ...db, schemaVersion: SCHEMA_VERSION, initiatives }, changed: true };

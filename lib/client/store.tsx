@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api, ApiError, type Snapshot } from "@/lib/client/api";
+import { placeInColumn, type RoadmapTarget } from "@/lib/domain/roadmap-order";
 import type { Initiative, Platform, StrategyContext } from "@/lib/domain/types";
 
 type LoadState = { status: "loading" } | { status: "error"; message: string } | { status: "ready" };
@@ -21,6 +22,8 @@ interface RoadmapStore {
   upsertInitiative: (initiative: Initiative) => void;
   removeInitiative: (id: string) => Promise<void>;
   patchPlanning: (id: string, patch: Partial<Pick<Initiative, "quarter" | "priority" | "status" | "planningValidated" | "phases">>) => Promise<Initiative>;
+  /** Move um card no roadmap (quarter e posição), com atualização imediata da tela. */
+  moveInitiative: (id: string, target: RoadmapTarget) => Promise<void>;
   savePlatform: (id: string | null, data: unknown) => Promise<Platform>;
   removePlatform: (id: string) => Promise<void>;
   saveContext: (context: StrategyContext) => Promise<StrategyContext>;
@@ -92,6 +95,34 @@ export function RoadmapProvider({ children }: { children: ReactNode }) {
     [upsertInitiative],
   );
 
+  const moveInitiative = useCallback<RoadmapStore["moveInitiative"]>(async (id, target) => {
+    // Valores anteriores das iniciativas afetadas, para desfazer se o servidor recusar.
+    const previous = new Map<string, Initiative>();
+    setData((prev) => {
+      const placement = placeInColumn(prev.initiatives, id, target);
+      if (!placement) return prev;
+      return {
+        ...prev,
+        initiatives: prev.initiatives.map((i) => {
+          const order = placement.orders.get(i.id);
+          if (order === undefined) return i;
+          previous.set(i.id, i);
+          return { ...i, quarter: i.id === id ? target.quarter : i.quarter, roadmapOrder: order };
+        }),
+      };
+    });
+    try {
+      const changed = await api.moveInitiative(id, target);
+      setData((prev) => ({
+        ...prev,
+        initiatives: prev.initiatives.map((i) => changed.find((c) => c.id === i.id) ?? i),
+      }));
+    } catch (error) {
+      setData((prev) => ({ ...prev, initiatives: prev.initiatives.map((i) => previous.get(i.id) ?? i) }));
+      throw error;
+    }
+  }, []);
+
   const savePlatform = useCallback(async (id: string | null, payload: unknown) => {
     const platform = id ? await api.updatePlatform(id, payload) : await api.createPlatform(payload);
     setData((prev) => ({
@@ -122,6 +153,7 @@ export function RoadmapProvider({ children }: { children: ReactNode }) {
       upsertInitiative,
       removeInitiative,
       patchPlanning,
+      moveInitiative,
       savePlatform,
       removePlatform,
       saveContext,
@@ -129,7 +161,7 @@ export function RoadmapProvider({ children }: { children: ReactNode }) {
       openForm: (initiativeId, step) => setForm({ initiativeId, step }),
       closeForm: () => setForm(null),
     }),
-    [load, data, reload, upsertInitiative, removeInitiative, patchPlanning, savePlatform, removePlatform, saveContext, form],
+    [load, data, reload, upsertInitiative, removeInitiative, patchPlanning, moveInitiative, savePlatform, removePlatform, saveContext, form],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

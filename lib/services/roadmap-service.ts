@@ -1,6 +1,8 @@
 import "server-only";
 import type { z } from "zod";
 import type { Database, Initiative, InitiativeInput, Platform, StrategyContext } from "@/lib/domain/types";
+import { QUARTER_LABEL } from "@/lib/domain/labels";
+import { nextRoadmapOrder, placeInColumn, roadmapColumn } from "@/lib/domain/roadmap-order";
 import { getRepository, storageKind, type StorageKind } from "@/lib/repositories";
 import { DomainError, notFound } from "@/lib/services/errors";
 import { describeChanges, historyEntry } from "@/lib/services/history";
@@ -10,6 +12,7 @@ import {
   initiativeInputSchema,
   planningPatchSchema,
   platformInputSchema,
+  roadmapMoveSchema,
   strategyContextSchema,
 } from "@/lib/validation/schemas";
 
@@ -93,6 +96,7 @@ export async function createInitiative(data: unknown): Promise<Initiative> {
       createdAt: now,
       updatedAt: now,
       history: [historyEntry("Iniciativa criada.", now)],
+      roadmapOrder: nextRoadmapOrder(db.initiatives, input.quarter),
     };
     db.initiatives.push(initiative);
     return initiative;
@@ -113,6 +117,7 @@ export async function updateInitiative(id: string, data: unknown): Promise<Initi
     const updated: Initiative = {
       ...before,
       ...input,
+      roadmapOrder: orderAfterQuarterChange(db, before, input.quarter),
       updatedAt: now,
       history: [...entries, ...before.history].slice(0, 200),
     };
@@ -134,11 +139,62 @@ export async function patchPlanning(id: string, data: unknown): Promise<Initiati
     const now = new Date().toISOString();
     const updated: Initiative = {
       ...next,
+      roadmapOrder: orderAfterQuarterChange(db, before, next.quarter),
       updatedAt: now,
       history: [...changes.map((c) => historyEntry(c, now)), ...before.history].slice(0, 200),
     };
     db.initiatives[index] = updated;
     return updated;
+  });
+}
+
+/** Ao mudar de quarter fora do roadmap (formulário, drawer), a iniciativa vai para o fim da nova coluna. */
+function orderAfterQuarterChange(db: Database, before: Initiative, quarter: Initiative["quarter"]): number {
+  return before.quarter === quarter ? before.roadmapOrder : nextRoadmapOrder(db.initiatives, quarter, before.id);
+}
+
+const columnLabel = (q: Initiative["quarter"]) => (q ? `em ${QUARTER_LABEL[q]}` : "entre as iniciativas sem quarter");
+
+/**
+ * Move um card do roadmap para outro quarter e/ou posição. Renumera a coluna de destino
+ * e devolve todas as iniciativas cuja ordem mudou.
+ */
+export async function moveInitiative(id: string, data: unknown): Promise<Initiative[]> {
+  const target = parse(roadmapMoveSchema, data);
+  return getRepository().transaction((db) => {
+    const index = db.initiatives.findIndex((i) => i.id === id);
+    if (index < 0) throw notFound("Iniciativa");
+    const placement = placeInColumn(db.initiatives, id, target);
+    if (!placement) {
+      throw new DomainError(409, "O roadmap mudou desde que a página foi carregada. Atualize e tente novamente.");
+    }
+    const before = db.initiatives[index];
+    const sequence = [...placement.orders.keys()].join();
+    if (before.quarter === target.quarter && roadmapColumn(db.initiatives, target.quarter).map((i) => i.id).join() === sequence) return [];
+
+    const changed: Initiative[] = [];
+    db.initiatives = db.initiatives.map((i) => {
+      const order = placement.orders.get(i.id);
+      if (order === undefined || i.id === id || order === i.roadmapOrder) return i;
+      const updated = { ...i, roadmapOrder: order };
+      changed.push(updated);
+      return updated;
+    });
+
+    const now = new Date().toISOString();
+    const descriptions =
+      before.quarter !== target.quarter
+        ? describeChanges(before, { ...before, quarter: target.quarter })
+        : [`Posição no roadmap alterada ${columnLabel(target.quarter)}: ${placement.position}ª de ${placement.size}.`];
+    const moved: Initiative = {
+      ...before,
+      quarter: target.quarter,
+      roadmapOrder: placement.orders.get(id) ?? 0,
+      updatedAt: now,
+      history: [...descriptions.map((c) => historyEntry(c, now)), ...before.history].slice(0, 200),
+    };
+    db.initiatives[index] = moved;
+    return [moved, ...changed];
   });
 }
 

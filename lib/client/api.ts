@@ -1,3 +1,4 @@
+import type { RoadmapTarget } from "@/lib/domain/roadmap-order";
 import type { Initiative, Platform, StrategyContext } from "@/lib/domain/types";
 
 export interface Snapshot {
@@ -49,6 +50,8 @@ export const api = {
     request<Initiative>(`/api/initiatives/${id}`, { method: "PUT", body: json(data) }),
   patchPlanning: (id: string, data: unknown) =>
     request<Initiative>(`/api/initiatives/${id}`, { method: "PATCH", body: json(data) }),
+  moveInitiative: (id: string, target: RoadmapTarget) =>
+    request<Initiative[]>(`/api/initiatives/${id}/move`, { method: "POST", body: json(target) }),
   deleteInitiative: (id: string) => request<{ ok: true }>(`/api/initiatives/${id}`, { method: "DELETE" }),
   createDocument: (id: string, kind: "prd" | "decisoes") =>
     request<Initiative>(`/api/initiatives/${id}/documents`, { method: "POST", body: json({ kind }) }),

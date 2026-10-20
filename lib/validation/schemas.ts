@@ -199,6 +199,8 @@ export const initiativeSchema = initiativeInputSchema.extend({
   createdAt: z.string(),
   updatedAt: z.string(),
   history: z.array(historyEntrySchema).default([]),
+  /** Posição na coluna do roadmap (quarter); alterada ao arrastar os cards. Não faz parte do formulário. */
+  roadmapOrder: z.number().int().min(0).default(0),
 });
 
 /** Alterações rápidas de planejamento (drawer e roadmap). */
@@ -211,6 +213,13 @@ export const planningPatchSchema = z
     phases: z.array(phaseSchema).max(12),
   })
   .partial();
+
+/** Mover um card no roadmap: coluna de destino e vizinho visível no ponto de inserção. */
+export const roadmapMoveSchema = z.object({
+  quarter: z.enum(QUARTERS).nullable(),
+  beforeId: z.string().regex(INITIATIVE_ID_PATTERN).nullable().default(null),
+  afterId: z.string().regex(INITIATIVE_ID_PATTERN).nullable().default(null),
+});
 
 export const platformInputSchema = z.object({
   name: required("O nome", 80),
