@@ -173,7 +173,7 @@ export function inferDiscipline(role: string): Discipline | null {
   if (/\b(qa|quality|qualidade|tester|testes?)\b/.test(r)) return "qa";
   if (/design|ux|ui\b/.test(r)) return "design";
   if (/\b(product|produto|pm|po|cpo)\b/.test(r)) return "produto";
-  if (/engenh|engineer|desenvolv|developer|dev\b|devops|tech lead|cto|arquitet|frontend|front-end|backend|back-end|fullstack|mobile|dados|data/.test(r)) return "engenharia";
+  if (/engenh|engineer|desenvolv|developer|dev\b|devops|tech[ -]?lead|cto|arquitet|frontend|front-end|backend|back-end|fullstack|mobile|dados|data/.test(r)) return "engenharia";
   return null;
 }
 
