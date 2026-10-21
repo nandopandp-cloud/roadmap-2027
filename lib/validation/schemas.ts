@@ -352,3 +352,6 @@ export function fieldErrors(error: z.ZodError): Record<string, string> {
   }
   return out;
 }
+
+/** Pedido de download de imagem por link da web (editor de imagem). */
+export const remoteImageRequestSchema = z.object({ url: z.string().trim().min(1).max(2048) });

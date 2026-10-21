@@ -46,6 +46,7 @@ const json = (data: unknown) => JSON.stringify(data);
 
 export const api = {
   snapshot: () => request<Snapshot>("/api/snapshot"),
+  fetchRemoteImage: (url: string) => request<{ dataUrl: string }>("/api/images/remote", { method: "POST", body: json({ url }) }),
 
   createInitiative: (data: unknown) => request<Initiative>("/api/initiatives", { method: "POST", body: json(data) }),
   updateInitiative: (id: string, data: unknown) =>

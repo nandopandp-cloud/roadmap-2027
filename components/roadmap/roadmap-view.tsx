@@ -1,5 +1,6 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
 import { ChartGantt, Flag, GitFork, GripVertical, LayoutGrid, Plus } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, type KeyboardEvent } from "react";
@@ -95,12 +96,13 @@ export function RoadmapView() {
             </button>
           ))}
         </div>
-        <label className="flex items-center gap-2 text-[14px] font-semibold text-muted">
-          Plataforma
-          <select
+        <div className="flex items-center gap-2 text-[14px] font-semibold text-muted">
+          <span aria-hidden>Plataforma</span>
+          <Select
             value={platform}
-            onChange={(e) => setPlatform(e.target.value)}
-            className="h-10 rounded-xl border border-line bg-surface px-3 text-[14px] font-semibold text-ink focus:border-violet focus:outline-none"
+            onChange={setPlatform}
+            aria-label="Plataforma"
+            className="h-10 min-w-[180px] rounded-xl border border-line bg-surface px-3 text-[14px] font-semibold text-ink hover:border-line-strong focus:border-violet focus:outline-none focus:ring-4 focus:ring-[#6045d8]/12"
           >
             <option value="todas">Todas</option>
             {data.platforms.map((p) => (
@@ -108,8 +110,8 @@ export function RoadmapView() {
                 {p.name}
               </option>
             ))}
-          </select>
-        </label>
+          </Select>
+        </div>
         <Checkbox label="Mostrar marcos" checked={showMilestones} onChange={setShowMilestones} />
         {view === "cards" ? (
           <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] text-muted">

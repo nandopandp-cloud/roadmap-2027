@@ -1,10 +1,11 @@
 "use client";
 
-import { FlipHorizontal2, FlipVertical2, ImagePlus, RotateCcw, RotateCw, Undo2, ZoomIn } from "lucide-react";
+import { FlipHorizontal2, FlipVertical2, ImagePlus, Link2, RotateCcw, RotateCw, Undo2, ZoomIn } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
+import { api } from "@/lib/client/api";
 import { cn } from "@/lib/client/cn";
 import type { CustomImage } from "@/lib/domain/types";
 
@@ -73,9 +74,13 @@ export function ImageEditor({
   const drag = useRef<{ x: number; y: number; startX: number; startY: number } | null>(null);
   const [img, setImg] = useState<HTMLImageElement | null>(null);
   const [fromFile, setFromFile] = useState<File | null>(null);
+  const [fromLink, setFromLink] = useState(false);
   const [t, setT] = useState<Transform>(current ?? INITIAL);
   const [loading, setLoading] = useState(!!current);
   const [saving, setSaving] = useState(false);
+  const [link, setLink] = useState("");
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const [fetchingLink, setFetchingLink] = useState(false);
 
   // Reedição: carrega a cópia original guardada.
   useEffect(() => {
@@ -106,11 +111,33 @@ export function ImageEditor({
     try {
       setImg(await loadImage(url));
       setFromFile(file);
+      setFromLink(false);
       setT(INITIAL);
     } catch {
       notify("error", "Não foi possível abrir essa imagem.");
     } finally {
       URL.revokeObjectURL(url);
+    }
+  }
+
+  /** Imagem por link da web: baixada pelo servidor para poder ser recortada no canvas. */
+  async function pickLink() {
+    const url = link.trim();
+    if (!url || fetchingLink) return;
+    if (!/^https?:\/\//i.test(url)) return setLinkError("Informe um endereço completo, começando com https://.");
+    setFetchingLink(true);
+    setLinkError(null);
+    try {
+      const { dataUrl } = await api.fetchRemoteImage(url);
+      setImg(await loadImage(dataUrl));
+      setFromFile(null);
+      setFromLink(true);
+      setT(INITIAL);
+      setLink("");
+    } catch (error) {
+      setLinkError(error instanceof Error ? error.message : "Não foi possível carregar a imagem desse link.");
+    } finally {
+      setFetchingLink(false);
     }
   }
 
@@ -150,7 +177,7 @@ export function ImageEditor({
 
       // Cópia original (reduzida) para permitir reedição; reaproveita a existente quando não houve novo arquivo.
       let originalId = current?.originalId;
-      if (fromFile || !originalId) {
+      if (fromFile || fromLink || !originalId) {
         const ratio = Math.min(1, ORIGINAL_MAX / Math.max(img.width, img.height));
         const orig = document.createElement("canvas");
         orig.width = Math.round(img.width * ratio);
@@ -228,6 +255,49 @@ export function ImageEditor({
             <Button size="sm" icon={<ImagePlus size={15} />} onClick={() => fileRef.current?.click()}>
               {img ? "Trocar imagem" : "Escolher imagem"}
             </Button>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="image-link" className="text-[13px] font-bold text-navy">
+              Ou use um link da web
+            </label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Link2 size={16} aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+                <input
+                  id="image-link"
+                  type="url"
+                  inputMode="url"
+                  placeholder="https://…/foto.jpg"
+                  value={link}
+                  aria-invalid={!!linkError}
+                  aria-describedby={linkError ? "image-link-error" : "image-link-hint"}
+                  onChange={(e) => {
+                    setLink(e.target.value);
+                    setLinkError(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      void pickLink();
+                    }
+                  }}
+                  className="h-10 w-full rounded-xl border border-line bg-surface pl-9 pr-3 text-[14px] text-ink placeholder:text-subtle hover:border-line-strong focus:border-violet focus:outline-none focus:ring-4 focus:ring-[#6045d8]/12 aria-[invalid=true]:border-[#c42b3a]"
+                />
+              </div>
+              <Button size="sm" loading={fetchingLink} disabled={!link.trim()} onClick={() => void pickLink()}>
+                Carregar
+              </Button>
+            </div>
+            {linkError ? (
+              <p id="image-link-error" className="text-xs font-semibold text-[#c42b3a]">
+                {linkError}
+              </p>
+            ) : (
+              <p id="image-link-hint" className="text-xs text-muted">
+                Cole o endereço direto de uma imagem pública (JPG, PNG, WebP ou GIF).
+              </p>
+            )}
           </div>
 
           <div className={cn("flex flex-col gap-5", !img && "pointer-events-none opacity-45")} aria-disabled={!img}>

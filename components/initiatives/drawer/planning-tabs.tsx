@@ -1,5 +1,6 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
 import { CalendarRange, CheckCircle2, Gauge, Circle, FileText, GitFork, History, Info, Layers, ListChecks, Scale, ShieldAlert, Wrench } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -34,17 +35,18 @@ function InlineSelect({
   children: React.ReactNode;
 }) {
   return (
-    <label className="flex flex-col gap-1">
+    <div className="flex flex-col gap-1">
       <span className="text-[12px] font-bold text-subtle">{label}</span>
-      <select
+      <Select
         value={value}
         disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-10 rounded-xl border border-line bg-surface px-3 text-[14px] font-semibold text-ink hover:border-line-strong focus:border-violet focus:outline-none focus:ring-4 focus:ring-[#6045d8]/12 disabled:opacity-60"
+        onChange={onChange}
+        aria-label={label}
+        className="h-10 rounded-xl border border-line bg-surface px-3 text-[14px] font-semibold text-ink hover:border-line-strong focus:border-violet focus:outline-none focus:ring-4 focus:ring-[#6045d8]/12"
       >
         {children}
-      </select>
-    </label>
+      </Select>
+    </div>
   );
 }
 
@@ -158,19 +160,20 @@ export function RoadmapTab({ initiative: i, onOpen }: { initiative: Initiative; 
                 <li key={ph.id} className="flex items-center gap-3">
                   <PhaseIcon state={ph.state} />
                   <span className="flex-1 text-[14px] font-semibold text-ink">{ph.title}</span>
-                  <select
+                  <Select
                     aria-label={`Situação da etapa ${ph.title}`}
                     value={ph.state}
                     disabled={saving}
-                    onChange={(e) => setPhase(ph.id, e.target.value as Phase["state"])}
-                    className="h-9 rounded-lg border border-line bg-surface px-2 text-[13px] font-semibold text-ink focus:border-violet focus:outline-none"
+                    onChange={(v) => setPhase(ph.id, v as Phase["state"])}
+                    chevronSize={15}
+                    className="h-9 w-auto min-w-[150px] rounded-lg border border-line bg-surface px-2.5 text-[13px] font-semibold text-ink hover:border-line-strong focus:border-violet focus:outline-none focus:ring-4 focus:ring-[#6045d8]/12"
                   >
                     {PHASE_STATES.map((st) => (
                       <option key={st} value={st}>
                         {PHASE_STATE_LABEL[st]}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </li>
               ))}
             </ul>

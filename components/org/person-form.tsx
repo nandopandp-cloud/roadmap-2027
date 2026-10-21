@@ -145,7 +145,7 @@ export function PersonForm({
             <Avatar person={{ id: person?.id ?? (draft.name || "novo"), name: draft.name || "?", photo: draft.photo }} size={72} />
             <div className="flex flex-wrap gap-2">
               <Button size="sm" icon={<Camera size={15} />} onClick={() => setEditingPhoto(true)}>
-                {draft.photo ? "Ajustar foto" : "Enviar foto"}
+                {draft.photo ? "Ajustar foto" : "Adicionar foto"}
               </Button>
               {draft.photo && (
                 <Button size="sm" variant="ghost" icon={<Trash2 size={15} />} onClick={() => set("photo", null)}>
@@ -228,7 +228,7 @@ export function PersonForm({
         <ImageEditor
           current={draft.photo}
           title="Foto do colaborador"
-          description="Envie uma foto e ajuste o enquadramento. Ela aparece em círculo no organograma."
+          description="Envie uma foto ou use um link da web e ajuste o enquadramento. Ela aparece em círculo no organograma."
           onClose={() => setEditingPhoto(false)}
           onApply={(img) => {
             set("photo", img);

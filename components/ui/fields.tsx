@@ -1,8 +1,9 @@
 "use client";
 
-import { Check, ChevronDown } from "lucide-react";
-import { useId, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import { Check } from "lucide-react";
+import { useId, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from "react";
 import { cn } from "@/lib/client/cn";
+import { Select } from "@/components/ui/select";
 
 /**
  * Checkbox/radio visualmente oculto. O rótulo que o contém DEVE ser `relative`: sem isso, o
@@ -101,6 +102,9 @@ export function TextAreaField({
   );
 }
 
+/** Evento mínimo compatível com o `<select>` nativo (`e.target.value`). */
+export type SelectChange = { target: { value: string } };
+
 export function SelectField({
   label,
   hint,
@@ -108,24 +112,33 @@ export function SelectField({
   required,
   className,
   children,
+  value,
+  onChange,
+  disabled,
   ...rest
-}: Base & SelectHTMLAttributes<HTMLSelectElement>) {
+}: Base & {
+  value: string;
+  onChange: (e: SelectChange) => void;
+  disabled?: boolean;
+  children: ReactNode;
+  "data-autofocus"?: boolean;
+}) {
   return (
     <Field label={label} hint={hint} error={error} required={required} className={className}>
       {({ id, describedBy, invalid }) => (
-        <div className="relative">
-          <select
-            id={id}
-            aria-describedby={describedBy}
-            aria-invalid={invalid}
-            aria-required={required}
-            className={cn(control, "h-11 appearance-none pr-9")}
-            {...rest}
-          >
-            {children}
-          </select>
-          <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted" aria-hidden />
-        </div>
+        <Select
+          id={id}
+          value={value}
+          disabled={disabled}
+          onChange={(v) => onChange({ target: { value: v } })}
+          aria-describedby={describedBy}
+          aria-invalid={invalid}
+          aria-required={required}
+          className={cn(control, "h-11 pr-3")}
+          {...rest}
+        >
+          {children}
+        </Select>
       )}
     </Field>
   );
