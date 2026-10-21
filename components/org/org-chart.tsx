@@ -213,7 +213,13 @@ function DropSlot({ drag, label, leader }: { drag: ActiveDrag; label: string; le
 const BRANCH =
   "relative px-2 pt-7 before:absolute before:left-0 before:right-0 before:top-0 before:h-[1.5px] before:bg-[#c3cdea] first:before:left-1/2 last:before:right-1/2 after:absolute after:left-1/2 after:top-0 after:h-7 after:w-[1.5px] after:bg-[#c3cdea]";
 
-export function OrgChart({ filter, expandAll }: { filter: OrgFilter; expandAll: boolean }) {
+/** Largura mínima de cada coluna de squad no organograma (usada também no ajuste à tela cheia). */
+export const SQUAD_MIN_WIDTH = 236;
+
+/**
+ * `canvas`: modo tela cheia — os grupos não rolam sozinhos; quem rola (nos dois eixos) e aplica o zoom é a tela.
+ */
+export function OrgChart({ filter, expandAll, canvas = false }: { filter: OrgFilter; expandAll: boolean; canvas?: boolean }) {
   const { data, movePerson } = useRoadmap();
   const { canEdit, newPerson } = useOrgActions();
   const notify = useToast();
@@ -330,7 +336,7 @@ export function OrgChart({ filter, expandAll }: { filter: OrgFilter; expandAll: 
         const zone = leadersZone(group);
         const isTarget = drag?.over && drag.target.zone === zone;
         return (
-          <div key={group.key || zone} className="overflow-x-auto pb-2 [scrollbar-width:thin]">
+          <div key={group.key || zone} data-org-group={group.squads.length} className={cn("pb-2", !canvas && "overflow-x-auto [scrollbar-width:thin]")}>
             <div className="mx-auto flex w-fit min-w-full flex-col items-center pt-2">
               <ul
                 aria-label={group.leaders.length ? "Lideranças" : "Squads sem liderança definida"}
@@ -352,7 +358,7 @@ export function OrgChart({ filter, expandAll }: { filter: OrgFilter; expandAll: 
                   const rest = members.slice(shown.length);
                   const isTarget = drag?.over && drag.target.zone === squad.id;
                   return (
-                    <li key={squad.id} className={cn(BRANCH, "min-w-[236px] flex-1 basis-0")}>
+                    <li key={squad.id} className={cn(BRANCH, "flex-1 basis-0")} style={{ minWidth: SQUAD_MIN_WIDTH }}>
                       <section
                         aria-label={`Squad ${squad.name}`}
                         data-drop-zone={squad.id}

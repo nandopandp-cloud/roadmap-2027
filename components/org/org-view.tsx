@@ -1,14 +1,15 @@
 "use client";
 
-import { Boxes, Building2, Expand, LayoutList, Network, Plus, Search, Shrink, UserPlus, Users, Workflow, X } from "lucide-react";
+import { Boxes, Building2, Expand, LayoutList, Maximize2, Network, Plus, Search, Shrink, UserPlus, Users, Workflow, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, type KeyboardEvent } from "react";
 import { PageContainer, PageHero } from "@/components/layout/page-header";
 import { NO_SQUAD, OrgChart, OrgList, type OrgFilter } from "@/components/org/org-chart";
 import { OrgActionsProvider, useOrgActions } from "@/components/org/org-actions";
+import { OrgFullscreen } from "@/components/org/org-fullscreen";
 import { AreasTab, PeopleTab, SquadsTab } from "@/components/org/org-tabs";
 import { PersonPanel } from "@/components/org/person-panel";
-import { Button } from "@/components/ui/button";
+import { Button, IconButton } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/dialog";
 import { EmptyState, ErrorBanner, Skeleton } from "@/components/ui/feedback";
 import { FilterSelect } from "@/components/ui/filter-select";
@@ -27,11 +28,7 @@ const TABS = [
 ] as const;
 type Tab = (typeof TABS)[number]["key"];
 
-const normalize = (v: string) =>
-  v
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase();
+const normalize = (v: string) => v.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 /** Aba escolhida fica na URL (?visao=squads), preservando os demais parâmetros. */
 function useTab() {
@@ -63,6 +60,7 @@ function OrgPage() {
   const [expandAll, setExpandAll] = useState(false);
   const [mode, setMode] = useState<"organograma" | "lista">("organograma");
   const [creating, setCreating] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
 
   const areas = useMemo(() => [...new Set(data.people.map((p) => p.area).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR")), [data.people]);
   const roles = useMemo(() => [...new Set(data.people.map((p) => p.role))].sort((a, b) => a.localeCompare(b, "pt-BR")), [data.people]);
@@ -78,10 +76,7 @@ function OrgPage() {
     return {
       squad,
       active: terms.length > 0 || area !== "todas" || role !== "todos",
-      person: (p) =>
-        (area === "todas" || p.area === area) &&
-        (role === "todos" || p.role === role) &&
-        matchesText([p.name, p.role, p.area, p.email, squadName(p)].join(" ")),
+      person: (p) => (area === "todas" || p.area === area) && (role === "todos" || p.role === role) && matchesText([p.name, p.role, p.area, p.email, squadName(p)].join(" ")),
       // A busca também encontra squads pelo nome; área e cargo filtram só pessoas.
       squadMatches: (s: Squad) => terms.length > 0 && area === "todas" && role === "todos" && matchesText(`${s.name} ${s.description}`),
     };
@@ -112,7 +107,15 @@ function OrgPage() {
     if (!ok) return;
     setCreating(true);
     try {
-      for (const p of missing) await saveSquad(null, { name: p.name, description: "", icon: p.icon, accent: p.accent, leaderIds: [], platformIds: [p.id] });
+      for (const p of missing)
+        await saveSquad(null, {
+          name: p.name,
+          description: "",
+          icon: p.icon,
+          accent: p.accent,
+          leaderIds: [],
+          platformIds: [p.id],
+        });
       notify("success", `${missing.length} squads criados.`);
     } catch (error) {
       notify("error", error instanceof ApiError ? error.message : "Não foi possível criar todos os squads.");
@@ -149,7 +152,11 @@ function OrgPage() {
         </PageHero>
 
         <PageContainer className="pb-16 pt-4">
-          <div role="tablist" aria-label="Visões de Times & Squads" className="-mx-1 flex w-fit max-w-full overflow-x-auto rounded-[18px] border border-[#e3e9f4] bg-surface p-1.5 shadow-[0_2px_10px_rgba(23,27,77,0.04)] [scrollbar-width:none]">
+          <div
+            role="tablist"
+            aria-label="Visões de Times & Squads"
+            className="-mx-1 flex w-fit max-w-full overflow-x-auto rounded-[18px] border border-[#e3e9f4] bg-surface p-1.5 shadow-[0_2px_10px_rgba(23,27,77,0.04)] [scrollbar-width:none]"
+          >
             {TABS.map(({ key, label, icon: Icon }) => (
               <button
                 key={key}
@@ -172,8 +179,9 @@ function OrgPage() {
             ))}
           </div>
 
-          <div role="search" className="mt-5 flex flex-wrap items-center gap-3">
-            <label className="relative flex h-[54px] min-w-[240px] flex-1 items-center rounded-[14px] border border-[#e3e9f4] bg-surface shadow-[0_1px_3px_rgba(23,27,77,0.04)] has-[:focus-visible]:border-violet has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-[#6045d8]/12">
+          {/* Busca ocupa a primeira linha; filtros, modo e ações ficam juntos na segunda, sem mudar de lugar. */}
+          <div role="search" className="mt-5 flex flex-col gap-3">
+            <label className="relative flex h-[54px] w-full items-center rounded-[14px] border border-[#e3e9f4] bg-surface shadow-[0_1px_3px_rgba(23,27,77,0.04)] has-[:focus-visible]:border-violet has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-[#6045d8]/12">
               <Search size={19} aria-hidden className="absolute left-4 text-navy" />
               <span className="sr-only">Buscar por nome, cargo, squad ou área</span>
               <input
@@ -181,79 +189,119 @@ function OrgPage() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Buscar por nome, cargo, squad ou área..."
-                className="h-full w-full rounded-[14px] bg-transparent pl-12 pr-4 text-[14.5px] text-ink placeholder:text-subtle focus:outline-none"
+                className="h-full w-full rounded-[14px] bg-transparent pl-12 pr-36 text-[14.5px] text-ink placeholder:text-subtle focus:outline-none"
               />
+              {/* Dentro do campo: aparecer/sumir não empurra os demais controles. */}
+              {hasFilters && (
+                <Button variant="ghost" size="sm" className="absolute right-2" icon={<X size={15} />} onClick={clearFilters}>
+                  Limpar filtros
+                </Button>
+              )}
             </label>
-            <div className="grid w-full grid-cols-2 gap-3 sm:flex sm:w-auto">
-              <FilterSelect label="Área" value={area} onChange={setArea}>
-                <option value="todas">Todas</option>
-                {areas.map((a) => (
-                  <option key={a} value={a}>
-                    {a}
-                  </option>
-                ))}
-              </FilterSelect>
-              <FilterSelect label="Squad" value={squad} onChange={setSquad}>
-                <option value="todos">Todos</option>
-                {data.squads.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-                <option value={NO_SQUAD}>Sem squad</option>
-              </FilterSelect>
-              <FilterSelect label="Cargo" value={role} onChange={setRole}>
-                <option value="todos">Todos</option>
-                {roles.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
-                ))}
-              </FilterSelect>
-            </div>
-            {tab === "organograma" && (
-              <div className="flex flex-wrap items-center gap-3">
-                {mode === "organograma" && (
-                  <Button className="h-[54px] rounded-[14px] px-4" icon={expandAll ? <Shrink size={17} /> : <Expand size={17} />} aria-pressed={expandAll} onClick={() => setExpandAll((v) => !v)}>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="grid w-full grid-cols-2 gap-3 sm:flex sm:w-auto">
+                <FilterSelect label="Área" value={area} onChange={setArea}>
+                  <option value="todas">Todas</option>
+                  {areas.map((a) => (
+                    <option key={a} value={a}>
+                      {a}
+                    </option>
+                  ))}
+                </FilterSelect>
+                <FilterSelect label="Squad" value={squad} onChange={setSquad}>
+                  <option value="todos">Todos</option>
+                  {data.squads.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                  <option value={NO_SQUAD}>Sem squad</option>
+                </FilterSelect>
+                <FilterSelect label="Cargo" value={role} onChange={setRole}>
+                  <option value="todos">Todos</option>
+                  {roles.map((r) => (
+                    <option key={r} value={r}>
+                      {r}
+                    </option>
+                  ))}
+                </FilterSelect>
+              </div>
+              {tab === "organograma" && (
+                // O seletor de modo fica sempre colado ao filtro de cargo; as ações que dependem do
+                // modo vêm depois dele e têm largura fixa, para nada mudar de lugar ao alternar.
+                <div className="flex items-center gap-3">
+                  <div role="radiogroup" aria-label="Modo do organograma" className="flex h-[54px] shrink-0 items-center rounded-[14px] border border-[#e3e9f4] bg-surface p-1.5">
+                    {(
+                      [
+                        {
+                          key: "organograma",
+                          label: "Organograma",
+                          icon: Workflow,
+                        },
+                        { key: "lista", label: "Lista", icon: LayoutList },
+                      ] as const
+                    ).map(({ key, label, icon: Icon }) => (
+                      <button
+                        key={key}
+                        type="button"
+                        role="radio"
+                        aria-checked={mode === key}
+                        onClick={() => setMode(key)}
+                        className={cn(
+                          "inline-flex h-full items-center gap-1.5 rounded-[10px] px-3 text-[13px] font-bold transition-colors",
+                          mode === key ? "bg-brand-soft text-violet" : "text-muted hover:text-ink",
+                        )}
+                      >
+                        <Icon size={16} aria-hidden />
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <Button
+                    className="h-[54px] w-[168px] shrink-0 justify-center rounded-[14px] px-4"
+                    icon={expandAll ? <Shrink size={17} /> : <Expand size={17} />}
+                    aria-pressed={expandAll}
+                    disabled={mode !== "organograma"}
+                    title={mode !== "organograma" ? "Disponível no modo Organograma" : undefined}
+                    onClick={() => setExpandAll((v) => !v)}
+                  >
                     {expandAll ? "Recolher todos" : "Expandir todos"}
                   </Button>
-                )}
-                <div role="radiogroup" aria-label="Modo do organograma" className="flex h-[54px] items-center rounded-[14px] border border-[#e3e9f4] bg-surface p-1.5">
-                  {(
-                    [
-                      { key: "organograma", label: "Organograma", icon: Workflow },
-                      { key: "lista", label: "Lista", icon: LayoutList },
-                    ] as const
-                  ).map(({ key, label, icon: Icon }) => (
-                    <button
-                      key={key}
-                      type="button"
-                      role="radio"
-                      aria-checked={mode === key}
-                      onClick={() => setMode(key)}
-                      className={cn("inline-flex h-full items-center gap-1.5 rounded-[10px] px-3 text-[13px] font-bold transition-colors", mode === key ? "bg-brand-soft text-violet" : "text-muted hover:text-ink")}
-                    >
-                      <Icon size={16} aria-hidden />
-                      {label}
-                    </button>
-                  ))}
+                  <IconButton
+                    label="Abrir organograma em tela cheia"
+                  disabled={load.status !== "ready" || empty}
+                    className="h-[54px] w-[54px] shrink-0 rounded-[14px] border border-[#e3e9f4] bg-surface text-navy hover:border-violet hover:text-violet"
+                    onClick={() => {
+                      setMode("organograma");
+                      setFullscreen(true);
+                    }}
+                  >
+                    <Maximize2 size={19} />
+                  </IconButton>
                 </div>
-              </div>
-            )}
-            {hasFilters && (
-              <Button variant="ghost" icon={<X size={16} />} onClick={clearFilters}>
-                Limpar filtros
-              </Button>
-            )}
+              )}
+            </div>
           </div>
 
           {load.status === "error" && (
             <div className="mt-6">
-              <ErrorBanner message={load.message} action={<Button size="sm" onClick={() => void reload()}>Tentar novamente</Button>} />
+              <ErrorBanner
+                message={load.message}
+                action={
+                  <Button size="sm" onClick={() => void reload()}>
+                    Tentar novamente
+                  </Button>
+                }
+              />
             </div>
           )}
 
-          <div id="org-panel" role="tabpanel" aria-labelledby={`org-tab-${tab}`} className="mt-6 rounded-[28px] border border-[#e3e9f4] bg-white/60 p-3 shadow-[0_2px_10px_rgba(23,27,77,0.03)] backdrop-blur sm:p-5">
+          <div
+            id="org-panel"
+            role="tabpanel"
+            aria-labelledby={`org-tab-${tab}`}
+            className="mt-6 rounded-[28px] border border-[#e3e9f4] bg-white/60 p-3 shadow-[0_2px_10px_rgba(23,27,77,0.03)] backdrop-blur sm:p-5"
+          >
             {load.status === "loading" ? (
               <div className="flex flex-col items-center gap-4 py-4">
                 <Skeleton className="h-24 w-[320px] max-w-full" />
@@ -302,7 +350,19 @@ function OrgPage() {
           </div>
         </PageContainer>
       </div>
-      <PersonPanel />
+      {fullscreen && tab === "organograma" ? (
+        <OrgFullscreen
+          filter={filter}
+          query={query}
+          onQuery={setQuery}
+          expandAll={expandAll}
+          onToggleExpandAll={() => setExpandAll((v) => !v)}
+          onClose={() => setFullscreen(false)}
+          panel={<PersonPanel />}
+        />
+      ) : (
+        <PersonPanel />
+      )}
     </div>
   );
 }
