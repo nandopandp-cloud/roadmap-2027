@@ -4,6 +4,7 @@
  */
 import { z } from "zod";
 import {
+  DISCIPLINES,
   DOCUMENT_KINDS,
   DOCUMENT_STATUSES,
   ILLUSTRATIONS,
@@ -245,6 +246,8 @@ export const personInputSchema = z.object({
   name: required("O nome", 120),
   role: required("O cargo", 120),
   area: text(80).default(""),
+  /** Função no squad (Produto, Design, Engenharia, QA); null quando não se aplica. */
+  discipline: z.enum(DISCIPLINES).nullable().default(null),
   email: optionalEmail,
   location: text(120).default(""),
   /** Liderança direta cadastrada no organograma. */

@@ -1,4 +1,5 @@
-import type { Initiative, OrgZone, Person, PersonMove, Squad } from "@/lib/domain/types";
+import { DISCIPLINES } from "@/lib/domain/constants";
+import type { Discipline, Initiative, OrgZone, Person, PersonMove, Squad } from "@/lib/domain/types";
 
 /**
  * Regras do organograma (Times & Squads), usadas no servidor (ao gravar) e no cliente
@@ -164,4 +165,19 @@ export function initials(name: string): string {
   const first = parts[0][0];
   const last = parts.length > 1 ? parts[parts.length - 1][0] : "";
   return (first + last).toUpperCase();
+}
+
+/** Sugere a função no squad a partir do cargo (usado na migração e como sugestão no formulário). */
+export function inferDiscipline(role: string): Discipline | null {
+  const r = role.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (/\b(qa|quality|qualidade|tester|testes?)\b/.test(r)) return "qa";
+  if (/design|ux|ui\b/.test(r)) return "design";
+  if (/\b(product|produto|pm|po|cpo)\b/.test(r)) return "produto";
+  if (/engenh|engineer|desenvolv|developer|dev\b|devops|tech lead|cto|arquitet|frontend|front-end|backend|back-end|fullstack|mobile|dados|data/.test(r)) return "engenharia";
+  return null;
+}
+
+/** Quantidade de integrantes por função, na ordem de DISCIPLINES. */
+export function disciplineCounts(people: Pick<Person, "discipline">[]) {
+  return DISCIPLINES.map((d) => ({ discipline: d, count: people.filter((p) => p.discipline === d).length }));
 }

@@ -10,7 +10,9 @@ import { ChipMultiSelect, LinesField, SelectField, TextField } from "@/component
 import { useToast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/client/api";
 import { useRoadmap } from "@/lib/client/store";
-import { createsCycle } from "@/lib/domain/org";
+import { DISCIPLINES } from "@/lib/domain/constants";
+import { DISCIPLINE_LABEL } from "@/lib/domain/labels";
+import { createsCycle, inferDiscipline } from "@/lib/domain/org";
 import type { Person, PersonInput } from "@/lib/domain/types";
 import { fieldErrors, personInputSchema } from "@/lib/validation/schemas";
 
@@ -21,6 +23,7 @@ export const emptyPerson = (defaults: Partial<PersonInput> = {}): PersonInput =>
   name: "",
   role: "",
   area: "",
+  discipline: null,
   email: "",
   location: "",
   managerId: null,
@@ -31,7 +34,11 @@ export const emptyPerson = (defaults: Partial<PersonInput> = {}): PersonInput =>
   ...defaults,
 });
 
-const toInput = ({ id: _id, memberships, ...input }: Person): PersonInput => ({ ...input, squadIds: memberships.map((m) => m.squadId) });
+const toInput = ({ id: _id, memberships, ...input }: Person): PersonInput => ({
+  ...input,
+  discipline: input.discipline ?? null,
+  squadIds: memberships.map((m) => m.squadId),
+});
 
 export function PersonForm({
   person,
@@ -157,7 +164,30 @@ export function PersonForm({
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <TextField label="Nome" required value={draft.name} error={errors.name} onChange={(e) => set("name", e.target.value)} data-autofocus />
-            <TextField label="Cargo" required value={draft.role} error={errors.role} placeholder="Ex.: Product Manager" onChange={(e) => set("role", e.target.value)} />
+            <TextField
+              label="Cargo"
+              required
+              value={draft.role}
+              error={errors.role}
+              placeholder="Ex.: Product Manager"
+              onChange={(e) => set("role", e.target.value)}
+              // Sugere a função a partir do cargo enquanto ela não foi escolhida.
+              onBlur={(e) => draft.discipline === null && set("discipline", inferDiscipline(e.target.value))}
+            />
+            <SelectField
+              label="Função no squad"
+              value={draft.discipline ?? ""}
+              error={errors.discipline}
+              hint="Usada nos badges e no resumo de composição dos squads."
+              onChange={(e) => set("discipline", (e.target.value || null) as PersonInput["discipline"])}
+            >
+              <option value="">Não se aplica</option>
+              {DISCIPLINES.map((d) => (
+                <option key={d} value={d}>
+                  {DISCIPLINE_LABEL[d]}
+                </option>
+              ))}
+            </SelectField>
             <TextField
               label="Área"
               value={draft.area}

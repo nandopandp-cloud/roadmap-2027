@@ -1,4 +1,4 @@
-import type { InitiativeStatus, PlatformAccent, Priority, ProblemValidation } from "@/lib/domain/types";
+import type { Discipline, InitiativeStatus, PlatformAccent, Priority, ProblemValidation } from "@/lib/domain/types";
 
 /** Tons discretos (fundo suave, texto com contraste AA, ponto de cor). */
 export interface Tone {
@@ -48,3 +48,11 @@ export const ACCENT_TONE: Record<PlatformAccent, AccentTone> = {
 
 export const TRANSVERSAL_TONE: Tone = { bg: "#E3F6F3", fg: "#00665E", dot: "#00A99D" };
 export const QUARTER_TONE: Tone = { bg: "#EFEBFC", fg: "#4A2D91", dot: "#6045D8" };
+
+/** Funções no squad: tons suaves distintos entre si. */
+export const DISCIPLINE_TONE: Record<Discipline, Tone> = {
+  produto: { bg: "#EFEBFC", fg: "#4A2D91", dot: "#6045D8" },
+  design: { bg: "#FCE9F3", fg: "#9B1F5F", dot: "#D63B8A" },
+  engenharia: { bg: "#E6EEFD", fg: "#1D4FB8", dot: "#2868E8" },
+  qa: { bg: "#E3F6F3", fg: "#00665E", dot: "#00A99D" },
+};

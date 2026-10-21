@@ -49,4 +49,7 @@ export const DEFAULT_PHASES = ["Discovery e levantamento", "Design e protótipo"
 /** Diretório (relativo à raiz do projeto) onde ficam os artefatos versionáveis das iniciativas. */
 export const INITIATIVES_DIR = "initiatives";
 
+/** Função do colaborador no squad (resumo de composição dos squads). */
+export const DISCIPLINES = ["produto", "design", "engenharia", "qa"] as const;
+
 export const PLATFORM_ACCENTS = ["blue", "purple", "teal", "orange", "pink", "indigo"] as const;

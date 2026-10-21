@@ -1,5 +1,6 @@
 "use client";
 
+import { DisciplineBadge, DisciplineSummary } from "@/components/org/discipline";
 import { Crown, Plus } from "lucide-react";
 import { Avatar } from "@/components/org/avatar";
 import { buildOrg, SquadTile, type OrgFilter } from "@/components/org/org-chart";
@@ -10,7 +11,7 @@ import { EmptyState } from "@/components/ui/feedback";
 import { cn, plural } from "@/lib/client/cn";
 import { useRoadmap } from "@/lib/client/store";
 import { STATUS_TONE } from "@/lib/client/tones";
-import { orderIn, squadInitiatives, squadsLedBy } from "@/lib/domain/org";
+import { orderIn, squadInitiatives, squadMembers, squadsLedBy } from "@/lib/domain/org";
 import type { Person, Squad } from "@/lib/domain/types";
 
 /** Nomes dos squads da pessoa, separados por vírgula (undefined = sem squad). */
@@ -31,7 +32,10 @@ function PersonChip({ person, detail }: { person: Person; detail?: string }) {
     >
       <Avatar person={person} size={32} />
       <span className="min-w-0">
-        <span className="block truncate text-[13.5px] font-bold text-ink">{person.name}</span>
+        <span className="flex items-center gap-1.5">
+          <span className="truncate text-[13.5px] font-bold text-ink">{person.name}</span>
+          <DisciplineBadge discipline={person.discipline} className="shrink-0" />
+        </span>
         <span className="block truncate text-[12px] text-muted">{detail ?? person.role}</span>
       </span>
     </button>
@@ -63,6 +67,7 @@ export function SquadsTab({ filter }: { filter: OrgFilter }) {
               </div>
               {menu.length > 0 && <ActionMenu vertical label={`Ações do squad ${squad.name}`} actions={menu} />}
             </header>
+            {total > 0 && <DisciplineSummary people={squadMembers(data.people, squad.id)} />}
             <p className={cn("text-[13.5px] leading-snug", squad.description ? "text-[#4a5680]" : "text-subtle")}>{squad.description || "Sem descrição."}</p>
             <div className="flex items-center gap-2 text-[13px]">
               <Crown size={14} className="shrink-0 text-[#e3a21a]" aria-hidden />

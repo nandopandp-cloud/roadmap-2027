@@ -1,4 +1,5 @@
 import type {
+  Discipline,
   DocumentKind,
   DocumentStatus,
   IllustrationKey,
@@ -136,4 +137,11 @@ export const PHASE_STATE_LABEL: Record<PhaseState, string> = {
   pendente: "Pendente",
   em_andamento: "Em andamento",
   concluida: "Concluída",
+};
+
+export const DISCIPLINE_LABEL: Record<Discipline, string> = {
+  produto: "Produto",
+  design: "Design",
+  engenharia: "Engenharia",
+  qa: "QA",
 };

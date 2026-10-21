@@ -36,6 +36,7 @@ import type {
   METRIC_TARGET_STATES,
   METRIC_VALUE_STATES,
   PHASE_STATES,
+  DISCIPLINES,
   PLATFORM_ACCENTS,
   PLATFORM_ICONS,
   PRIORITIES,
@@ -56,6 +57,7 @@ export type MetricValueState = (typeof METRIC_VALUE_STATES)[number];
 export type MetricTargetState = (typeof METRIC_TARGET_STATES)[number];
 export type ProblemValidation = (typeof PROBLEM_VALIDATION)[number];
 export type PlatformIcon = (typeof PLATFORM_ICONS)[number];
+export type Discipline = (typeof DISCIPLINES)[number];
 export type PlatformAccent = (typeof PLATFORM_ACCENTS)[number];
 export type IllustrationKey = (typeof ILLUSTRATIONS)[number];
 export type PhaseState = (typeof PHASE_STATES)[number];

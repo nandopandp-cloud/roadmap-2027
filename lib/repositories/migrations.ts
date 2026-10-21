@@ -1,8 +1,9 @@
 import { ILLUSTRATIONS } from "@/lib/domain/constants";
+import { inferDiscipline } from "@/lib/domain/org";
 import { defaultRoadmapOrder } from "@/lib/domain/roadmap-order";
 import type { Database, IllustrationKey, Person, Squad } from "@/lib/domain/types";
 
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 /** Ilustrações removidas da biblioteca → equivalentes atuais. */
 const RENAMED_ILLUSTRATIONS: Record<string, IllustrationKey | null> = { cometa: null, lua: null };
@@ -15,6 +16,7 @@ const RENAMED_ILLUSTRATIONS: Record<string, IllustrationKey | null> = { cometa: 
  * v4 → v5: Times & Squads (people, squads), vazios até o time cadastrar.
  * v5 → v6: colaborador em vários squads (squadId/squadOrder → memberships) e squads com
  *          várias lideranças (leaderId → leaderIds).
+ * v6 → v7: função no squad (discipline), sugerida a partir do cargo.
  */
 export function migrateDatabase(db: Database): { db: Database; changed: boolean } {
   if ((db.schemaVersion ?? 1) >= SCHEMA_VERSION) return { db, changed: false };
@@ -45,8 +47,9 @@ type LegacySquad = Squad & { leaderId?: string | null };
 
 function migratePerson(raw: LegacyPerson): Person {
   const { squadId, squadOrder, ...person } = raw;
-  if (person.memberships) return person;
-  return { ...person, memberships: squadId ? [{ squadId, order: squadOrder ?? 0 }] : [] };
+  const discipline = person.discipline === undefined ? inferDiscipline(person.role ?? "") : person.discipline;
+  if (person.memberships) return { ...person, discipline };
+  return { ...person, discipline, memberships: squadId ? [{ squadId, order: squadOrder ?? 0 }] : [] };
 }
 
 function migrateSquad(raw: LegacySquad): Squad {

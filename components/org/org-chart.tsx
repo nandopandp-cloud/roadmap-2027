@@ -1,5 +1,6 @@
 "use client";
 
+import { DisciplineBadge, DisciplineSummary } from "@/components/org/discipline";
 import { ArrowDownToLine, ArrowLeftRight, ChevronDown, ChevronRight, ChevronUp, Crown, Plus, UserPlus, Users } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
@@ -92,6 +93,7 @@ function MemberContent({ person }: { person: Person }) {
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[13px] font-extrabold text-navy">{person.name}</span>
         <span className="block truncate text-[12px] text-muted">{person.role}</span>
+        <DisciplineBadge discipline={person.discipline} className="mt-1" />
       </span>
     </>
   );
@@ -155,10 +157,15 @@ function LeaderCard({ person, draggable, onPointerDown }: { person: Person; drag
           <span className="truncate">{person.name}</span>
         </span>
         <span className="block truncate text-[13px] text-muted">{person.role}</span>
-        {person.area && (
-          <Badge tone={AREA_TONE} dot size="sm" className="mt-2">
-            {person.area}
-          </Badge>
+        {(person.area || person.discipline) && (
+          <span className="mt-2 flex flex-wrap items-center gap-1.5">
+            <DisciplineBadge discipline={person.discipline} className="h-6 px-2.5 text-[11.5px]" />
+            {person.area && (
+              <Badge tone={AREA_TONE} dot size="sm">
+                {person.area}
+              </Badge>
+            )}
+          </span>
         )}
       </span>
       {menu.length > 0 && <ActionMenu label={`Ações de ${person.name}`} actions={menu} className="relative self-start" />}
@@ -186,6 +193,7 @@ function SquadHeader({ squad, total }: { squad: Squad; total: number }) {
       ) : (
         <p className="mt-2.5 text-[12.5px] text-subtle">Sem descrição.</p>
       )}
+      {everyone.length > 0 && <DisciplineSummary people={everyone} className="mt-2.5" />}
       <div className="mt-3 min-h-[30px]">
         {everyone.length ? <AvatarStack people={everyone} /> : <span className="text-[12.5px] text-subtle">Sem integrantes.</span>}
       </div>
@@ -481,7 +489,10 @@ export function OrgList({ filter }: { filter: OrgFilter }) {
       <button type="button" onClick={() => openPerson(p.id)} aria-pressed={selectedId === p.id} className={cn("flex min-w-0 flex-1 items-center gap-3 rounded-xl px-2 py-2 text-left", selectedId === p.id && "bg-[#eef3ff]")}>
         <Avatar person={p} size={32} />
         <span className="min-w-0">
-          <span className="block truncate text-[13.5px] font-bold text-ink">{p.name}</span>
+          <span className="flex items-center gap-1.5">
+            <span className="truncate text-[13.5px] font-bold text-ink">{p.name}</span>
+            <DisciplineBadge discipline={p.discipline} className="shrink-0" />
+          </span>
           <span className="block truncate text-[12.5px] text-muted">
             {p.role}
             {p.area ? ` · ${p.area}` : ""}

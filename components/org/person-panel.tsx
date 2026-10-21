@@ -1,5 +1,6 @@
 "use client";
 
+import { DisciplineBadge } from "@/components/org/discipline";
 import { ArrowLeftRight, Crown, Mail, MapPin, Pencil, Repeat2, Trash2, UserX, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Avatar } from "@/components/org/avatar";
@@ -72,6 +73,7 @@ function PanelBody({ person }: { person: Person }) {
           </p>
           <p className="mt-0.5 text-[13.5px] text-muted">{person.role}</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
+            <DisciplineBadge discipline={person.discipline} className="h-6 px-2.5 text-[11.5px]" />
             {person.area && (
               <Badge tone={AREA_TONE} dot size="sm">
                 {person.area}
