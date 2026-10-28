@@ -1,5 +1,5 @@
 import { defaultPhases } from "@/lib/domain/progress";
-import type { DocumentRef, Initiative, InitiativeInput, Metric, Milestone, Phase, PrototypeRef } from "@/lib/domain/types";
+import type { DocumentDraft, Initiative, InitiativeInput, Metric, Milestone, Phase, PrototypeRef } from "@/lib/domain/types";
 
 export const FORM_STEPS = [
   { key: "identificacao", label: "Identificação", hint: "Nome, resumo e classificação" },
@@ -82,17 +82,19 @@ export const newMilestone = (quarter: Milestone["quarter"] = "Q1"): Milestone =>
 
 export const newPhase = (): Phase => ({ id: localId("fase"), title: "", state: "pendente" });
 
-export const newDocument = (folder?: string, hasPrd?: boolean): DocumentRef => ({
+/** Novo documento começa como texto escrito/colado no formulário; o arquivo é criado ao salvar. */
+export const newDocument = (hasPrd?: boolean): DocumentDraft => ({
   id: localId("doc"),
   title: "",
   kind: hasPrd ? "outro" : "prd",
   source: "repo",
-  path: folder ? `${folder}/${hasPrd ? "documento" : "prd"}.md` : "",
+  path: "",
   url: "",
   version: "",
   status: "rascunho",
   updatedAt: new Date().toISOString().slice(0, 10),
   versions: [],
+  content: "",
 });
 
 export const newPrototype = (folder?: string): PrototypeRef => ({

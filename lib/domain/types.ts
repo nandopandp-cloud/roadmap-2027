@@ -8,6 +8,7 @@ import type { z } from "zod";
 import type {
   customImageSchema,
   driverSchema,
+  documentDraftSchema,
   documentRefSchema,
   historyEntrySchema,
   initiativeInputSchema,
@@ -66,6 +67,8 @@ export type Phase = z.infer<typeof phaseSchema>;
 export type CustomImage = z.infer<typeof customImageSchema>;
 export type Milestone = z.infer<typeof milestoneSchema>;
 export type DocumentRef = z.infer<typeof documentRefSchema>;
+/** Documento no formulário: referência e, opcionalmente, o texto a gravar. */
+export type DocumentDraft = z.infer<typeof documentDraftSchema>;
 export type PrototypeRef = z.infer<typeof prototypeRefSchema>;
 export type Metric = z.infer<typeof metricSchema>;
 export type HistoryEntry = z.infer<typeof historyEntrySchema>;

@@ -49,6 +49,12 @@ export async function writeDocument(relPath: string, content: string): Promise<{
   }
 }
 
+/** Leitura/gravação de documentos usada pelos serviços ao salvar textos do formulário. */
+export const documentFiles = {
+  write: writeDocument,
+  exists: (relPath: string) => artifactExists(relPath, DOCUMENT_EXTENSIONS),
+};
+
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
   ".htm": "text/html; charset=utf-8",

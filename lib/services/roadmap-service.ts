@@ -1,6 +1,6 @@
 import "server-only";
 import type { z } from "zod";
-import type { Database, Initiative, InitiativeInput, Platform, StrategyContext } from "@/lib/domain/types";
+import type { Database, DocumentDraft, DocumentRef, Initiative, InitiativeInput, Platform, StrategyContext } from "@/lib/domain/types";
 import { QUARTER_LABEL } from "@/lib/domain/labels";
 import { nextRoadmapOrder, placeInColumn, roadmapColumn } from "@/lib/domain/roadmap-order";
 import { getRepository, storageKind, type StorageKind } from "@/lib/repositories";
@@ -54,7 +54,8 @@ function assertReferences(db: Database, input: InitiativeInput, selfId?: string)
   });
 
   const duplicateDoc = input.documents.find(
-    (d, idx) => d.source === "repo" && input.documents.findIndex((o) => o.source === "repo" && o.path === d.path) !== idx,
+    (d, idx) =>
+      d.source === "repo" && d.path !== "" && input.documents.findIndex((o) => o.source === "repo" && o.path === d.path) !== idx,
   );
   if (duplicateDoc) fields.documents = `O arquivo ${duplicateDoc.path} foi associado mais de uma vez.`;
 
@@ -85,28 +86,88 @@ export async function getSnapshot(): Promise<Snapshot> {
   return { ...rest, writable, storage: storageKind() };
 }
 
+/** Gravação de documentos Markdown (injetada pelas rotas; ver lib/services/artifacts.ts). */
+export interface DocumentFiles {
+  write: (relPath: string, content: string) => Promise<unknown>;
+  exists: (relPath: string) => Promise<boolean>;
+}
+
+const DOCUMENT_FILE_NAME: Record<DocumentRef["kind"], string> = {
+  prd: "prd",
+  decisoes: "decisions",
+  contexto: "contexto",
+  outro: "documento",
+};
+
+/**
+ * Grava como Markdown o texto escrito ou colado no formulário e devolve os documentos
+ * só com a referência ao arquivo. Sem caminho, usa um nome livre na pasta da iniciativa.
+ */
+async function storeDocumentTexts(
+  folder: string,
+  documents: DocumentDraft[],
+  files: DocumentFiles,
+  now: string,
+): Promise<{ documents: DocumentRef[]; notes: string[] }> {
+  const taken = new Set(documents.map((d) => d.path).filter(Boolean));
+  const today = now.slice(0, 10);
+  const notes: string[] = [];
+  const stored: DocumentRef[] = [];
+  for (const { content, ...doc } of documents) {
+    if (content === undefined) {
+      stored.push(doc);
+      continue;
+    }
+    let relPath = doc.path;
+    if (!relPath) {
+      const base = `${folder}/${DOCUMENT_FILE_NAME[doc.kind]}`;
+      relPath = `${base}.md`;
+      for (let n = 2; taken.has(relPath) || (await files.exists(relPath)); n++) relPath = `${base}-${n}.md`;
+      taken.add(relPath);
+    }
+    const replaced = doc.path !== "" && (await files.exists(relPath));
+    await files.write(relPath, content);
+    stored.push({
+      ...doc,
+      source: "repo",
+      path: relPath,
+      url: "",
+      updatedAt: today,
+      versions: [
+        { version: doc.version, date: today, note: replaced ? "Texto atualizado pelo formulário da iniciativa." : "Texto inserido pelo formulário da iniciativa." },
+        ...doc.versions,
+      ].slice(0, 100),
+    });
+    notes.push(replaced ? `Texto do documento atualizado: ${relPath}.` : `Documento gravado: ${relPath}.`);
+  }
+  return { documents: stored, notes };
+}
+
 /** Monta e insere uma nova iniciativa no estado (dentro de uma transação). */
-function insertInitiative(db: Database, input: InitiativeInput, note: string): Initiative {
+async function insertInitiative(db: Database, input: InitiativeInput, files: DocumentFiles, note: string): Promise<Initiative> {
   assertUniqueTitle(db, input.title);
   assertReferences(db, input);
   const now = new Date().toISOString();
   const id = nextInitiativeId(db);
+  const repoFolder = initiativeFolder(id, input.title);
+  const { documents, notes } = await storeDocumentTexts(repoFolder, input.documents, files, now);
   const initiative: Initiative = {
     ...input,
+    documents,
     id,
-    repoFolder: initiativeFolder(id, input.title),
+    repoFolder,
     createdAt: now,
     updatedAt: now,
-    history: [historyEntry(note, now)],
+    history: [...notes.map((n) => historyEntry(n, now)), historyEntry(note, now)],
     roadmapOrder: nextRoadmapOrder(db.initiatives, input.quarter),
   };
   db.initiatives.push(initiative);
   return initiative;
 }
 
-export async function createInitiative(data: unknown): Promise<Initiative> {
+export async function createInitiative(data: unknown, files: DocumentFiles): Promise<Initiative> {
   const input = cleanPlatformNotes(parse(initiativeInputSchema, data));
-  return getRepository().transaction((db) => insertInitiative(db, input, "Iniciativa criada."));
+  return getRepository().transaction((db) => insertInitiative(db, input, files, "Iniciativa criada."));
 }
 
 /** Identifica no texto do PRD os campos da iniciativa (nada é gravado). */
@@ -119,18 +180,14 @@ export async function analyzePrd(data: unknown): Promise<PrdImportResult> {
  * Cria a iniciativa com os campos revisados e grava o texto original do PRD, sem alterações,
  * em `<pasta>/prd.md`, já associado como documento. Se o PRD não puder ser gravado, nada é criado.
  */
-export async function createInitiativeFromPrd(
-  data: unknown,
-  writer: (relPath: string, content: string) => Promise<unknown>,
-  exists: (relPath: string) => Promise<boolean>,
-): Promise<Initiative> {
+export async function createInitiativeFromPrd(data: unknown, files: DocumentFiles): Promise<Initiative> {
   const { initiative: raw, prd } = parse(initiativeFromPrdSchema, data);
   const input = cleanPlatformNotes(parse(initiativeInputSchema, raw));
   return getRepository().transaction(async (db) => {
-    const initiative = insertInitiative(db, input, "Iniciativa criada a partir do PRD.");
+    const initiative = await insertInitiative(db, input, files, "Iniciativa criada a partir do PRD.");
     let relPath = `${initiative.repoFolder}/prd.md`;
-    for (let n = 2; await exists(relPath); n++) relPath = `${initiative.repoFolder}/prd-${n}.md`;
-    await writer(relPath, prd);
+    for (let n = 2; await files.exists(relPath); n++) relPath = `${initiative.repoFolder}/prd-${n}.md`;
+    await files.write(relPath, prd);
     const today = initiative.createdAt.slice(0, 10);
     const version = prdVersion(prd);
     initiative.documents = [
@@ -153,20 +210,22 @@ export async function createInitiativeFromPrd(
   });
 }
 
-export async function updateInitiative(id: string, data: unknown): Promise<Initiative> {
+export async function updateInitiative(id: string, data: unknown, files: DocumentFiles): Promise<Initiative> {
   const input = cleanPlatformNotes(parse(initiativeInputSchema, data));
-  return getRepository().transaction((db) => {
+  return getRepository().transaction(async (db) => {
     const index = db.initiatives.findIndex((i) => i.id === id);
     if (index < 0) throw notFound("Iniciativa");
     assertUniqueTitle(db, input.title, id);
     assertReferences(db, input, id);
     const before = db.initiatives[index];
     const now = new Date().toISOString();
-    const changes = describeChanges(before, input);
+    const { documents, notes } = await storeDocumentTexts(before.repoFolder, input.documents, files, now);
+    const changes = [...describeChanges(before, { ...input, documents }), ...notes];
     const entries = (changes.length ? changes : ["Detalhes da iniciativa atualizados."]).map((c) => historyEntry(c, now));
     const updated: Initiative = {
       ...before,
       ...input,
+      documents,
       roadmapOrder: orderAfterQuarterChange(db, before, input.quarter),
       updatedAt: now,
       history: [...entries, ...before.history].slice(0, 200),

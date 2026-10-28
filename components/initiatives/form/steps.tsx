@@ -8,6 +8,8 @@ import { illustrationFor, InitiativeIllustration } from "@/components/initiative
 import { PLATFORM_GLYPHS } from "@/components/platforms/platform-icon";
 import { Button, IconButton } from "@/components/ui/button";
 import { Checkbox, ChipMultiSelect, HiddenInput, LinesField, SelectField, TextAreaField, TextField } from "@/components/ui/fields";
+import { useToast } from "@/components/ui/toast";
+import { api, ApiError } from "@/lib/client/api";
 import { cn } from "@/lib/client/cn";
 import {
   DOCUMENT_KINDS,
@@ -33,7 +35,7 @@ import {
   QUARTER_LABEL,
   STATUS_LABEL,
 } from "@/lib/domain/labels";
-import type { Initiative, InitiativeInput, Platform } from "@/lib/domain/types";
+import type { DocumentDraft, Initiative, InitiativeInput, Platform } from "@/lib/domain/types";
 
 export interface StepProps {
   draft: InitiativeInput;
@@ -382,6 +384,98 @@ export function PlanningStep({ draft, set, errors }: StepProps) {
   );
 }
 
+type DocumentOrigin = "texto" | "repo" | "externo";
+
+/** Campos de um documento. Na origem "texto", o conteúdo é gravado como Markdown ao salvar a iniciativa. */
+function DocumentFields({
+  doc: d,
+  update,
+  errors,
+  idx,
+  pathHint,
+}: {
+  doc: DocumentDraft;
+  update: (patch: Partial<DocumentDraft>) => void;
+  errors: Record<string, string>;
+  idx: number;
+  pathHint: string;
+}) {
+  const notify = useToast();
+  const [loading, setLoading] = useState(false);
+  const origin: DocumentOrigin = d.content !== undefined ? "texto" : d.source;
+
+  async function changeOrigin(next: DocumentOrigin) {
+    if (next !== "texto") return update({ source: next, content: undefined });
+    if (d.source !== "repo" || !d.path) return update({ source: "repo", url: "", content: "" });
+    // Documento já gravado: traz o texto atual para editar aqui.
+    setLoading(true);
+    try {
+      update({ content: (await api.readDocument(d.path)).content });
+    } catch (error) {
+      if (!(error instanceof ApiError && error.status === 404)) notify("error", "Não foi possível carregar o texto do documento.");
+      update({ content: "" });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <TextField label="Título" required value={d.title} onChange={(e) => update({ title: e.target.value })} error={errors[`documents.${idx}.title`]} />
+      <SelectField label="Tipo" value={d.kind} onChange={(e) => update({ kind: e.target.value as typeof d.kind })}>
+        {DOCUMENT_KINDS.map((k) => (
+          <option key={k} value={k}>
+            {DOCUMENT_KIND_LABEL[k]}
+          </option>
+        ))}
+      </SelectField>
+      <SelectField
+        label="Origem"
+        value={origin}
+        disabled={loading}
+        onChange={(e) => void changeOrigin(e.target.value as DocumentOrigin)}
+        hint={loading ? "Carregando o texto do documento…" : undefined}
+      >
+        <option value="texto">Texto (escrever ou colar aqui)</option>
+        <option value="repo">Arquivo Markdown no repositório</option>
+        <option value="externo">Link externo</option>
+      </SelectField>
+      {origin === "repo" && (
+        <TextField label="Caminho do arquivo" required value={d.path} onChange={(e) => update({ path: e.target.value.trim() })} error={errors[`documents.${idx}.path`]} hint={pathHint} placeholder="initiatives/JG-2027-00X-nome/prd.md" />
+      )}
+      {origin === "externo" && (
+        <TextField label="URL" required type="url" value={d.url} onChange={(e) => update({ url: e.target.value.trim() })} error={errors[`documents.${idx}.url`]} placeholder="https://…" />
+      )}
+      <TextField label="Versão" value={d.version} onChange={(e) => update({ version: e.target.value })} placeholder="Ex.: 1.0" />
+      <SelectField label="Status de elaboração" value={d.status} onChange={(e) => update({ status: e.target.value as typeof d.status })}>
+        {DOCUMENT_STATUSES.map((s) => (
+          <option key={s} value={s}>
+            {DOCUMENT_STATUS_LABEL[s]}
+          </option>
+        ))}
+      </SelectField>
+      <TextField label="Data de atualização" type="date" value={d.updatedAt} onChange={(e) => update({ updatedAt: e.target.value })} error={errors[`documents.${idx}.updatedAt`]} />
+      {origin === "texto" && (
+        <TextAreaField
+          className="sm:col-span-2"
+          label="Texto do documento"
+          required
+          rows={14}
+          value={d.content ?? ""}
+          onChange={(e) => update({ content: e.target.value })}
+          error={errors[`documents.${idx}.content`] ?? errors[`documents.${idx}.path`]}
+          hint={
+            d.path
+              ? `Ao salvar, o texto substitui o conteúdo de ${d.path}.`
+              : "Cole o texto completo ou escreva em Markdown. Ao salvar, ele é gravado como arquivo .md na pasta da iniciativa e pode ser editado depois na aba do documento."
+          }
+          placeholder="Cole aqui o texto do PRD…"
+        />
+      )}
+    </div>
+  );
+}
+
 export function DocumentationStep({ draft, set, errors, platforms, folder, importedPrd }: StepProps) {
   const pathHint = folder
     ? `Caminho relativo à raiz do projeto, dentro de ${folder}/.`
@@ -393,44 +487,15 @@ export function DocumentationStep({ draft, set, errors, platforms, folder, impor
           O texto original do PRD será salvo como <strong>prd.md</strong> na pasta da iniciativa e associado automaticamente ao criar. Ele aparece na aba PRD dos detalhes.
         </p>
       )}
-      <Group title="Documentos" description="PRDs, registros de decisão e outros documentos. Nenhum documento é obrigatório para criar a iniciativa.">
+      <Group title="Documentos" description="PRDs, registros de decisão e outros documentos: escreva ou cole o texto aqui, aponte um arquivo do repositório ou um link externo. Nenhum documento é obrigatório para criar a iniciativa.">
         <Repeater
           items={draft.documents}
           onChange={(v) => set("documents", v)}
-          create={() => newDocument(folder, draft.documents.some((d) => d.kind === "prd"))}
+          create={() => newDocument(draft.documents.some((d) => d.kind === "prd"))}
           addLabel="Adicionar documento"
           empty="Nenhum documento associado."
           itemLabel={(d, idx) => d.title || `Documento ${idx + 1}`}
-          render={(d, update, idx) => (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <TextField label="Título" required value={d.title} onChange={(e) => update({ title: e.target.value })} error={errors[`documents.${idx}.title`]} />
-              <SelectField label="Tipo" value={d.kind} onChange={(e) => update({ kind: e.target.value as typeof d.kind })}>
-                {DOCUMENT_KINDS.map((k) => (
-                  <option key={k} value={k}>
-                    {DOCUMENT_KIND_LABEL[k]}
-                  </option>
-                ))}
-              </SelectField>
-              <SelectField label="Origem" value={d.source} onChange={(e) => update({ source: e.target.value as typeof d.source })}>
-                <option value="repo">Arquivo Markdown no repositório</option>
-                <option value="externo">Link externo</option>
-              </SelectField>
-              {d.source === "repo" ? (
-                <TextField label="Caminho do arquivo" required value={d.path} onChange={(e) => update({ path: e.target.value.trim() })} error={errors[`documents.${idx}.path`]} hint={pathHint} placeholder="initiatives/JG-2027-00X-nome/prd.md" />
-              ) : (
-                <TextField label="URL" required type="url" value={d.url} onChange={(e) => update({ url: e.target.value.trim() })} error={errors[`documents.${idx}.url`]} placeholder="https://…" />
-              )}
-              <TextField label="Versão" value={d.version} onChange={(e) => update({ version: e.target.value })} placeholder="Ex.: 1.0" />
-              <SelectField label="Status de elaboração" value={d.status} onChange={(e) => update({ status: e.target.value as typeof d.status })}>
-                {DOCUMENT_STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {DOCUMENT_STATUS_LABEL[s]}
-                  </option>
-                ))}
-              </SelectField>
-              <TextField label="Data de atualização" type="date" value={d.updatedAt} onChange={(e) => update({ updatedAt: e.target.value })} error={errors[`documents.${idx}.updatedAt`]} />
-            </div>
-          )}
+          render={(d, update, idx) => <DocumentFields doc={d} update={update} errors={errors} idx={idx} pathHint={pathHint} />}
         />
         {errors.documents && <p className="text-xs font-semibold text-[#c42b3a]">{errors.documents}</p>}
       </Group>

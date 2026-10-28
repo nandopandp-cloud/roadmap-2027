@@ -77,20 +77,37 @@ function refineSource(
   }
 }
 
+const documentRefFields = {
+  id: localId,
+  title: required("O título do documento", 200),
+  kind: z.enum(DOCUMENT_KINDS),
+  source: z.enum(SOURCE_KINDS),
+  path: text(300).default(""),
+  url: text(1000).default(""),
+  version: text(20).default(""),
+  status: z.enum(DOCUMENT_STATUSES),
+  updatedAt: isoDate,
+  versions: z.array(versionEntrySchema).max(100).default([]),
+};
+
 export const documentRefSchema = z
-  .object({
-    id: localId,
-    title: required("O título do documento", 200),
-    kind: z.enum(DOCUMENT_KINDS),
-    source: z.enum(SOURCE_KINDS),
-    path: text(300).default(""),
-    url: text(1000).default(""),
-    version: text(20).default(""),
-    status: z.enum(DOCUMENT_STATUSES),
-    updatedAt: isoDate,
-    versions: z.array(versionEntrySchema).max(100).default([]),
-  })
+  .object(documentRefFields)
   .superRefine((v, ctx) => refineSource(v, ctx, DOCUMENT_EXTENSIONS, "documento"));
+
+/**
+ * Documento como enviado pelo formulário: além da referência, pode trazer o texto
+ * escrito ou colado (`content`). O servidor grava esse texto como Markdown na pasta
+ * da iniciativa e guarda só a referência — `content` nunca é persistido na iniciativa.
+ */
+export const documentDraftSchema = z
+  .object({ ...documentRefFields, content: z.string().max(500_000, "Documento muito grande.").optional() })
+  .superRefine((v, ctx) => {
+    if (v.content === undefined) return refineSource(v, ctx, DOCUMENT_EXTENSIONS, "documento");
+    if (!v.content.trim()) ctx.addIssue({ code: "custom", path: ["content"], message: "Escreva ou cole o texto do documento." });
+    // Sem caminho, o servidor escolhe um nome livre na pasta da iniciativa.
+    if (v.path && !isSafeRepoPath(v.path, DOCUMENT_EXTENSIONS))
+      ctx.addIssue({ code: "custom", path: ["path"], message: "Caminho de arquivo inválido." });
+  });
 
 export const prototypeRefSchema = z
   .object({
@@ -186,7 +203,7 @@ export const initiativeInputSchema = z.object({
   operationalImpacts: list(),
 
   // Documentação e experiência
-  documents: z.array(documentRefSchema).max(30).default([]),
+  documents: z.array(documentDraftSchema).max(30).default([]),
   prototypes: z.array(prototypeRefSchema).max(30).default([]),
 
   // Métricas
@@ -194,6 +211,7 @@ export const initiativeInputSchema = z.object({
 });
 
 export const initiativeSchema = initiativeInputSchema.extend({
+  documents: z.array(documentRefSchema).max(30).default([]),
   id: z.string().regex(INITIATIVE_ID_PATTERN),
   /** Pasta estável dos artefatos no repositório (não muda quando o título muda). */
   repoFolder: z.string(),
