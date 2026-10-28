@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { InitiativeDrawer } from "@/components/initiatives/initiative-drawer";
 import { InitiativeFormHost } from "@/components/initiatives/initiative-form";
+import { PrdImportHost } from "@/components/initiatives/prd-import";
 import { BrandLogo } from "@/components/layout/brand-logo";
 import { Sidebar } from "@/components/layout/sidebar";
 import { GlobalSearchProvider } from "@/components/search/global-search";
@@ -97,6 +98,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         <InitiativeDrawer />
       </Suspense>
       <InitiativeFormHost />
+      <Suspense fallback={null}>
+        <PrdImportHost />
+      </Suspense>
     </div>
     </GlobalSearchProvider>
   );

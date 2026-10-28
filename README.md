@@ -143,6 +143,7 @@ Sem banco configurado, os dados ficam em `data/local/db.json` (gitignored), com 
 
 ## PRDs e protótipos
 
+- **Criar iniciativa a partir do PRD**: *Iniciativas* → *Criar a partir do PRD* (ou a busca ⌘K). Cole o texto completo do PRD (ou carregue um `.md`/`.txt`); o servidor ([lib/services/prd-import.ts](lib/services/prd-import.ts)) localiza as seções pelo título — visão geral, cenário atual, problema principal, oportunidade, objetivos, público-alvo, requisitos funcionais, fluxos, métricas, riscos, dependências, decisões pendentes — e o cabeçalho (`**Status:**`, `**Prioridade:**`, `**Plataformas:**` ou tabela *Campo | Valor*) e preenche os campos das etapas, exceto protótipo. A extração copia trechos do próprio PRD (não resume nem inventa): o que não for encontrado fica vazio, métricas entram sem valores (pendentes) e status/plataformas não reconhecidos geram aviso. O usuário cria direto ou revisa nas 6 etapas; ao criar, o texto original é gravado sem alterações em `initiatives/<pasta>/prd.md` e associado como PRD — na mesma transação (se o PRD não puder ser gravado, a iniciativa não é criada).
 - **Criar PRD**: aba *PRD* → *Criar PRD* gera `initiatives/<pasta>/prd.md` a partir de um modelo e o associa à iniciativa (nunca sobrescreve um arquivo existente).
 - **Editar PRD**: *Editar* no documento → salvar grava o arquivo e registra versão, data e nota no histórico de versões.
 - **Vincular existente**: *Editar iniciativa* → etapa *Documentação e protótipo* → caminho no repositório (`initiatives/…/*.md`) ou link externo.

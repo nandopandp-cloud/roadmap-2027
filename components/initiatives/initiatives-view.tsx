@@ -1,6 +1,6 @@
 "use client";
 
-import { LayoutGrid, List, Plus, Rocket, Search, X } from "lucide-react";
+import { LayoutGrid, List, Plus, Rocket, Search, Sparkles, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { InitiativeCard } from "@/components/initiatives/initiative-card";
 import { PageContainer, PageHero } from "@/components/layout/page-header";
@@ -32,7 +32,7 @@ const STATUS_TAB_LABEL: Record<InitiativeStatus, string> = {
 };
 
 export function InitiativesView() {
-  const { load, data, reload, openForm } = useRoadmap();
+  const { load, data, reload, openForm, openPrdImport } = useRoadmap();
   const { selectedId, open } = useInitiativeSelection();
   const [filters, setFilters] = useState<InitiativeFilters>(DEFAULT_FILTERS);
   const [layout, setLayout] = useState<"list" | "grid">("list");
@@ -100,6 +100,9 @@ export function InitiativesView() {
               {shortcut}
             </kbd>
           </button>
+          <Button className="h-[52px] rounded-[14px] px-5 text-[15px]" icon={<Sparkles size={18} />} onClick={openPrdImport}>
+            Criar a partir do PRD
+          </Button>
           <Button variant="primary" className="h-[52px] rounded-[14px] px-6 text-[15px] shadow-[0_8px_20px_rgba(0,133,124,0.25)]" icon={<Plus size={19} />} onClick={() => openForm(null)}>
             Nova iniciativa
           </Button>
@@ -212,9 +215,14 @@ export function InitiativesView() {
               }
               action={
                 data.initiatives.length === 0 ? (
-                  <Button variant="primary" icon={<Plus size={16} />} onClick={() => openForm(null)}>
-                    Nova iniciativa
-                  </Button>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    <Button icon={<Sparkles size={16} />} onClick={openPrdImport}>
+                      Criar a partir do PRD
+                    </Button>
+                    <Button variant="primary" icon={<Plus size={16} />} onClick={() => openForm(null)}>
+                      Nova iniciativa
+                    </Button>
+                  </div>
                 ) : (
                   <Button onClick={() => setFilters(DEFAULT_FILTERS)}>Limpar filtros</Button>
                 )

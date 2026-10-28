@@ -6,11 +6,14 @@ import { nextRoadmapOrder, placeInColumn, roadmapColumn } from "@/lib/domain/roa
 import { getRepository, storageKind, type StorageKind } from "@/lib/repositories";
 import { DomainError, notFound } from "@/lib/services/errors";
 import { describeChanges, historyEntry } from "@/lib/services/history";
+import { extractFromPrd, prdVersion, type PrdImportResult } from "@/lib/services/prd-import";
 import { initiativeFolder, slugify } from "@/lib/validation/paths";
 import {
   fieldErrors,
+  initiativeFromPrdSchema,
   initiativeInputSchema,
   planningPatchSchema,
+  prdAnalysisSchema,
   platformInputSchema,
   roadmapMoveSchema,
   strategyContextSchema,
@@ -82,23 +85,70 @@ export async function getSnapshot(): Promise<Snapshot> {
   return { ...rest, writable, storage: storageKind() };
 }
 
+/** Monta e insere uma nova iniciativa no estado (dentro de uma transação). */
+function insertInitiative(db: Database, input: InitiativeInput, note: string): Initiative {
+  assertUniqueTitle(db, input.title);
+  assertReferences(db, input);
+  const now = new Date().toISOString();
+  const id = nextInitiativeId(db);
+  const initiative: Initiative = {
+    ...input,
+    id,
+    repoFolder: initiativeFolder(id, input.title),
+    createdAt: now,
+    updatedAt: now,
+    history: [historyEntry(note, now)],
+    roadmapOrder: nextRoadmapOrder(db.initiatives, input.quarter),
+  };
+  db.initiatives.push(initiative);
+  return initiative;
+}
+
 export async function createInitiative(data: unknown): Promise<Initiative> {
   const input = cleanPlatformNotes(parse(initiativeInputSchema, data));
-  return getRepository().transaction((db) => {
-    assertUniqueTitle(db, input.title);
-    assertReferences(db, input);
-    const now = new Date().toISOString();
-    const id = nextInitiativeId(db);
-    const initiative: Initiative = {
-      ...input,
-      id,
-      repoFolder: initiativeFolder(id, input.title),
-      createdAt: now,
-      updatedAt: now,
-      history: [historyEntry("Iniciativa criada.", now)],
-      roadmapOrder: nextRoadmapOrder(db.initiatives, input.quarter),
-    };
-    db.initiatives.push(initiative);
+  return getRepository().transaction((db) => insertInitiative(db, input, "Iniciativa criada."));
+}
+
+/** Identifica no texto do PRD os campos da iniciativa (nada é gravado). */
+export async function analyzePrd(data: unknown): Promise<PrdImportResult> {
+  const { content } = parse(prdAnalysisSchema, data);
+  return extractFromPrd(content, await getRepository().read());
+}
+
+/**
+ * Cria a iniciativa com os campos revisados e grava o texto original do PRD, sem alterações,
+ * em `<pasta>/prd.md`, já associado como documento. Se o PRD não puder ser gravado, nada é criado.
+ */
+export async function createInitiativeFromPrd(
+  data: unknown,
+  writer: (relPath: string, content: string) => Promise<unknown>,
+  exists: (relPath: string) => Promise<boolean>,
+): Promise<Initiative> {
+  const { initiative: raw, prd } = parse(initiativeFromPrdSchema, data);
+  const input = cleanPlatformNotes(parse(initiativeInputSchema, raw));
+  return getRepository().transaction(async (db) => {
+    const initiative = insertInitiative(db, input, "Iniciativa criada a partir do PRD.");
+    let relPath = `${initiative.repoFolder}/prd.md`;
+    for (let n = 2; await exists(relPath); n++) relPath = `${initiative.repoFolder}/prd-${n}.md`;
+    await writer(relPath, prd);
+    const today = initiative.createdAt.slice(0, 10);
+    const version = prdVersion(prd);
+    initiative.documents = [
+      {
+        id: `prd-${Date.now().toString(36)}`,
+        title: initiative.title,
+        kind: "prd",
+        source: "repo",
+        path: relPath,
+        url: "",
+        version,
+        status: "rascunho",
+        updatedAt: today,
+        versions: [{ version, date: today, note: "Texto original do PRD usado na criação da iniciativa." }],
+      },
+      ...initiative.documents,
+    ];
+    initiative.history.unshift(historyEntry(`PRD associado: ${relPath}.`, initiative.createdAt));
     return initiative;
   });
 }

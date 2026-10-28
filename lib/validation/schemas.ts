@@ -346,6 +346,19 @@ export const documentContentSchema = z.object({
   content: z.string().max(500_000, "Documento muito grande."),
 });
 
+/** Texto completo de um PRD usado para criar uma iniciativa (preservado como prd.md). */
+const prdText = z
+  .string()
+  .trim()
+  .min(200, "Cole o texto completo do PRD (mínimo de 200 caracteres).")
+  .max(500_000, "Documento muito grande.");
+
+/** Análise de um PRD: devolve os campos da iniciativa identificados no texto. */
+export const prdAnalysisSchema = z.object({ content: prdText });
+
+/** Criação de iniciativa a partir de um PRD: campos revisados + texto original do PRD. */
+export const initiativeFromPrdSchema = z.object({ initiative: z.unknown(), prd: prdText });
+
 /** Converte erros do Zod em um mapa campo → mensagem, usado pelos formulários. */
 export function fieldErrors(error: z.ZodError): Record<string, string> {
   const out: Record<string, string> = {};

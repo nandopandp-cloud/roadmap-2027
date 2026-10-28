@@ -1,5 +1,6 @@
 import type { RoadmapTarget } from "@/lib/domain/roadmap-order";
 import type { Initiative, Person, PersonMove, Platform, Squad, StrategyContext } from "@/lib/domain/types";
+import type { PrdImportResult } from "@/lib/services/prd-import";
 
 export interface Snapshot {
   initiatives: Initiative[];
@@ -56,6 +57,10 @@ export const api = {
   moveInitiative: (id: string, target: RoadmapTarget) =>
     request<Initiative[]>(`/api/initiatives/${id}/move`, { method: "POST", body: json(target) }),
   deleteInitiative: (id: string) => request<{ ok: true }>(`/api/initiatives/${id}`, { method: "DELETE" }),
+  analyzePrd: (content: string) =>
+    request<PrdImportResult>("/api/initiatives/prd/analyze", { method: "POST", body: json({ content }) }),
+  createInitiativeFromPrd: (initiative: unknown, prd: string) =>
+    request<Initiative>("/api/initiatives/prd", { method: "POST", body: json({ initiative, prd }) }),
   createDocument: (id: string, kind: "prd" | "decisoes") =>
     request<Initiative>(`/api/initiatives/${id}/documents`, { method: "POST", body: json({ kind }) }),
 

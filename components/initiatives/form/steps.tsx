@@ -46,6 +46,8 @@ export interface StepProps {
   folder?: string;
   editingId: string | null;
   nextId: string;
+  /** Nova iniciativa criada a partir de um PRD (o texto será salvo como prd.md). */
+  importedPrd?: boolean;
 }
 
 function Group({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
@@ -380,12 +382,17 @@ export function PlanningStep({ draft, set, errors }: StepProps) {
   );
 }
 
-export function DocumentationStep({ draft, set, errors, platforms, folder }: StepProps) {
+export function DocumentationStep({ draft, set, errors, platforms, folder, importedPrd }: StepProps) {
   const pathHint = folder
     ? `Caminho relativo à raiz do projeto, dentro de ${folder}/.`
     : "Caminho relativo à raiz do projeto, dentro de initiatives/. Após salvar, use “Criar PRD” na aba PRD para gerar o arquivo automaticamente.";
   return (
     <div className="flex flex-col gap-8">
+      {importedPrd && (
+        <p className="rounded-xl bg-brand-soft px-4 py-3 text-[13.5px] text-brand-strong">
+          O texto original do PRD será salvo como <strong>prd.md</strong> na pasta da iniciativa e associado automaticamente ao criar. Ele aparece na aba PRD dos detalhes.
+        </p>
+      )}
       <Group title="Documentos" description="PRDs, registros de decisão e outros documentos. Nenhum documento é obrigatório para criar a iniciativa.">
         <Repeater
           items={draft.documents}

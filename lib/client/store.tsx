@@ -4,14 +4,23 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { api, ApiError, type Snapshot } from "@/lib/client/api";
 import { applyMove } from "@/lib/domain/org";
 import { placeInColumn, type RoadmapTarget } from "@/lib/domain/roadmap-order";
-import type { Initiative, Person, PersonMove, Platform, Squad, StrategyContext } from "@/lib/domain/types";
+import type { Initiative, InitiativeInput, Person, PersonMove, Platform, Squad, StrategyContext } from "@/lib/domain/types";
 
 type LoadState = { status: "loading" } | { status: "error"; message: string } | { status: "ready" };
+
+/** Rascunho de nova iniciativa identificado em um PRD, com o texto original do documento. */
+export interface PrdPrefill {
+  input: InitiativeInput;
+  prd: string;
+  /** Erros devolvidos pelo servidor ao tentar criar diretamente. */
+  errors?: Record<string, string>;
+}
 
 interface FormRequest {
   /** null = nova iniciativa */
   initiativeId: string | null;
   step?: number;
+  prefill?: PrdPrefill;
 }
 
 interface RoadmapStore {
@@ -37,8 +46,12 @@ interface RoadmapStore {
   saveSquad: (id: string | null, data: unknown) => Promise<Squad>;
   removeSquad: (id: string) => Promise<void>;
   form: FormRequest | null;
-  openForm: (initiativeId: string | null, step?: number) => void;
+  openForm: (initiativeId: string | null, step?: number, prefill?: PrdPrefill) => void;
   closeForm: () => void;
+  /** Criação de iniciativa a partir do texto de um PRD. */
+  prdImportOpen: boolean;
+  openPrdImport: () => void;
+  closePrdImport: () => void;
 }
 
 const EMPTY: Snapshot = {
@@ -61,6 +74,7 @@ export function RoadmapProvider({ children }: { children: ReactNode }) {
   const [load, setLoad] = useState<LoadState>({ status: "loading" });
   const [data, setData] = useState<Snapshot>(EMPTY);
   const [form, setForm] = useState<FormRequest | null>(null);
+  const [prdImportOpen, setPrdImportOpen] = useState(false);
 
   const reload = useCallback(async () => {
     setLoad((prev) => (prev.status === "ready" ? prev : { status: "loading" }));
@@ -236,10 +250,13 @@ export function RoadmapProvider({ children }: { children: ReactNode }) {
       saveSquad,
       removeSquad,
       form,
-      openForm: (initiativeId, step) => setForm({ initiativeId, step }),
+      openForm: (initiativeId, step, prefill) => setForm({ initiativeId, step, prefill }),
       closeForm: () => setForm(null),
+      prdImportOpen,
+      openPrdImport: () => setPrdImportOpen(true),
+      closePrdImport: () => setPrdImportOpen(false),
     }),
-    [load, data, reload, upsertInitiative, removeInitiative, patchPlanning, moveInitiative, savePlatform, removePlatform, saveContext, savePerson, removePerson, replacePerson, movePerson, saveSquad, removeSquad, form],
+    [load, data, reload, upsertInitiative, removeInitiative, patchPlanning, moveInitiative, savePlatform, removePlatform, saveContext, savePerson, removePerson, replacePerson, movePerson, saveSquad, removeSquad, form, prdImportOpen],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

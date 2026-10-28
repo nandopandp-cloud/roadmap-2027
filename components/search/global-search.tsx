@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDown, ArrowUp, CalendarDays, CornerDownLeft, FileText, Layers, MonitorPlay, Plus, Search, SearchX, X, type LucideIcon } from "lucide-react";
+import { ArrowDown, ArrowUp, CalendarDays, CornerDownLeft, FileText, Layers, MonitorPlay, Plus, Search, SearchX, Sparkles, X, type LucideIcon } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { createContext, Fragment, Suspense, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
@@ -75,7 +75,7 @@ function Mark({ text, terms }: { text: string; terms: string[] }) {
 }
 
 function SearchLightbox({ onClose }: { onClose: () => void }) {
-  const { data, load, openForm } = useRoadmap();
+  const { data, load, openForm, openPrdImport } = useRoadmap();
   const router = useRouter();
   const pathname = usePathname();
   const { open: openInitiative } = useInitiativeSelection();
@@ -107,6 +107,7 @@ function SearchLightbox({ onClose }: { onClose: () => void }) {
 
   const rows = useMemo<Row[]>(() => {
     const actions: Row[] = [
+      { type: "action", id: "a-prd", label: "Nova iniciativa a partir do PRD", hint: "Colar o PRD e preencher os campos automaticamente", icon: Sparkles, run: () => go(openPrdImport) },
       { type: "action", id: "a-nova", label: "Nova iniciativa", hint: "Criar uma iniciativa", icon: Plus, run: () => go(() => openForm(null)) },
       { type: "action", id: "a-ini", label: "Ir para Iniciativas", hint: "Catálogo de iniciativas", icon: FileText, run: () => go(() => router.push("/iniciativas")) },
       { type: "action", id: "a-road", label: "Ir para o Roadmap", hint: "Visão por quarters", icon: CalendarDays, run: () => go(() => router.push("/roadmap")) },
@@ -121,7 +122,7 @@ function SearchLightbox({ onClose }: { onClose: () => void }) {
     }
     const matchingActions = actions.filter((a) => a.type === "action" && terms.every((t) => (a.label + " " + a.hint).toLowerCase().includes(t)));
     return [...results.map<Row>((r) => ({ type: "result", id: r.id, result: r })), ...matchingActions];
-  }, [data, query, terms, go, openForm, router]);
+  }, [data, query, terms, go, openForm, openPrdImport, router]);
 
   useEffect(() => setActive(0), [query]);
   useEffect(() => {

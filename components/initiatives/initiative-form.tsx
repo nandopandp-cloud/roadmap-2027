@@ -10,7 +10,7 @@ import { useToast } from "@/components/ui/toast";
 import { api, ApiError } from "@/lib/client/api";
 import { cn } from "@/lib/client/cn";
 import { useInitiativeSelection } from "@/lib/client/selection";
-import { useRoadmap } from "@/lib/client/store";
+import { useRoadmap, type PrdPrefill } from "@/lib/client/store";
 import type { InitiativeInput } from "@/lib/domain/types";
 
 type InputState = InitiativeInput;
@@ -22,12 +22,17 @@ export function InitiativeFormHost() {
   if (!form) return null;
   return (
     <Suspense fallback={null}>
-      <InitiativeForm key={`${form.initiativeId ?? "nova"}-${form.step ?? 0}`} initiativeId={form.initiativeId} initialStep={form.step ?? 0} />
+      <InitiativeForm
+        key={`${form.initiativeId ?? "nova"}-${form.step ?? 0}`}
+        initiativeId={form.initiativeId}
+        initialStep={form.step ?? 0}
+        prefill={form.initiativeId ? undefined : form.prefill}
+      />
     </Suspense>
   );
 }
 
-function InitiativeForm({ initiativeId, initialStep }: { initiativeId: string | null; initialStep: number }) {
+function InitiativeForm({ initiativeId, initialStep, prefill }: { initiativeId: string | null; initialStep: number; prefill?: PrdPrefill }) {
   const { data, initiativeById, closeForm, upsertInitiative } = useRoadmap();
   const { open } = useInitiativeSelection();
   const confirm = useConfirm();
@@ -36,9 +41,10 @@ function InitiativeForm({ initiativeId, initialStep }: { initiativeId: string | 
 
   // Estado inicial congelado na abertura: base para detectar alterações não salvas.
   const [initial] = useState<InputState>(() => (editing ? toInput(editing) : emptyInput()));
-  const [draft, setDraft] = useState<InitiativeInput>(initial);
+  // Vindo de um PRD, o rascunho começa preenchido (e conta como alteração não salva).
+  const [draft, setDraft] = useState<InitiativeInput>(() => prefill?.input ?? initial);
   const [step, setStep] = useState(initialStep);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<Record<string, string>>(prefill?.errors ?? {});
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -103,7 +109,11 @@ function InitiativeForm({ initiativeId, initialStep }: { initiativeId: string | 
     savingRef.current = true;
     setSaving(true);
     try {
-      const saved = editing ? await api.updateInitiative(editing.id, parsed.data) : await api.createInitiative(parsed.data);
+      const saved = editing
+        ? await api.updateInitiative(editing.id, parsed.data)
+        : prefill
+          ? await api.createInitiativeFromPrd(parsed.data, prefill.prd)
+          : await api.createInitiative(parsed.data);
       upsertInitiative(saved);
       closeForm();
       notify("success", editing ? "Iniciativa atualizada." : `Iniciativa ${saved.id} criada.`);
@@ -140,7 +150,13 @@ function InitiativeForm({ initiativeId, initialStep }: { initiativeId: string | 
       size="xl"
       bare
       title={editing ? `Editar ${editing.id}` : "Nova iniciativa"}
-      description={editing ? editing.title : "Campos obrigatórios: nome, problema, motivador, resultado esperado e status. O restante pode ser preenchido aos poucos."}
+      description={
+        editing
+          ? editing.title
+          : prefill
+            ? "Campos preenchidos a partir do PRD. Revise o que precisar e crie a iniciativa — o texto original do PRD será salvo e associado a ela."
+            : "Campos obrigatórios: nome, problema, motivador, resultado esperado e status. O restante pode ser preenchido aos poucos."
+      }
       footer={
         <>
           <p className="mr-auto hidden text-[13px] text-muted sm:block" aria-live="polite">
@@ -209,6 +225,7 @@ function InitiativeForm({ initiativeId, initialStep }: { initiativeId: string | 
             folder={editing?.repoFolder}
             editingId={editing?.id ?? null}
             nextId={nextId}
+            importedPrd={!!prefill}
           />
         </div>
       </div>
