@@ -2,9 +2,9 @@ import { seedContext } from "@/data/seed/context";
 import { ILLUSTRATIONS } from "@/lib/domain/constants";
 import { inferDiscipline } from "@/lib/domain/org";
 import { defaultRoadmapOrder } from "@/lib/domain/roadmap-order";
-import type { Database, IllustrationKey, Person, Squad, StrategyContext } from "@/lib/domain/types";
+import type { Database, IllustrationKey, Person, PlatformStrategy, ProposalSection, Squad, StrategyContext } from "@/lib/domain/types";
 
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 /** Ilustrações removidas da biblioteca → equivalentes atuais. */
 const RENAMED_ILLUSTRATIONS: Record<string, IllustrationKey | null> = { cometa: null, lua: null };
@@ -21,6 +21,9 @@ const RENAMED_ILLUSTRATIONS: Record<string, IllustrationKey | null> = { cometa: 
  * v7 → v8: contexto estratégico do Roadmap 2027 (proposta, direcionadores e indicadores por
  *          plataforma, acompanhamento). O texto e os direcionadores/princípios de demonstração
  *          são substituídos pelo conteúdo oficial; os problemas estruturais são mantidos.
+ * v8 → v9: Contexto com resumos visuais (títulos e resumos curtos, etapas, ilustrações,
+ *          destaques numéricos, principais resultados) e faixa de compromisso — a seção
+ *          "compromisso-2027" da proposta passa a ser `commitment`. Edições são preservadas.
  */
 export function migrateDatabase(db: Database): { db: Database; changed: boolean } {
   if ((db.schemaVersion ?? 1) >= SCHEMA_VERSION) return { db, changed: false };
@@ -70,20 +73,71 @@ function migrateSquad(raw: LegacySquad): Squad {
 }
 
 type LegacyContext = Partial<StrategyContext> & { drivers?: unknown; principles?: unknown };
+type LegacySection = Partial<ProposalSection> & Pick<ProposalSection, "id" | "title" | "body">;
+type LegacyStrategy = Partial<PlatformStrategy> & Pick<PlatformStrategy, "id" | "platformId" | "focus">;
+
+const COMMITMENT_SECTION_ID = "compromisso-2027";
+
+/** Completa linhas antigas com os campos novos do seed (mesmo id), sem sobrescrever o que existe. */
+function mergeRows<T extends { id: string }>(rows: Partial<T>[], seedRows: T[], defaults: Omit<T, "id">): T[] {
+  return rows.map((r) => ({ ...defaults, ...seedRows.find((x) => x.id === r.id), ...r }) as T);
+}
 
 /** Detecta o formato pela presença dos campos (o Postgres normaliza a cada leitura). */
 function migrateContext(raw: LegacyContext | undefined): StrategyContext {
   const { drivers: _drivers, principles: _principles, ...context } = raw ?? {};
-  if (context.proposal) {
+  // Antes da v8: conteúdo de demonstração → contexto oficial (mantendo os problemas estruturais).
+  if (!context.proposal) return { ...seedContext, problems: context.problems ?? seedContext.problems };
+  if (context.commitment) return context as StrategyContext;
+
+  // v8 → v9.
+  const sections = context.proposal as LegacySection[];
+  const legacyCommitment = sections.find((s) => s.id === COMMITMENT_SECTION_ID);
+  const proposal = sections
+    .filter((s) => s.id !== COMMITMENT_SECTION_ID)
+    .map((s) => {
+      const seed = seedContext.proposal.find((x) => x.id === s.id);
+      // Título e subtítulo da seção de planejamento foram invertidos na v9; só ajusta se não foram editados.
+      const swapped = s.id === "novo-modelo-de-planejamento" && s.title === "Um novo modelo de planejamento e execução" && seed ? { title: seed.title, subtitle: seed.subtitle } : {};
+      return { subtitle: "", summary: "", steps: [], illustration: "" as const, highlight: "", ...seed, ...s, ...swapped };
+    });
+  const commitment = legacyCommitment
+    ? {
+        title: legacyCommitment.title,
+        summary: seedContext.commitment.summary,
+        body: [legacyCommitment.body, legacyCommitment.highlight ? `**${legacyCommitment.highlight}**` : ""].filter(Boolean).join("\n\n"),
+      }
+    : seedContext.commitment;
+  const platformStrategies = ((context.platformStrategies ?? []) as LegacyStrategy[]).map((s) => {
+    const seed = seedContext.platformStrategies.find((x) => x.id === s.id);
+    if (s.keyOutcomes) return s as PlatformStrategy;
+    const indicators = mergeRows(s.indicators ?? [], seed?.indicators ?? [], { label: "", value: "", detail: "", featured: false });
+    const goals = mergeRows(s.goals ?? [], seed?.goals ?? [], { label: "", current: "", target: "", detail: "", state: "proposta", change: "", changeLabel: "", featured: false });
+    const added = (seed?.indicators ?? []).filter((x) => !indicators.some((i) => i.id === x.id));
     return {
-      ...context,
-      intro: context.intro ?? "",
-      proposal: context.proposal,
-      platformsIntro: context.platformsIntro ?? "",
-      platformStrategies: context.platformStrategies ?? [],
-      measurement: context.measurement ?? "",
-      problems: context.problems ?? [],
-    };
-  }
-  return { ...seedContext, problems: context.problems ?? seedContext.problems };
+      statement: "",
+      narrative: "",
+      outcomes: [],
+      closing: "",
+      summary: seed?.summary ?? "",
+      illustration: seed?.illustration ?? "",
+      keyOutcomes: seed?.keyOutcomes ?? [],
+      ...s,
+      indicators: [...indicators.filter((i) => i.featured), ...added.filter((i) => i.featured), ...indicators.filter((i) => !i.featured), ...added.filter((i) => !i.featured)],
+      goals,
+    } as PlatformStrategy;
+  });
+  return {
+    ...context,
+    introTitle: context.introTitle ?? seedContext.introTitle,
+    introSummary: context.introSummary ?? seedContext.introSummary,
+    intro: context.intro ?? "",
+    proposal,
+    commitment,
+    platformsSummary: context.platformsSummary ?? seedContext.platformsSummary,
+    platformsIntro: context.platformsIntro ?? "",
+    platformStrategies,
+    measurement: context.measurement ?? "",
+    problems: context.problems ?? [],
+  };
 }

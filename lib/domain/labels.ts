@@ -9,6 +9,7 @@ import type {
   PhaseState,
   Priority,
   ProblemValidation,
+  ContextArt,
   PrototypeStatus,
   Quarter,
 } from "@/lib/domain/types";
@@ -144,4 +145,15 @@ export const DISCIPLINE_LABEL: Record<Discipline, string> = {
   design: "Design",
   engenharia: "Engenharia",
   qa: "QA",
+};
+
+/** Ilustrações da tela Contexto: arte enviada pelo time (PNG) ou o SVG equivalente. */
+export const CONTEXT_ART: Record<ContextArt, { label: string; src: string[] }> = {
+  alvo: { label: "Alvo", src: ["/illustrations/contexto-alvo.png", "/illustrations/contexto-alvo.svg"] },
+  notebook: { label: "Notebook", src: ["/illustrations/contexto-notebook.png", "/illustrations/contexto-notebook.svg"] },
+  calendario: { label: "Calendário", src: ["/illustrations/contexto-calendario.png", "/illustrations/contexto-calendario.svg"] },
+  documento: { label: "Documento", src: ["/illustrations/contexto-documento.png", "/illustrations/contexto-documento.svg"] },
+  astronauta: { label: "Astronauta (Exploradores)", src: ["/illustrations/astronauta-acenando.jpg"] },
+  nexo: { label: "Nexo (Geniex)", src: ["/illustrations/nexo.jpg"] },
+  educadora: { label: "Educadores", src: ["/illustrations/contexto-educadora.png", "/illustrations/contexto-educadora.svg"] },
 };

@@ -162,3 +162,11 @@
   from { opacity: 0; transform: translateY(-4px) scale(0.98); }
   to { opacity: 1; transform: none; }
 }
+
+/* Contexto: resumos compactos e texto sobre fundo escuro. */
+.context-summary .prose-doc { font-size: 15.5px; line-height: 1.6; }
+.context-summary .prose-doc > * + * { margin-top: 0.5em; }
+.context-summary .prose-doc p { color: #2b3163; }
+.prose-on-dark .prose-doc p, .prose-on-dark .prose-doc li { color: rgba(255, 255, 255, 0.9); }
+.prose-on-dark .prose-doc strong { color: #fff; }
+.prose-on-dark .prose-doc li::marker { color: rgba(255, 255, 255, 0.7); }

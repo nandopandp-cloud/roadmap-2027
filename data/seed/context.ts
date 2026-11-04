@@ -9,6 +9,9 @@ const md = (...blocks: string[]) => blocks.join("\n\n");
  * "propostas" até serem aprovadas.
  */
 export const seedContext: StrategyContext = {
+  introTitle: "De funcionalidades entregues a valor gerado",
+  introSummary:
+    "O Roadmap 2027 representa uma mudança na forma como pensamos, priorizamos e entregamos valor na Jovens Gênios. Em 2027, vamos priorizar a resolução de problemas reais e validados dos nossos usuários, com impacto mensurável para o negócio e para a experiência nas nossas plataformas.",
   intro: md(
     "O Roadmap 2027 representa uma mudança na forma como pensamos, priorizamos e entregamos valor nas plataformas da Jovens Gênios.",
     "Mais do que definir quais funcionalidades serão desenvolvidas ao longo do próximo ano, queremos estabelecer uma direção clara para nossos produtos, conectando as necessidades reais dos usuários aos objetivos estratégicos da companhia.",
@@ -20,6 +23,12 @@ export const seedContext: StrategyContext = {
       id: "nova-forma-de-pensar-produto",
       title: "Uma nova forma de pensar produto",
       subtitle: "De entregas de funcionalidades para geração de valor",
+      summary: md(
+        "Vamos deixar de atacar demandas pontuais e construir soluções a partir de problemas reais e necessidades validadas, com foco em gerar valor para os usuários e para o negócio.",
+        "Um exemplo claro é o **login simplificado**, uma demanda histórica que ainda é uma barreira de acesso, principalmente para estudantes dos anos iniciais, que possuem limitações naturais de leitura e escrita.",
+      ),
+      steps: [],
+      illustration: "notebook",
       body: md(
         "Historicamente, boa parte da nossa construção de produto esteve concentrada em atender demandas pontuais, implementar funcionalidades e responder a solicitações que surgiam ao longo da operação.",
         "Embora esse modelo tenha permitido evoluir nossas plataformas, precisamos avançar.",
@@ -33,8 +42,16 @@ export const seedContext: StrategyContext = {
     },
     {
       id: "novo-modelo-de-planejamento",
-      title: "Um novo modelo de planejamento e execução",
-      subtitle: "Planejamento anual, entregas trimestrais",
+      title: "Planejamento anual, entregas trimestrais",
+      subtitle: "Um novo modelo de planejamento e execução",
+      summary:
+        "Vamos trabalhar com uma visão de portfólio para o ano, definindo as principais iniciativas e oportunidades de 2027, e com objetivos e entregas claras a cada trimestre (quarter). Após os primeiros seis meses, revisaremos os resultados e reavaliaremos as prioridades do segundo semestre, mantendo a flexibilidade para ajustar a estratégia.",
+      steps: [
+        { id: "planejar-o-ano", title: "Planejar o ano", description: "Visão do portfólio e das principais iniciativas de 2027." },
+        { id: "entregar-a-cada-quarter", title: "Entregar a cada quarter", description: "Objetivos e entregas claras a cada 3 meses." },
+        { id: "revisar-em-6-meses", title: "Revisar em 6 meses", description: "Avaliação de resultados e redefinição de prioridades." },
+      ],
+      illustration: "calendario",
       body: md(
         "Outra mudança importante está na forma como organizamos nosso horizonte de planejamento.",
         "Em vez de trabalhar com um planejamento de 12 meses no qual todas as entregas são distribuídas antecipadamente, queremos estabelecer objetivos claros para cada quarter do ano.",
@@ -56,6 +73,13 @@ export const seedContext: StrategyContext = {
       id: "iniciativas-preparadas",
       title: "Iniciativas preparadas para execução",
       subtitle: "Menos incerteza, mais previsibilidade",
+      summary: md(
+        "As iniciativas do roadmap já contam com seus PRDs (Product Requirements Documents) e jornadas conceituais desenvolvidas, garantindo mais clareza, previsibilidade e precisão na estimativa e entrega.",
+        "Produto, Design e Engenharia atuam de forma integrada, alinhando escopo, regras de negócio, dependências técnicas e estimativas.",
+        "**Nosso objetivo é estimar e entregar a experiência completa planejada, e não reduzir o escopo por falta de tempo.**",
+      ),
+      steps: [],
+      illustration: "documento",
       body: md(
         "Uma das principais preocupações para 2027 é garantir que as iniciativas priorizadas tenham maturidade suficiente antes de entrarem em desenvolvimento.",
         "Por isso, as iniciativas apresentadas neste roadmap já contam com seus respectivos PRDs (Product Requirements Documents) e jornadas conceituais desenvolvidas.",
@@ -76,20 +100,21 @@ export const seedContext: StrategyContext = {
       ),
       highlight: "",
     },
-    {
-      id: "compromisso-2027",
-      title: "Nosso compromisso para 2027",
-      subtitle: "",
-      body: md(
-        "Queremos construir um modelo de desenvolvimento de produto mais maduro, previsível e orientado a resultados.",
-        "Isso exige uma mudança de comportamento de todos os envolvidos no processo.",
-        "Produto precisa priorizar problemas relevantes e defender iniciativas com objetivos claros. Design precisa traduzir essas necessidades em experiências completas e consistentes. Engenharia precisa participar antecipadamente das discussões, contribuindo com viabilidade técnica, dimensionamento e previsibilidade.",
-        "Trabalharemos com prioridades claras, ciclos trimestrais, revisões semestrais e indicadores que demonstrem o impacto das nossas decisões.",
-      ),
-      highlight:
-        "2027 não deve ser lembrado como o ano em que entregamos mais funcionalidades, mas como o ano em que começamos a entregar mais valor, com maior qualidade, previsibilidade e impacto para nossos usuários e para a Jovens Gênios.",
-    },
   ],
+
+  commitment: {
+    title: "Nosso compromisso para 2027",
+    summary: "Entregar mais valor, com maior qualidade, previsibilidade e impacto para os nossos usuários e para a Jovens Gênios.",
+    body: md(
+      "Queremos construir um modelo de desenvolvimento de produto mais maduro, previsível e orientado a resultados.",
+      "Isso exige uma mudança de comportamento de todos os envolvidos no processo.",
+      "Produto precisa priorizar problemas relevantes e defender iniciativas com objetivos claros. Design precisa traduzir essas necessidades em experiências completas e consistentes. Engenharia precisa participar antecipadamente das discussões, contribuindo com viabilidade técnica, dimensionamento e previsibilidade.",
+      "Trabalharemos com prioridades claras, ciclos trimestrais, revisões semestrais e indicadores que demonstrem o impacto das nossas decisões.",
+      "**2027 não deve ser lembrado como o ano em que entregamos mais funcionalidades, mas como o ano em que começamos a entregar mais valor, com maior qualidade, previsibilidade e impacto para nossos usuários e para a Jovens Gênios.**",
+    ),
+  },
+
+  platformsSummary: "Os principais problemas, indicadores atuais e as metas que queremos alcançar em cada plataforma.",
 
   platformsIntro: md(
     "As prioridades do primeiro semestre de 2027 foram organizadas a partir dos principais desafios identificados em cada plataforma.",
@@ -103,6 +128,8 @@ export const seedContext: StrategyContext = {
       platformId: "exploradores",
       focus: "Estabilidade e confiabilidade",
       statement: "Proteger e fortalecer a experiência que já construímos.",
+      summary: "Garantir uma experiência confiável, reduzindo falhas, bugs e o volume de chamados de suporte.",
+      illustration: "astronauta",
       narrative: md(
         "O Exploradores passou por uma transformação importante. Em 2026, avançamos na modernização tecnológica da plataforma, concluindo a migração em agosto, e também trabalhamos em uma nova experiência, com evolução de interface, usabilidade e compatibilidade, cuja entrega está prevista para janeiro de 2027.",
         "Essa evolução resolveu importantes limitações históricas, principalmente relacionadas à experiência de navegação e à distribuição adequada entre dispositivos.",
@@ -121,9 +148,10 @@ export const seedContext: StrategyContext = {
         "Esse cenário demonstra que nosso principal desafio no Exploradores não está necessariamente na ausência de novas funcionalidades, mas na necessidade de garantir que aquilo que já existe funcione de maneira consistente.",
       ),
       indicators: [
-        { id: "chamados", label: "Chamados de suporte", value: "14.169", detail: "≈73% de todos os chamados atendidos pelo time de suporte." },
-        { id: "estudantes-ativos", label: "Estudantes ativos mensais", value: "32.342", detail: "A Geniex tem ≈5,2 vezes mais estudantes ativos por mês." },
-        { id: "acessos-computador", label: "Acessos por computador", value: "≈66%", detail: "Levantamento de dispositivos de 2026: 28% em dispositivos móveis e 6% em tablets." },
+        { id: "chamados", label: "Chamados de suporte", value: "14.169", detail: "Volume atual de chamados atendidos pelo time de suporte.", featured: true },
+        { id: "participacao-chamados", label: "Dos chamados de suporte", value: "≈73%", detail: "Participação no total de chamados atendidos pelo time de suporte (Geniex: 11%).", featured: true },
+        { id: "estudantes-ativos", label: "Estudantes ativos mensais", value: "32.342", detail: "A Geniex tem ≈5,2 vezes mais estudantes ativos por mês.", featured: false },
+        { id: "acessos-computador", label: "Acessos por computador", value: "≈66%", detail: "Levantamento de dispositivos de 2026: 28% em dispositivos móveis e 6% em tablets.", featured: false },
       ],
       goals: [],
       outcomes: [
@@ -132,6 +160,11 @@ export const seedContext: StrategyContext = {
         "Melhorar a confiabilidade dos principais fluxos da plataforma.",
         "Garantir compatibilidade e consistência entre desktop, mobile e tablet.",
         "Reduzir a dependência do suporte para resolver problemas recorrentes de utilização.",
+      ],
+      keyOutcomes: [
+        "Reduzir problemas de estabilidade e performance.",
+        "Diminuir a incidência de bugs e falhas.",
+        "Melhorar a confiabilidade dos principais fluxos.",
       ],
       closing: md(
         "Nosso direcionamento é claro: novas funcionalidades devem ser criteriosas, enquanto a estabilidade precisa ser tratada como prioridade estratégica.",
@@ -143,6 +176,8 @@ export const seedContext: StrategyContext = {
       platformId: "geniex",
       focus: "Engajamento e retenção",
       statement: "Transformar acessos pontuais em utilização recorrente.",
+      summary: "Aumentar a recorrência e o uso constante da plataforma, ampliando a base de estudantes.",
+      illustration: "nexo",
       narrative: md(
         "A Geniex apresenta um cenário diferente do Exploradores.",
         "Atualmente, a plataforma possui aproximadamente **168.283 estudantes ativos por mês** e um tempo médio de utilização de aproximadamente **10 minutos por sessão**.",
@@ -157,14 +192,24 @@ export const seedContext: StrategyContext = {
         "Essa evolução representa um crescimento de aproximadamente **227% na base mensal de estudantes ativos**, chegando a uma quantidade 3,27 vezes maior que a atual.",
       ),
       indicators: [
-        { id: "estudantes-ativos", label: "Estudantes ativos mensais", value: "168.283", detail: "" },
-        { id: "tempo-sessao", label: "Tempo médio por sessão", value: "≈10 min", detail: "Indica potencial de consumo e interação quando o estudante acessa." },
-        { id: "retorno-mes", label: "Retorno no mesmo mês", value: "11%", detail: "Parcela da base total de usuários que retornou dentro do mesmo mês, em 2026." },
-        { id: "aderencia", label: "Aderência atual", value: "≈5%", detail: "" },
-        { id: "chamados", label: "Participação nos chamados de suporte", value: "11%", detail: "" },
+        { id: "estudantes-ativos", label: "Estudantes ativos mensais", value: "168.283", detail: "", featured: false },
+        { id: "tempo-sessao", label: "Tempo médio por sessão", value: "≈10 min", detail: "Indica potencial de consumo e interação quando o estudante acessa.", featured: false },
+        { id: "retorno-mes", label: "Retorno no mesmo mês", value: "11%", detail: "Parcela da base total de usuários que retornou dentro do mesmo mês, em 2026.", featured: false },
+        { id: "aderencia", label: "Aderência atual", value: "≈5%", detail: "", featured: false },
+        { id: "chamados", label: "Participação nos chamados de suporte", value: "11%", detail: "", featured: false },
       ],
       goals: [
-        { id: "aderencia", label: "Aderência", current: "5%", target: "≥ 15%", detail: "Triplicar o indicador atual.", state: "proposta" },
+        {
+          id: "aderencia",
+          label: "Aderência",
+          current: "5%",
+          target: "≥ 15%",
+          detail: "Triplicar o indicador atual.",
+          state: "proposta",
+          change: "3x",
+          changeLabel: "o indicador atual",
+          featured: false,
+        },
         {
           id: "estudantes-ativos",
           label: "Estudantes ativos mensais",
@@ -172,6 +217,9 @@ export const seedContext: StrategyContext = {
           target: "≈550.000",
           detail: "Crescimento de ≈227% na base mensal (3,27 vezes a atual).",
           state: "proposta",
+          change: "+227%",
+          changeLabel: "de crescimento (3,27x maior)",
+          featured: true,
         },
       ],
       outcomes: [
@@ -183,6 +231,12 @@ export const seedContext: StrategyContext = {
         "Ampliar a base de estudantes ativos mensais para aproximadamente 550 mil.",
         "Contribuir diretamente para o crescimento da utilização e da receita mensal da companhia.",
       ],
+      keyOutcomes: [
+        "Aumentar a frequência de acesso e a retenção.",
+        "Elevar a aderência de 5% para pelo menos 15% (3x mais).",
+        "Ampliar a base mensal para ≈550 mil estudantes.",
+        "Contribuir para o aumento da receita mensal.",
+      ],
       closing: md(
         "A Geniex já possui uma base expressiva e um tempo médio de sessão relevante. Agora, precisamos fazer com que muito mais estudantes aproveitem esse potencial de forma recorrente.",
         "**Nossa expectativa é transformar o engajamento em crescimento de utilização e, consequentemente, em aumento de receita mensal para a companhia.**",
@@ -193,6 +247,8 @@ export const seedContext: StrategyContext = {
       platformId: "educadores",
       focus: "Engajamento e eficiência operacional",
       statement: "Tornar a plataforma mais relevante, simples e eficiente para os educadores.",
+      summary: "Tornar a plataforma mais relevante e simples, com jornadas melhores e mais rápidas.",
+      illustration: "educadora",
       narrative: md(
         "O Educadores também apresenta uma oportunidade importante de evolução.",
         "Atualmente, temos aproximadamente **6 mil educadores ativos por mês**, com aderência (WAU/MAU) de 40% e tempo médio de utilização de apenas 3 minutos e 40 segundos.",
@@ -205,10 +261,10 @@ export const seedContext: StrategyContext = {
         "Essa evolução representa uma experiência mais direta, intuitiva e eficiente, sem comprometer a completude do processo.",
       ),
       indicators: [
-        { id: "educadores-ativos", label: "Educadores ativos mensais", value: "≈6 mil", detail: "" },
-        { id: "aderencia", label: "Aderência (WAU/MAU)", value: "40%", detail: "" },
-        { id: "tempo-uso", label: "Tempo médio de utilização", value: "3min40s", detail: "" },
-        { id: "prova-genial", label: "Criação de uma Prova Genial", value: "≈5 min", detail: "Historicamente chegou a levar ≈11 minutos." },
+        { id: "educadores-ativos", label: "Educadores ativos mensais", value: "≈6 mil", detail: "", featured: true },
+        { id: "aderencia", label: "Aderência (WAU/MAU)", value: "40%", detail: "", featured: true },
+        { id: "tempo-uso", label: "Tempo médio de utilização", value: "3min40s", detail: "", featured: false },
+        { id: "prova-genial", label: "Criação de uma Prova Genial", value: "≈5 min", detail: "Historicamente chegou a levar ≈11 minutos.", featured: false },
       ],
       goals: [
         {
@@ -218,6 +274,9 @@ export const seedContext: StrategyContext = {
           target: "≈2min30s",
           detail: "Redução de pelo menos 50%, sem comprometer a completude do processo.",
           state: "proposta",
+          change: "−50%",
+          changeLabel: "no tempo de criação",
+          featured: true,
         },
       ],
       outcomes: [
@@ -228,6 +287,11 @@ export const seedContext: StrategyContext = {
         "Reduzir o tempo necessário para executar tarefas recorrentes.",
         "Criar novas funcionalidades e visões adequadas aos diferentes perfis de usuários.",
         "Tornar o Educadores uma ferramenta presente e relevante na rotina escolar.",
+      ],
+      keyOutcomes: [
+        "Aumentar a aderência e a frequência de utilização.",
+        "Reduzir o tempo de criação de uma Prova Genial (−50%).",
+        "Modernizar a interface e simplificar os fluxos.",
       ],
       closing:
         "O objetivo é deixar de oferecer uma plataforma utilizada apenas quando existe uma necessidade pontual e construir uma experiência que faça parte da rotina dos educadores.",

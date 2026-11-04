@@ -4,6 +4,7 @@
  */
 import { z } from "zod";
 import {
+  CONTEXT_ARTS,
   DISCIPLINES,
   DOCUMENT_KINDS,
   DOCUMENT_STATUSES,
@@ -344,13 +345,35 @@ export const structuralProblemSchema = z.object({
 });
 
 /** Seção narrativa da proposta do roadmap (texto em Markdown, preservado como fornecido). */
+const contextArt = z.union([z.enum(CONTEXT_ARTS), z.literal("")]).default("");
+
+/** Etapa de um ciclo exibida em cartões (ex.: planejar → entregar → revisar). */
+export const proposalStepSchema = z.object({
+  id: localId,
+  title: required("O título da etapa", 80),
+  description: text(200).default(""),
+});
+
+/** Seção narrativa da proposta: resumo em destaque + texto original completo (Markdown). */
 export const proposalSectionSchema = z.object({
   id: localId,
   title: required("O título", 160),
   subtitle: text(200).default(""),
+  /** Versão curta exibida na página (Markdown). */
+  summary: text(3000).default(""),
+  steps: z.array(proposalStepSchema).max(6).default([]),
+  illustration: contextArt,
+  /** Texto completo, preservado como fornecido. */
   body: required("O texto", 20000),
   /** Frase de fechamento destacada. */
   highlight: text(600).default(""),
+});
+
+/** Faixa de compromisso exibida ao final das abas do Contexto. */
+export const commitmentSchema = z.object({
+  title: text(160).default(""),
+  summary: text(600).default(""),
+  body: text(20000).default(""),
 });
 
 /** Número de referência de uma plataforma, como informado pelo time (nada é calculado). */
@@ -359,6 +382,8 @@ export const platformIndicatorSchema = z.object({
   label: required("O indicador", 120),
   value: required("O valor", 60),
   detail: text(300).default(""),
+  /** Exibido no resumo da plataforma. */
+  featured: z.boolean().default(false),
 });
 
 /** Meta de uma plataforma: valor atual → valor desejado, com situação explícita. */
@@ -369,6 +394,10 @@ export const platformGoalSchema = z.object({
   target: required("A meta", 60),
   detail: text(300).default(""),
   state: z.enum(METRIC_TARGET_STATES).default("proposta"),
+  /** Variação em destaque (ex.: "+227%") e sua legenda, como informadas. */
+  change: text(20).default(""),
+  changeLabel: text(80).default(""),
+  featured: z.boolean().default(false),
 });
 
 /** Direcionador estratégico de uma plataforma para o ciclo (o "porquê" e os indicadores). */
@@ -377,16 +406,25 @@ export const platformStrategySchema = z.object({
   platformId: required("A plataforma", 64),
   focus: required("O direcionador", 120),
   statement: text(300).default(""),
+  /** Descrição curta exibida no resumo da plataforma. */
+  summary: text(300).default(""),
+  illustration: contextArt,
   narrative: text(20000).default(""),
   indicators: z.array(platformIndicatorSchema).max(16).default([]),
   goals: z.array(platformGoalSchema).max(12).default([]),
   outcomes: list(20),
+  /** Principais resultados (versão curta) exibidos no resumo. */
+  keyOutcomes: list(6),
   closing: text(2000).default(""),
 });
 
 export const strategyContextSchema = z.object({
+  introTitle: text(200).default(""),
+  introSummary: text(1500).default(""),
   intro: text(6000).default(""),
   proposal: z.array(proposalSectionSchema).max(20).default([]),
+  commitment: commitmentSchema.default({ title: "", summary: "", body: "" }),
+  platformsSummary: text(600).default(""),
   platformsIntro: text(4000).default(""),
   platformStrategies: z.array(platformStrategySchema).max(12).default([]),
   /** "Como saberemos se estamos evoluindo?" (Markdown). */

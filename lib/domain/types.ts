@@ -25,6 +25,8 @@ import type {
   platformIndicatorSchema,
   platformStrategySchema,
   proposalSectionSchema,
+  proposalStepSchema,
+  commitmentSchema,
   prototypeRefSchema,
   squadInputSchema,
   squadSchema,
@@ -32,6 +34,7 @@ import type {
   structuralProblemSchema,
 } from "@/lib/validation/schemas";
 import type {
+  CONTEXT_ARTS,
   DOCUMENT_KINDS,
   DOCUMENT_STATUSES,
   ILLUSTRATIONS,
@@ -59,6 +62,7 @@ export type SourceKind = (typeof SOURCE_KINDS)[number];
 export type MetricValueState = (typeof METRIC_VALUE_STATES)[number];
 export type MetricTargetState = (typeof METRIC_TARGET_STATES)[number];
 export type ProblemValidation = (typeof PROBLEM_VALIDATION)[number];
+export type ContextArt = (typeof CONTEXT_ARTS)[number];
 export type PlatformIcon = (typeof PLATFORM_ICONS)[number];
 export type Discipline = (typeof DISCIPLINES)[number];
 export type PlatformAccent = (typeof PLATFORM_ACCENTS)[number];
@@ -88,6 +92,8 @@ export type OrgZone = z.infer<typeof orgZoneSchema>;
 export type PersonMove = z.input<typeof personMoveSchema>;
 
 export type ProposalSection = z.infer<typeof proposalSectionSchema>;
+export type ProposalStep = z.infer<typeof proposalStepSchema>;
+export type Commitment = z.infer<typeof commitmentSchema>;
 export type PlatformIndicator = z.infer<typeof platformIndicatorSchema>;
 export type PlatformGoal = z.infer<typeof platformGoalSchema>;
 export type PlatformStrategy = z.infer<typeof platformStrategySchema>;
