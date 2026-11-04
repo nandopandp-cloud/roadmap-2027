@@ -7,7 +7,6 @@
 import type { z } from "zod";
 import type {
   customImageSchema,
-  driverSchema,
   documentDraftSchema,
   documentRefSchema,
   historyEntrySchema,
@@ -22,7 +21,10 @@ import type {
   phaseSchema,
   platformInputSchema,
   platformSchema,
-  principleSchema,
+  platformGoalSchema,
+  platformIndicatorSchema,
+  platformStrategySchema,
+  proposalSectionSchema,
   prototypeRefSchema,
   squadInputSchema,
   squadSchema,
@@ -85,8 +87,10 @@ export type SquadInput = z.infer<typeof squadInputSchema>;
 export type OrgZone = z.infer<typeof orgZoneSchema>;
 export type PersonMove = z.input<typeof personMoveSchema>;
 
-export type Driver = z.infer<typeof driverSchema>;
-export type Principle = z.infer<typeof principleSchema>;
+export type ProposalSection = z.infer<typeof proposalSectionSchema>;
+export type PlatformIndicator = z.infer<typeof platformIndicatorSchema>;
+export type PlatformGoal = z.infer<typeof platformGoalSchema>;
+export type PlatformStrategy = z.infer<typeof platformStrategySchema>;
 export type StructuralProblem = z.infer<typeof structuralProblemSchema>;
 export type StrategyContext = z.infer<typeof strategyContextSchema>;
 

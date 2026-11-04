@@ -332,14 +332,6 @@ export const personReplaceSchema = z
   })
   .refine((v) => !!v.substituteId !== !!v.newPerson, { message: "Escolha um colaborador ou cadastre um novo.", path: ["substituteId"] });
 
-export const driverSchema = z.object({
-  id: localId,
-  title: required("O título", 120),
-  description: required("A descrição", 600),
-});
-
-export const principleSchema = driverSchema;
-
 export const structuralProblemSchema = z.object({
   id: localId,
   name: required("O nome", 160),
@@ -351,10 +343,54 @@ export const structuralProblemSchema = z.object({
   validation: z.enum(PROBLEM_VALIDATION),
 });
 
+/** Seção narrativa da proposta do roadmap (texto em Markdown, preservado como fornecido). */
+export const proposalSectionSchema = z.object({
+  id: localId,
+  title: required("O título", 160),
+  subtitle: text(200).default(""),
+  body: required("O texto", 20000),
+  /** Frase de fechamento destacada. */
+  highlight: text(600).default(""),
+});
+
+/** Número de referência de uma plataforma, como informado pelo time (nada é calculado). */
+export const platformIndicatorSchema = z.object({
+  id: localId,
+  label: required("O indicador", 120),
+  value: required("O valor", 60),
+  detail: text(300).default(""),
+});
+
+/** Meta de uma plataforma: valor atual → valor desejado, com situação explícita. */
+export const platformGoalSchema = z.object({
+  id: localId,
+  label: required("O indicador", 160),
+  current: text(60).default(""),
+  target: required("A meta", 60),
+  detail: text(300).default(""),
+  state: z.enum(METRIC_TARGET_STATES).default("proposta"),
+});
+
+/** Direcionador estratégico de uma plataforma para o ciclo (o "porquê" e os indicadores). */
+export const platformStrategySchema = z.object({
+  id: localId,
+  platformId: required("A plataforma", 64),
+  focus: required("O direcionador", 120),
+  statement: text(300).default(""),
+  narrative: text(20000).default(""),
+  indicators: z.array(platformIndicatorSchema).max(16).default([]),
+  goals: z.array(platformGoalSchema).max(12).default([]),
+  outcomes: list(20),
+  closing: text(2000).default(""),
+});
+
 export const strategyContextSchema = z.object({
   intro: text(6000).default(""),
-  drivers: z.array(driverSchema).max(12).default([]),
-  principles: z.array(principleSchema).max(12).default([]),
+  proposal: z.array(proposalSectionSchema).max(20).default([]),
+  platformsIntro: text(4000).default(""),
+  platformStrategies: z.array(platformStrategySchema).max(12).default([]),
+  /** "Como saberemos se estamos evoluindo?" (Markdown). */
+  measurement: text(8000).default(""),
   problems: z.array(structuralProblemSchema).max(60).default([]),
 });
 

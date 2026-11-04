@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api, ApiError, type Snapshot } from "@/lib/client/api";
+import { emptyContext } from "@/lib/domain/context";
 import { applyMove } from "@/lib/domain/org";
 import { placeInColumn, type RoadmapTarget } from "@/lib/domain/roadmap-order";
 import type { Initiative, InitiativeInput, Person, PersonMove, Platform, Squad, StrategyContext } from "@/lib/domain/types";
@@ -57,7 +58,7 @@ interface RoadmapStore {
 const EMPTY: Snapshot = {
   initiatives: [],
   platforms: [],
-  context: { intro: "", drivers: [], principles: [], problems: [] },
+  context: emptyContext(),
   people: [],
   squads: [],
   writable: true,

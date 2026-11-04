@@ -2,6 +2,7 @@ import "server-only";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { Pool, PoolClient } from "pg";
+import { emptyContext } from "@/lib/domain/context";
 import type { Database, Initiative, Person, Platform, Squad } from "@/lib/domain/types";
 import { buildSeedDatabase } from "@/lib/repositories/json-file-repository";
 import { migrateDatabase, SCHEMA_VERSION } from "@/lib/repositories/migrations";
@@ -85,7 +86,7 @@ export class PostgresRepository implements RoadmapRepository {
           schemaVersion: SCHEMA_VERSION,
           initiatives: [],
           platforms: [],
-          context: { intro: "", drivers: [], principles: [], problems: [] },
+          context: emptyContext(),
           people: [],
           squads: [],
         };
@@ -136,7 +137,7 @@ export class PostgresRepository implements RoadmapRepository {
       schemaVersion: SCHEMA_VERSION,
       initiatives: initiatives.rows.map((r) => r.data),
       platforms: platforms.rows.map((r) => r.data),
-      context: context.rows[0]?.data ?? { intro: "", drivers: [], principles: [], problems: [] },
+      context: context.rows[0]?.data ?? emptyContext(),
       people: people.rows.map((r) => r.data),
       squads: squads.rows.map((r) => r.data),
     };

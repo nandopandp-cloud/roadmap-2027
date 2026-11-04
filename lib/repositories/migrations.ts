@@ -1,9 +1,10 @@
+import { seedContext } from "@/data/seed/context";
 import { ILLUSTRATIONS } from "@/lib/domain/constants";
 import { inferDiscipline } from "@/lib/domain/org";
 import { defaultRoadmapOrder } from "@/lib/domain/roadmap-order";
-import type { Database, IllustrationKey, Person, Squad } from "@/lib/domain/types";
+import type { Database, IllustrationKey, Person, Squad, StrategyContext } from "@/lib/domain/types";
 
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 
 /** Ilustrações removidas da biblioteca → equivalentes atuais. */
 const RENAMED_ILLUSTRATIONS: Record<string, IllustrationKey | null> = { cometa: null, lua: null };
@@ -17,6 +18,9 @@ const RENAMED_ILLUSTRATIONS: Record<string, IllustrationKey | null> = { cometa: 
  * v5 → v6: colaborador em vários squads (squadId/squadOrder → memberships) e squads com
  *          várias lideranças (leaderId → leaderIds).
  * v6 → v7: função no squad (discipline), sugerida a partir do cargo.
+ * v7 → v8: contexto estratégico do Roadmap 2027 (proposta, direcionadores e indicadores por
+ *          plataforma, acompanhamento). O texto e os direcionadores/princípios de demonstração
+ *          são substituídos pelo conteúdo oficial; os problemas estruturais são mantidos.
  */
 export function migrateDatabase(db: Database): { db: Database; changed: boolean } {
   if ((db.schemaVersion ?? 1) >= SCHEMA_VERSION) return { db, changed: false };
@@ -37,7 +41,14 @@ export function migrateDatabase(db: Database): { db: Database; changed: boolean 
     };
   });
   return {
-    db: { ...db, schemaVersion: SCHEMA_VERSION, initiatives, people: (db.people ?? []).map(migratePerson), squads: (db.squads ?? []).map(migrateSquad) },
+    db: {
+      ...db,
+      schemaVersion: SCHEMA_VERSION,
+      initiatives,
+      context: migrateContext(db.context),
+      people: (db.people ?? []).map(migratePerson),
+      squads: (db.squads ?? []).map(migrateSquad),
+    },
     changed: true,
   };
 }
@@ -56,4 +67,23 @@ function migrateSquad(raw: LegacySquad): Squad {
   const { leaderId, ...squad } = raw;
   if (squad.leaderIds) return squad;
   return { ...squad, leaderIds: leaderId ? [leaderId] : [] };
+}
+
+type LegacyContext = Partial<StrategyContext> & { drivers?: unknown; principles?: unknown };
+
+/** Detecta o formato pela presença dos campos (o Postgres normaliza a cada leitura). */
+function migrateContext(raw: LegacyContext | undefined): StrategyContext {
+  const { drivers: _drivers, principles: _principles, ...context } = raw ?? {};
+  if (context.proposal) {
+    return {
+      ...context,
+      intro: context.intro ?? "",
+      proposal: context.proposal,
+      platformsIntro: context.platformsIntro ?? "",
+      platformStrategies: context.platformStrategies ?? [],
+      measurement: context.measurement ?? "",
+      problems: context.problems ?? [],
+    };
+  }
+  return { ...seedContext, problems: context.problems ?? seedContext.problems };
 }

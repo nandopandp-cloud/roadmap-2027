@@ -374,6 +374,9 @@ export async function deletePlatform(id: string): Promise<void> {
           .join(", ")}). Remova os vínculos antes de excluí-la.`,
       );
     }
+    if (db.context.platformStrategies.some((s) => s.platformId === id)) {
+      throw new DomainError(409, "Esta plataforma tem um direcionador estratégico no Contexto. Remova o direcionador antes de excluí-la.");
+    }
     db.platforms = db.platforms.filter((p) => p.id !== id);
   });
 }
@@ -381,6 +384,11 @@ export async function deletePlatform(id: string): Promise<void> {
 export async function updateContext(data: unknown): Promise<StrategyContext> {
   const context = parse(strategyContextSchema, data);
   return getRepository().transaction((db) => {
+    const platformIds = new Set(db.platforms.map((p) => p.id));
+    const unknown = context.platformStrategies.find((s) => !platformIds.has(s.platformId));
+    if (unknown) throw new DomainError(422, `A plataforma do direcionador “${unknown.focus}” não existe no catálogo.`);
+    const duplicate = context.platformStrategies.find((s, idx) => context.platformStrategies.findIndex((o) => o.platformId === s.platformId) !== idx);
+    if (duplicate) throw new DomainError(422, "Cada plataforma pode ter apenas um direcionador.");
     const ids = new Set(db.initiatives.map((i) => i.id));
     context.problems = context.problems.map((p) => ({
       ...p,

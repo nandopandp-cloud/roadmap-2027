@@ -1,8 +1,9 @@
 "use client";
 
+import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { PLATFORM_GLYPHS, PLATFORM_ICON_LABEL } from "@/components/platforms/platform-icon";
-import { Button } from "@/components/ui/button";
+import { Button, IconButton } from "@/components/ui/button";
 import { Modal, useConfirm } from "@/components/ui/dialog";
 import { ChipMultiSelect, HiddenInput, LinesField, SelectField, TextAreaField, TextField } from "@/components/ui/fields";
 import { useToast } from "@/components/ui/toast";
@@ -10,11 +11,18 @@ import { ApiError } from "@/lib/client/api";
 import { cn } from "@/lib/client/cn";
 import { useRoadmap } from "@/lib/client/store";
 import { ACCENT_TONE } from "@/lib/client/tones";
-import { PLATFORM_ACCENTS, PLATFORM_ICONS, PROBLEM_VALIDATION } from "@/lib/domain/constants";
-import { PROBLEM_VALIDATION_LABEL } from "@/lib/domain/labels";
-import type { Driver, Platform, PlatformInput, StructuralProblem } from "@/lib/domain/types";
+import { METRIC_TARGET_STATES, PLATFORM_ACCENTS, PLATFORM_ICONS, PROBLEM_VALIDATION } from "@/lib/domain/constants";
+import { METRIC_TARGET_STATE_LABEL, PROBLEM_VALIDATION_LABEL } from "@/lib/domain/labels";
+import type { Platform, PlatformGoal, PlatformIndicator, PlatformInput, PlatformStrategy, ProposalSection, StructuralProblem } from "@/lib/domain/types";
 import { slugify } from "@/lib/validation/paths";
-import { driverSchema, fieldErrors, platformInputSchema, structuralProblemSchema } from "@/lib/validation/schemas";
+import {
+  fieldErrors,
+  platformInputSchema,
+  platformStrategySchema,
+  proposalSectionSchema,
+  strategyContextSchema,
+  structuralProblemSchema,
+} from "@/lib/validation/schemas";
 
 /** Hook comum: confirma descarte de alterações ao fechar um editor. */
 function useGuardedClose(dirty: boolean, onClose: () => void) {
@@ -41,25 +49,147 @@ const uniqueId = (base: string, taken: string[]) => {
   return id;
 };
 
-export function DriverEditor({ driver, onClose }: { driver: Driver | null; onClose: () => void }) {
+type ContextTextField = "intro" | "platformsIntro" | "measurement";
+
+/** Edita um texto corrido do contexto (Markdown). */
+export function ContextTextEditor({ field, title, description, onClose }: { field: ContextTextField; title: string; description?: string; onClose: () => void }) {
   const { data, saveContext } = useRoadmap();
   const notify = useToast();
-  const [draft, setDraft] = useState({ title: driver?.title ?? "", description: driver?.description ?? "" });
+  const initial = data.context[field];
+  const [draft, setDraft] = useState(initial);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
-  const dirty = draft.title !== (driver?.title ?? "") || draft.description !== (driver?.description ?? "");
-  const close = useGuardedClose(dirty, onClose);
+  const close = useGuardedClose(draft !== initial, onClose);
 
   async function save() {
-    const id = driver?.id ?? uniqueId(draft.title, data.context.drivers.map((d) => d.id));
-    const parsed = driverSchema.safeParse({ id, ...draft });
+    const parsed = strategyContextSchema.safeParse({ ...data.context, [field]: draft });
     if (!parsed.success) return setErrors(fieldErrors(parsed.error));
     setSaving(true);
     try {
-      const drivers = driver
-        ? data.context.drivers.map((d) => (d.id === driver.id ? parsed.data : d))
-        : [...data.context.drivers, parsed.data];
-      await saveContext({ ...data.context, drivers });
+      await saveContext(parsed.data);
+      notify("success", "Texto atualizado.");
+      onClose();
+    } catch (error) {
+      notify("error", error instanceof ApiError ? error.message : "Não foi possível salvar.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal
+      open
+      size="lg"
+      onClose={close}
+      title={title}
+      description={description}
+      footer={
+        <>
+          <Button variant="ghost" onClick={close}>Cancelar</Button>
+          <Button variant="primary" loading={saving} onClick={save} disabled={draft === initial}>Salvar</Button>
+        </>
+      }
+    >
+      <TextAreaField label="Texto" hint={MARKDOWN_HINT} rows={14} value={draft} onChange={(e) => setDraft(e.target.value)} error={errors[field]} data-autofocus />
+    </Modal>
+  );
+}
+
+const MARKDOWN_HINT = "Aceita Markdown: **negrito**, listas com “- ”, tabelas e títulos com “### ”. Separe parágrafos com uma linha em branco.";
+
+/** Seção narrativa da proposta do roadmap. */
+export function ProposalSectionEditor({ section, onClose }: { section: ProposalSection | null; onClose: () => void }) {
+  const { data, saveContext } = useRoadmap();
+  const notify = useToast();
+  const initial = { title: section?.title ?? "", subtitle: section?.subtitle ?? "", body: section?.body ?? "", highlight: section?.highlight ?? "" };
+  const [draft, setDraft] = useState(initial);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+  const close = useGuardedClose(JSON.stringify(draft) !== JSON.stringify(initial), onClose);
+  const set = <K extends keyof typeof draft>(k: K, v: string) => setDraft((d) => ({ ...d, [k]: v }));
+
+  async function save() {
+    const id = section?.id ?? uniqueId(draft.title, data.context.proposal.map((p) => p.id));
+    const parsed = proposalSectionSchema.safeParse({ id, ...draft });
+    if (!parsed.success) return setErrors(fieldErrors(parsed.error));
+    setSaving(true);
+    try {
+      const proposal = section ? data.context.proposal.map((p) => (p.id === section.id ? parsed.data : p)) : [...data.context.proposal, parsed.data];
+      await saveContext({ ...data.context, proposal });
+      notify("success", "Seção salva.");
+      onClose();
+    } catch (error) {
+      notify("error", error instanceof ApiError ? error.message : "Não foi possível salvar.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal
+      open
+      size="lg"
+      onClose={close}
+      title={section ? "Editar seção da proposta" : "Nova seção da proposta"}
+      footer={
+        <>
+          <Button variant="ghost" onClick={close}>Cancelar</Button>
+          <Button variant="primary" loading={saving} onClick={save}>Salvar</Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        <TextField label="Título" required value={draft.title} onChange={(e) => set("title", e.target.value)} error={errors.title} data-autofocus />
+        <TextField label="Subtítulo (opcional)" value={draft.subtitle} onChange={(e) => set("subtitle", e.target.value)} error={errors.subtitle} />
+        <TextAreaField label="Texto" required hint={MARKDOWN_HINT} rows={14} value={draft.body} onChange={(e) => set("body", e.target.value)} error={errors.body} />
+        <TextAreaField label="Frase de destaque (opcional)" hint="Aparece em destaque ao final da seção." rows={2} value={draft.highlight} onChange={(e) => set("highlight", e.target.value)} error={errors.highlight} />
+      </div>
+    </Modal>
+  );
+}
+
+const rowId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
+
+type StrategyDraft = Omit<PlatformStrategy, "id">;
+
+const emptyStrategy = (platformId: string): StrategyDraft => ({
+  platformId,
+  focus: "",
+  statement: "",
+  narrative: "",
+  indicators: [],
+  goals: [],
+  outcomes: [],
+  closing: "",
+});
+
+/** Direcionador estratégico de uma plataforma: porquê, indicadores atuais e metas. */
+export function PlatformStrategyEditor({ strategy, onClose }: { strategy: PlatformStrategy | null; onClose: () => void }) {
+  const { data, saveContext } = useRoadmap();
+  const notify = useToast();
+  const used = new Set(data.context.platformStrategies.filter((s) => s.id !== strategy?.id).map((s) => s.platformId));
+  const available = data.platforms.filter((p) => !used.has(p.id) || p.id === strategy?.platformId);
+  const initial: StrategyDraft = strategy ? { ...strategy } : emptyStrategy(available[0]?.id ?? "");
+  const [draft, setDraft] = useState<StrategyDraft>(initial);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+  const close = useGuardedClose(JSON.stringify(draft) !== JSON.stringify(initial), onClose);
+  const set = <K extends keyof StrategyDraft>(k: K, v: StrategyDraft[K]) => setDraft((d) => ({ ...d, [k]: v }));
+  const setIndicator = (idx: number, patch: Partial<PlatformIndicator>) =>
+    set("indicators", draft.indicators.map((x, i) => (i === idx ? { ...x, ...patch } : x)));
+  const setGoal = (idx: number, patch: Partial<PlatformGoal>) => set("goals", draft.goals.map((x, i) => (i === idx ? { ...x, ...patch } : x)));
+
+  async function save() {
+    const platform = data.platforms.find((p) => p.id === draft.platformId);
+    const id = strategy?.id ?? uniqueId(`${platform?.name ?? "plataforma"}-${draft.focus}`, data.context.platformStrategies.map((s) => s.id));
+    const parsed = platformStrategySchema.safeParse({ ...draft, id, outcomes: draft.outcomes.map((o) => o.trim()).filter(Boolean) });
+    if (!parsed.success) return setErrors(fieldErrors(parsed.error));
+    setSaving(true);
+    try {
+      const platformStrategies = strategy
+        ? data.context.platformStrategies.map((s) => (s.id === strategy.id ? parsed.data : s))
+        : [...data.context.platformStrategies, parsed.data];
+      await saveContext({ ...data.context, platformStrategies });
       notify("success", "Direcionador salvo.");
       onClose();
     } catch (error) {
@@ -72,20 +202,97 @@ export function DriverEditor({ driver, onClose }: { driver: Driver | null; onClo
   return (
     <Modal
       open
+      size="lg"
       onClose={close}
-      title={driver ? "Editar direcionador" : "Novo direcionador"}
-      description="Direcionadores orientam a priorização; não são metas ou compromissos aprovados."
+      title={strategy ? "Editar direcionador da plataforma" : "Novo direcionador da plataforma"}
+      description="Registre apenas números e metas informados pelo time. Metas ficam como propostas até serem aprovadas."
       footer={
         <>
           <Button variant="ghost" onClick={close}>Cancelar</Button>
-          <Button variant="primary" loading={saving} onClick={save}>Salvar</Button>
+          <Button variant="primary" loading={saving} onClick={save} disabled={!available.length}>Salvar</Button>
         </>
       }
     >
-      <div className="flex flex-col gap-4">
-        <TextField label="Título" required value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} error={errors.title} data-autofocus />
-        <TextAreaField label="Descrição" required rows={3} value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} error={errors.description} />
-      </div>
+      {!available.length ? (
+        <p className="text-[14.5px] text-muted">Todas as plataformas do catálogo já têm um direcionador. Edite o direcionador existente ou cadastre uma nova plataforma.</p>
+      ) : (
+        <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-[220px_1fr]">
+            <SelectField label="Plataforma" required value={draft.platformId} onChange={(e) => set("platformId", e.target.value)} error={errors.platformId}>
+              {available.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </SelectField>
+            <TextField label="Direcionador" required placeholder="Ex.: Estabilidade e confiabilidade" value={draft.focus} onChange={(e) => set("focus", e.target.value)} error={errors.focus} data-autofocus />
+          </div>
+          <TextField label="Direcionador em uma frase" value={draft.statement} onChange={(e) => set("statement", e.target.value)} error={errors.statement} />
+          <TextAreaField label="Por que este direcionador" hint={MARKDOWN_HINT} rows={10} value={draft.narrative} onChange={(e) => set("narrative", e.target.value)} error={errors.narrative} />
+
+          <fieldset className="rounded-2xl border border-line p-4">
+            <legend className="px-1 text-[13px] font-bold text-navy">Indicadores atuais</legend>
+            {draft.indicators.length === 0 && <p className="text-[13px] italic text-subtle">Nenhum indicador registrado.</p>}
+            <ul className="flex flex-col gap-3">
+              {draft.indicators.map((ind, idx) => (
+                <li key={ind.id} className="grid grid-cols-1 gap-3 rounded-xl bg-[#f7f9fd] p-3 sm:grid-cols-[1fr_130px_auto]">
+                  <TextField label="Indicador" required value={ind.label} onChange={(e) => setIndicator(idx, { label: e.target.value })} error={errors[`indicators.${idx}.label`]} />
+                  <TextField label="Valor" required value={ind.value} onChange={(e) => setIndicator(idx, { value: e.target.value })} error={errors[`indicators.${idx}.value`]} />
+                  <div className="flex items-end justify-end pb-1">
+                    <IconButton label={`Remover indicador ${ind.label || idx + 1}`} onClick={() => set("indicators", draft.indicators.filter((_, i) => i !== idx))}>
+                      <Trash2 size={16} />
+                    </IconButton>
+                  </div>
+                  <TextField label="Observação (opcional)" className="sm:col-span-3" value={ind.detail} onChange={(e) => setIndicator(idx, { detail: e.target.value })} error={errors[`indicators.${idx}.detail`]} />
+                </li>
+              ))}
+            </ul>
+            <Button size="sm" className="mt-3" icon={<Plus size={15} />} onClick={() => set("indicators", [...draft.indicators, { id: rowId("ind"), label: "", value: "", detail: "" }])}>
+              Adicionar indicador
+            </Button>
+          </fieldset>
+
+          <fieldset className="rounded-2xl border border-line p-4">
+            <legend className="px-1 text-[13px] font-bold text-navy">Metas</legend>
+            {draft.goals.length === 0 && <p className="text-[13px] italic text-subtle">Nenhuma meta registrada.</p>}
+            <ul className="flex flex-col gap-3">
+              {draft.goals.map((goal, idx) => (
+                <li key={goal.id} className="grid grid-cols-1 gap-3 rounded-xl bg-[#f7f9fd] p-3 sm:grid-cols-2">
+                  <TextField label="Indicador" required className="sm:col-span-2" value={goal.label} onChange={(e) => setGoal(idx, { label: e.target.value })} error={errors[`goals.${idx}.label`]} />
+                  <TextField label="Valor atual" value={goal.current} onChange={(e) => setGoal(idx, { current: e.target.value })} error={errors[`goals.${idx}.current`]} />
+                  <TextField label="Meta" required value={goal.target} onChange={(e) => setGoal(idx, { target: e.target.value })} error={errors[`goals.${idx}.target`]} />
+                  <TextField label="Observação (opcional)" value={goal.detail} onChange={(e) => setGoal(idx, { detail: e.target.value })} error={errors[`goals.${idx}.detail`]} />
+                  <div className="flex items-end gap-2">
+                    <SelectField label="Situação da meta" className="flex-1" value={goal.state} onChange={(e) => setGoal(idx, { state: e.target.value as PlatformGoal["state"] })}>
+                      {METRIC_TARGET_STATES.map((st) => (
+                        <option key={st} value={st}>
+                          {METRIC_TARGET_STATE_LABEL[st]}
+                        </option>
+                      ))}
+                    </SelectField>
+                    <div className="pb-1">
+                      <IconButton label={`Remover meta ${goal.label || idx + 1}`} onClick={() => set("goals", draft.goals.filter((_, i) => i !== idx))}>
+                        <Trash2 size={16} />
+                      </IconButton>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <Button
+              size="sm"
+              className="mt-3"
+              icon={<Plus size={15} />}
+              onClick={() => set("goals", [...draft.goals, { id: rowId("meta"), label: "", current: "", target: "", detail: "", state: "proposta" }])}
+            >
+              Adicionar meta
+            </Button>
+          </fieldset>
+
+          <LinesField label="O que queremos alcançar" rows={5} value={draft.outcomes} onChange={(v) => set("outcomes", v)} error={errors.outcomes} />
+          <TextAreaField label="Fechamento (opcional)" hint={MARKDOWN_HINT} rows={4} value={draft.closing} onChange={(e) => set("closing", e.target.value)} error={errors.closing} />
+        </div>
+      )}
     </Modal>
   );
 }
