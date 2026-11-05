@@ -8,7 +8,6 @@ import {
   ChartColumn,
   ChevronDown,
   Flag,
-  Layers,
   Lightbulb,
   Pencil,
   Plus,
@@ -21,11 +20,11 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useId, useState, type KeyboardEvent, type ReactNode } from "react";
-import { ContextFieldsEditor, PlatformEditor, PlatformStrategyEditor, ProblemEditor, ProposalSectionEditor, type ContextFieldSpec } from "@/components/context/editors";
+import { ContextFieldsEditor, PlatformStrategyEditor, ProposalSectionEditor, type ContextFieldSpec } from "@/components/context/editors";
 import { MarkdownView } from "@/components/documents/markdown";
 import { PageContainer, PageHero } from "@/components/layout/page-header";
 import { PlatformTile } from "@/components/platforms/platform-icon";
-import { StateTag, ValidationBadge } from "@/components/ui/badges";
+import { StateTag } from "@/components/ui/badges";
 import { Button, IconButton } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/dialog";
 import { EmptyState, ErrorBanner, Skeleton } from "@/components/ui/feedback";
@@ -36,14 +35,12 @@ import { cn } from "@/lib/client/cn";
 import { useInitiativeSelection } from "@/lib/client/selection";
 import { useRoadmap } from "@/lib/client/store";
 import { ACCENT_TONE } from "@/lib/client/tones";
-import { PROBLEM_VALIDATION } from "@/lib/domain/constants";
-import { CONTEXT_ART, METRIC_TARGET_STATE_LABEL, PROBLEM_VALIDATION_LABEL } from "@/lib/domain/labels";
-import type { ContextArt, Platform, PlatformStrategy, ProblemValidation, ProposalSection, StrategyContext, StructuralProblem } from "@/lib/domain/types";
+import { CONTEXT_ART, METRIC_TARGET_STATE_LABEL } from "@/lib/domain/labels";
+import type { ContextArt, Platform, PlatformStrategy, ProposalSection, StrategyContext } from "@/lib/domain/types";
 
-const TABS: { key: "proposta" | "plataformas" | "referencias"; label: string; icon: LucideIcon }[] = [
+const TABS: { key: "proposta" | "plataformas"; label: string; icon: LucideIcon }[] = [
   { key: "proposta", label: "Proposta do Roadmap 2027", icon: Target },
   { key: "plataformas", label: "Plataformas e indicadores", icon: ChartColumn },
-  { key: "referencias", label: "Problemas e plataformas", icon: Layers },
 ];
 type Tab = (typeof TABS)[number]["key"];
 
@@ -691,190 +688,6 @@ function PlatformsTab({ onEditFields }: { onEditFields: (edit: FieldsEdit) => vo
   );
 }
 
-/* ───────────────────────────── Problemas e plataformas ───────────────────────────── */
-
-function Section({ id, title, description, action, children }: { id: string; title: string; description?: ReactNode; action?: ReactNode; children: ReactNode }) {
-  return (
-    <section aria-labelledby={id} className="mt-10 scroll-mt-6 first:mt-0">
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 id={id} className="text-[22px] font-black text-navy">
-            {title}
-          </h2>
-          {description && <div className="mt-1 max-w-3xl text-[14.5px] text-muted">{description}</div>}
-        </div>
-        {action}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function ReferencesTab() {
-  const { data, removePlatform } = useRoadmap();
-  const confirm = useConfirm();
-  const notify = useToast();
-  const remove = useRemove();
-  const { open } = useInitiativeSelection();
-  const [problemEdit, setProblemEdit] = useState<StructuralProblem | null | undefined>(undefined);
-  const [platformEdit, setPlatformEdit] = useState<Platform | null | undefined>(undefined);
-  const [validationFilter, setValidationFilter] = useState<ProblemValidation | "todos">("todos");
-  const problems = data.context.problems.filter((p) => validationFilter === "todos" || p.validation === validationFilter);
-
-  async function deletePlatform(p: Platform) {
-    const ok = await confirm({ title: "Excluir plataforma?", message: `“${p.name}” será removida do catálogo.`, confirmLabel: "Excluir", tone: "danger" });
-    if (!ok) return;
-    try {
-      await removePlatform(p.id);
-      notify("success", "Plataforma excluída.");
-    } catch (error) {
-      notify("error", error instanceof ApiError ? error.message : "Não foi possível excluir.");
-    }
-  }
-
-  return (
-    <>
-      <Section
-        id="problemas"
-        title="Problemas estruturais"
-        description="Problemas recorrentes que podem ser associados às iniciativas. Problemas confirmados têm evidências; hipóteses ainda precisam de validação."
-        action={data.writable ? <Button size="sm" icon={<Plus size={15} />} onClick={() => setProblemEdit(null)}>Novo problema</Button> : undefined}
-      >
-        <div role="radiogroup" aria-label="Filtrar por validação" className="mb-4 flex flex-wrap gap-2">
-          {(["todos", ...PROBLEM_VALIDATION] as const).map((v) => {
-            const count = v === "todos" ? data.context.problems.length : data.context.problems.filter((p) => p.validation === v).length;
-            return (
-              <button
-                key={v}
-                type="button"
-                role="radio"
-                aria-checked={validationFilter === v}
-                onClick={() => setValidationFilter(v)}
-                className={cn("rounded-full px-3.5 py-1.5 text-[13px] font-bold transition-colors", validationFilter === v ? "bg-navy text-white" : "bg-surface text-muted hover:text-ink")}
-              >
-                {v === "todos" ? "Todos" : PROBLEM_VALIDATION_LABEL[v]} ({count})
-              </button>
-            );
-          })}
-        </div>
-        {problems.length === 0 ? (
-          <EmptyState compact title={data.context.problems.length ? "Nenhum problema neste filtro" : "Nenhum problema estrutural cadastrado"} />
-        ) : (
-          <ul className="flex flex-col gap-4">
-            {problems.map((p) => (
-              <li key={p.id} id={`problema-${p.id}`} className="scroll-mt-6 rounded-3xl border border-line bg-surface p-6 shadow-[var(--shadow-card)]">
-                <div className="flex flex-wrap items-start gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2.5">
-                      <h3 className="text-[17px] font-extrabold text-navy">{p.name}</h3>
-                      <ValidationBadge validation={p.validation} />
-                    </div>
-                    <p className="mt-1.5 text-[14.5px] leading-relaxed text-muted">{p.description}</p>
-                  </div>
-                  <ItemActions
-                    label={p.name}
-                    className="-mr-2 -mt-1"
-                    onEdit={() => setProblemEdit(p)}
-                    onRemove={() =>
-                      remove(
-                        "Remover problema estrutural?",
-                        `“${p.name}” será removido. As iniciativas relacionadas não são afetadas.`,
-                        { problems: data.context.problems.filter((x) => x.id !== p.id) },
-                        "Problema removido.",
-                      )
-                    }
-                  />
-                </div>
-                <dl className="mt-4 grid grid-cols-1 gap-x-8 gap-y-4 border-t border-line pt-4 text-[14px] md:grid-cols-2">
-                  <div>
-                    <dt className="text-[12.5px] font-extrabold uppercase tracking-wide text-subtle">Público afetado</dt>
-                    <dd className="mt-1 text-ink">{p.audience || <span className="italic text-subtle">Não informado.</span>}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-[12.5px] font-extrabold uppercase tracking-wide text-subtle">Consequências</dt>
-                    <dd className="mt-1 text-ink">{p.consequences || <span className="italic text-subtle">Não informadas.</span>}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-[12.5px] font-extrabold uppercase tracking-wide text-subtle">Evidências disponíveis</dt>
-                    <dd className="mt-1">
-                      {p.evidence.length ? (
-                        <ul className="flex list-disc flex-col gap-1 pl-4 text-ink marker:text-violet">
-                          {p.evidence.map((e, idx) => (
-                            <li key={idx}>{e}</li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <span className="italic text-subtle">Nenhuma evidência registrada.</span>
-                      )}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-[12.5px] font-extrabold uppercase tracking-wide text-subtle">Iniciativas relacionadas</dt>
-                    <dd className="mt-1.5">
-                      <InitiativeLinks ids={p.relatedInitiativeIds} />
-                    </dd>
-                  </div>
-                </dl>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Section>
-
-      <Section
-        id="plataformas"
-        title="Catálogo de plataformas"
-        description="Referência editável do ecossistema. Plataformas vinculadas a iniciativas ou a um direcionador não podem ser excluídas."
-        action={data.writable ? <Button size="sm" icon={<Plus size={15} />} onClick={() => setPlatformEdit(null)}>Nova plataforma</Button> : undefined}
-      >
-        <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {data.platforms.map((p) => {
-            const related = data.initiatives.filter((i) => i.platformIds.includes(p.id));
-            return (
-              <li key={p.id} className="flex flex-col rounded-3xl border border-line bg-surface p-5 shadow-[var(--shadow-card)]">
-                <div className="flex items-start gap-3.5">
-                  <PlatformTile platform={p} size={48} />
-                  <div className="min-w-0 flex-1">
-                    <h3 className="text-[16px] font-extrabold text-navy">{p.name}</h3>
-                    <p className="mt-0.5 text-[13px] leading-snug text-muted">{p.description || "Sem descrição."}</p>
-                  </div>
-                  <ItemActions label={p.name} className="-mr-2 -mt-1" onEdit={() => setPlatformEdit(p)} onRemove={() => deletePlatform(p)} />
-                </div>
-                <p className="mt-3 text-[12.5px] text-muted">
-                  <span className="font-bold text-ink">Responsável: </span>
-                  {p.owner || "não definido"}
-                </p>
-                <div className="mt-3 border-t border-line pt-3">
-                  {related.length === 0 ? (
-                    <p className="text-[12.5px] italic text-subtle">Nenhuma iniciativa vinculada.</p>
-                  ) : (
-                    <div className="flex flex-wrap gap-1.5">
-                      {related.map((i) => (
-                        <button
-                          key={i.id}
-                          type="button"
-                          onClick={() => open(i.id)}
-                          className="rounded-full bg-[#f2f5fb] px-2.5 py-1 text-[12px] font-bold text-ink hover:bg-brand-soft hover:text-brand"
-                          title={i.title}
-                        >
-                          {i.id}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      </Section>
-
-      {problemEdit !== undefined && <ProblemEditor problem={problemEdit} onClose={() => setProblemEdit(undefined)} />}
-      {platformEdit !== undefined && <PlatformEditor platform={platformEdit} onClose={() => setPlatformEdit(undefined)} />}
-    </>
-  );
-}
-
 /* ───────────────────────────── Página ───────────────────────────── */
 
 export function ContextView() {
@@ -936,10 +749,8 @@ export function ContextView() {
           {load.status === "ready" &&
             (tab === "proposta" ? (
               <ProposalTab onEditFields={setFieldsEdit} onShowPlatforms={() => setTab("plataformas", true)} />
-            ) : tab === "plataformas" ? (
-              <PlatformsTab onEditFields={setFieldsEdit} />
             ) : (
-              <ReferencesTab />
+              <PlatformsTab onEditFields={setFieldsEdit} />
             ))}
         </div>
 
