@@ -324,55 +324,6 @@ function ProposalTab({ onEditFields }: { onEditFields: (edit: FieldsEdit) => voi
 
 /* ───────────────────────────── Plataformas e indicadores ───────────────────────────── */
 
-/** Números em destaque no card: indicadores e metas marcados como destaque. */
-function StrategyHighlights({ strategy, toneFg, toneSoft }: { strategy: PlatformStrategy; toneFg: string; toneSoft: string }) {
-  const indicators = strategy.indicators.filter((i) => i.featured);
-  const goals = strategy.goals.filter((g) => g.featured);
-  if (!indicators.length && !goals.length) return null;
-  return (
-    <ul className="flex flex-wrap items-stretch gap-x-6 gap-y-4" aria-label="Números em destaque">
-      {indicators.map((ind) => (
-        <li key={ind.id} className="flex min-w-[96px] max-w-[150px] flex-col justify-center border-[#e3e6f2] text-center [&:not(:first-child)]:border-l [&:not(:first-child)]:pl-6">
-          <span className="text-[25px] font-black leading-none tracking-[-0.02em] text-navy">{ind.value}</span>
-          <span className="mt-1.5 text-[12.5px] font-semibold leading-snug text-muted">{ind.label}</span>
-        </li>
-      ))}
-      {goals.map((g) => (
-        <li key={g.id} className="flex flex-wrap items-center gap-4 border-[#e3e6f2] [&:not(:first-child)]:border-l [&:not(:first-child)]:pl-6">
-          <div className="text-center">
-            <p className="flex items-center justify-center gap-2 whitespace-nowrap text-[22px] font-black leading-none tracking-[-0.02em] text-navy">
-              {g.current && (
-                <>
-                  <span>
-                    <span className="sr-only">De </span>
-                    {g.current}
-                  </span>
-                  <ArrowRight size={18} className="text-violet" aria-hidden />
-                </>
-              )}
-              <span>
-                <span className="sr-only">{g.current ? "para " : "Meta: "}</span>
-                {g.target}
-              </span>
-            </p>
-            <p className="mt-1.5 max-w-[230px] text-[12.5px] font-semibold leading-snug text-muted">
-              {g.label} <span className="text-subtle">(atual → meta)</span>
-            </p>
-          </div>
-          {g.change && (
-            <div className="rounded-2xl px-3.5 py-2.5 text-center" style={{ background: toneSoft }}>
-              <p className="text-[22px] font-black leading-none" style={{ color: toneFg }}>
-                {g.change}
-              </p>
-              {g.changeLabel && <p className="mt-1 max-w-[120px] text-[12px] font-semibold leading-snug text-ink">{g.changeLabel}</p>}
-            </div>
-          )}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 /** Detalhamento: todos os indicadores, metas, porquê, resultados e iniciativas. */
 function StrategyDetails({ strategy, toneSolid, toneSoft }: { strategy: PlatformStrategy; toneSolid: string; toneSoft: string }) {
   const { data } = useRoadmap();
@@ -424,6 +375,12 @@ function StrategyDetails({ strategy, toneSolid, toneSoft }: { strategy: Platform
                     {g.target}
                   </span>
                 </p>
+                {g.change && (
+                  <p className="rounded-xl px-2.5 py-1 text-[13px] font-bold text-ink" style={{ background: toneSoft }}>
+                    <span className="font-black">{g.change}</span>
+                    {g.changeLabel && <span className="font-semibold"> {g.changeLabel}</span>}
+                  </p>
+                )}
                 <StateTag tone={g.state === "aprovada" ? "ok" : g.state === "proposta" ? "warn" : "neutral"}>Meta {METRIC_TARGET_STATE_LABEL[g.state].toLowerCase()}</StateTag>
               </li>
             ))}
@@ -485,7 +442,7 @@ function StrategyCard({ strategy, platform, onEdit, onRemove }: { strategy: Plat
       className="relative scroll-mt-6 overflow-hidden rounded-[26px] border bg-surface shadow-[var(--shadow-card)]"
       style={{ borderColor: tone.soft, background: `linear-gradient(100deg, ${tone.soft} 0%, #ffffff 48%)` }}
     >
-      <div className="grid gap-5 p-5 sm:p-6 xl:grid-cols-[minmax(300px,0.95fr)_minmax(0,1.25fr)_290px] xl:items-center xl:gap-6">
+      <div className="grid gap-5 p-5 sm:p-6 xl:grid-cols-[minmax(0,1fr)_360px] xl:items-center xl:gap-8">
         <div className="flex items-start gap-4">
           <div
             className="flex h-[92px] w-[92px] shrink-0 items-end justify-center overflow-hidden rounded-[22px] sm:h-[112px] sm:w-[112px]"
@@ -506,12 +463,8 @@ function StrategyCard({ strategy, platform, onEdit, onRemove }: { strategy: Plat
             <p className="mt-1.5 inline-block rounded-2xl px-3 py-1 text-[13px] font-semibold leading-snug" style={{ background: tone.soft, color: tone.fg }}>
               Foco: <strong className="font-black">{strategy.focus}</strong>
             </p>
-            {(strategy.summary || strategy.statement) && <p className="mt-2 text-[14px] leading-snug text-[#3b4470]">{strategy.summary || strategy.statement}</p>}
+            {(strategy.summary || strategy.statement) && <p className="mt-2 max-w-[72ch] text-[15px] leading-relaxed text-[#3b4470]">{strategy.summary || strategy.statement}</p>}
           </div>
-        </div>
-
-        <div className="border-[#e3e6f2] xl:border-l xl:pl-6">
-          <StrategyHighlights strategy={strategy} toneFg={tone.fg} toneSoft={tone.soft} />
         </div>
 
         <div className="rounded-2xl bg-white/80 p-4 ring-1 ring-[#eef1f8]">

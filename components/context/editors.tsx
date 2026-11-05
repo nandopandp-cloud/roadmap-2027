@@ -5,7 +5,7 @@ import { useState } from "react";
 import { PLATFORM_GLYPHS, PLATFORM_ICON_LABEL } from "@/components/platforms/platform-icon";
 import { Button, IconButton } from "@/components/ui/button";
 import { Modal, useConfirm } from "@/components/ui/dialog";
-import { Checkbox, ChipMultiSelect, HiddenInput, LinesField, SelectField, TextAreaField, TextField } from "@/components/ui/fields";
+import { ChipMultiSelect, HiddenInput, LinesField, SelectField, TextAreaField, TextField } from "@/components/ui/fields";
 import { useToast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/client/api";
 import { cn } from "@/lib/client/cn";
@@ -351,9 +351,6 @@ export function PlatformStrategyEditor({ strategy, onClose }: { strategy: Platfo
                     </IconButton>
                   </div>
                   <TextField label="Observação (opcional)" className="sm:col-span-3" value={ind.detail} onChange={(e) => setIndicator(idx, { detail: e.target.value })} error={errors[`indicators.${idx}.detail`]} />
-                  <div className="sm:col-span-3">
-                    <Checkbox label="Destacar no card da plataforma" checked={ind.featured} onChange={(v) => setIndicator(idx, { featured: v })} />
-                  </div>
                 </li>
               ))}
             </ul>
@@ -387,9 +384,6 @@ export function PlatformStrategyEditor({ strategy, onClose }: { strategy: Platfo
                         <Trash2 size={16} />
                       </IconButton>
                     </div>
-                  </div>
-                  <div className="sm:col-span-2">
-                    <Checkbox label="Destacar no card da plataforma" checked={goal.featured} onChange={(v) => setGoal(idx, { featured: v })} />
                   </div>
                 </li>
               ))}
