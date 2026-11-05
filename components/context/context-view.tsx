@@ -81,17 +81,6 @@ const INTRO_EDIT: FieldsEdit = {
   apply: (c, v) => ({ ...c, introTitle: v.introTitle, introSummary: v.introSummary, intro: v.intro }),
 };
 
-const COMMITMENT_EDIT: FieldsEdit = {
-  title: "Editar compromisso",
-  fields: [
-    { key: "title", label: "Título", kind: "line" },
-    { key: "summary", label: "Resumo", rows: 3, hint: "Frase exibida na faixa de destaque." },
-    { key: "body", label: "Texto completo", rows: 10 },
-  ],
-  read: (c) => ({ ...c.commitment }),
-  apply: (c, v) => ({ ...c, commitment: { title: v.title, summary: v.summary, body: v.body } }),
-};
-
 const PLATFORMS_EDIT: FieldsEdit = {
   title: "Editar apresentação dos direcionadores",
   fields: [
@@ -205,36 +194,6 @@ function SubHeading({ children }: { children: ReactNode }) {
   return <h4 className="text-[12.5px] font-extrabold uppercase tracking-wide text-subtle">{children}</h4>;
 }
 
-/** Faixa “Nosso compromisso para 2027”, ao final das abas principais. */
-function CommitmentBanner({ onEdit }: { onEdit: () => void }) {
-  const { data } = useRoadmap();
-  const c = data.context.commitment;
-  if (!c.title && !c.summary && !data.writable) return null;
-  return (
-    <section aria-label={c.title || "Compromisso"} className="relative mt-8 overflow-hidden rounded-[28px] bg-[linear-gradient(100deg,#4f33c4_0%,#6243d8_45%,#7b55e6_100%)] text-white shadow-[var(--shadow-raised)]">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/illustrations/foguete.jpg" alt="" aria-hidden className="pointer-events-none absolute -left-6 top-1/2 hidden h-[190px] w-[190px] -translate-y-1/2 -rotate-12 object-cover mix-blend-screen sm:block" />
-      <span aria-hidden className="pointer-events-none absolute -bottom-10 left-6 hidden h-24 w-48 rounded-full bg-white/25 blur-xl sm:block" />
-      <div className="relative px-6 py-7 sm:py-8 sm:pl-[200px] sm:pr-16">
-        <div className="grid items-center gap-x-8 gap-y-3 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
-          <h2 className="text-[26px] font-black leading-tight sm:text-[30px]">{c.title || "Compromisso ainda não registrado"}</h2>
-          {c.summary && <p className="text-[16.5px] leading-relaxed text-white/90 md:border-l md:border-white/35 md:pl-8 md:text-[18px]">{c.summary}</p>}
-        </div>
-        {c.body && (
-          <div className="mt-4">
-            <Disclosure label="Ler o compromisso completo" tone="dark">
-              <div className="prose-on-dark max-w-[820px] rounded-2xl bg-white/10 p-5">
-                <MarkdownView content={c.body} />
-              </div>
-            </Disclosure>
-          </div>
-        )}
-      </div>
-      <ItemActions label="compromisso" tone="dark" className="absolute right-3 top-3" onEdit={onEdit} />
-    </section>
-  );
-}
-
 /* ───────────────────────────── Proposta do Roadmap 2027 ───────────────────────────── */
 
 const STEP_ICONS: LucideIcon[] = [CalendarDays, Flag, RefreshCw, Lightbulb, Rocket, Target];
@@ -257,7 +216,7 @@ function ProposalRow({ number, art, actions, children }: { number?: number; art:
   );
 }
 
-function ProposalTab({ onEditFields, onShowPlatforms }: { onEditFields: (edit: FieldsEdit) => void; onShowPlatforms: () => void }) {
+function ProposalTab({ onEditFields }: { onEditFields: (edit: FieldsEdit) => void }) {
   const { data } = useRoadmap();
   const remove = useRemove();
   const [edit, setEdit] = useState<ProposalSection | null | undefined>(undefined);
@@ -350,20 +309,13 @@ function ProposalTab({ onEditFields, onShowPlatforms }: { onEditFields: (edit: F
         )}
       </div>
 
-      <CommitmentBanner onEdit={() => onEditFields(COMMITMENT_EDIT)} />
-
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-        {data.writable ? (
+      {data.writable && (
+        <div className="mt-6">
           <Button size="sm" icon={<Plus size={15} />} onClick={() => setEdit(null)}>
             Nova seção
           </Button>
-        ) : (
-          <span />
-        )}
-        <Button variant="primary" icon={<ArrowRight size={16} />} onClick={onShowPlatforms}>
-          Ver plataformas e indicadores
-        </Button>
-      </div>
+        </div>
+      )}
 
       {edit !== undefined && <ProposalSectionEditor section={edit} onClose={() => setEdit(undefined)} />}
     </>
@@ -681,8 +633,6 @@ function PlatformsTab({ onEditFields }: { onEditFields: (edit: FieldsEdit) => vo
         </div>
       </section>
 
-      <CommitmentBanner onEdit={() => onEditFields(COMMITMENT_EDIT)} />
-
       {strategyEdit !== undefined && <PlatformStrategyEditor strategy={strategyEdit} onClose={() => setStrategyEdit(undefined)} />}
     </>
   );
@@ -748,7 +698,7 @@ export function ContextView() {
           {load.status === "error" && <ErrorBanner message={load.message} action={<Button size="sm" onClick={() => void reload()}>Tentar novamente</Button>} />}
           {load.status === "ready" &&
             (tab === "proposta" ? (
-              <ProposalTab onEditFields={setFieldsEdit} onShowPlatforms={() => setTab("plataformas", true)} />
+              <ProposalTab onEditFields={setFieldsEdit} />
             ) : (
               <PlatformsTab onEditFields={setFieldsEdit} />
             ))}
