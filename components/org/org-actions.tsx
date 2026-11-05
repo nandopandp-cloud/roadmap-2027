@@ -11,7 +11,7 @@ import { useConfirm } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/client/api";
 import { plural } from "@/lib/client/cn";
-import { useRoadmap } from "@/lib/client/store";
+import { useCanEdit, useRoadmap } from "@/lib/client/store";
 import { directReports, squadMembers, squadsLedBy } from "@/lib/domain/org";
 import type { Person, PersonInput, Squad } from "@/lib/domain/types";
 
@@ -49,7 +49,7 @@ export function OrgActionsProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [dialog, setDialog] = useState<Dialog | null>(null);
-  const canEdit = data.writable;
+  const canEdit = useCanEdit();
 
   const selectedId = params.get("colaborador");
   const setSelected = useCallback(
@@ -155,7 +155,8 @@ export function OrgActionsProvider({ children }: { children: ReactNode }) {
   return (
     <OrgContext.Provider value={value}>
       {children}
-      {dialog?.type === "person" && (
+      {/* Perfil de consulta nunca monta formulários, mesmo com estado antigo. */}
+      {canEdit && dialog?.type === "person" && (
         <PersonForm
           person={dialog.person}
           defaults={dialog.defaults}
@@ -166,9 +167,9 @@ export function OrgActionsProvider({ children }: { children: ReactNode }) {
           }}
         />
       )}
-      {dialog?.type === "squad" && <SquadForm squad={dialog.squad} onClose={close} onSaved={close} />}
-      {dialog?.type === "move" && <MoveDialog person={dialog.person} onClose={close} />}
-      {dialog?.type === "replace" && (
+      {canEdit && dialog?.type === "squad" && <SquadForm squad={dialog.squad} onClose={close} onSaved={close} />}
+      {canEdit && dialog?.type === "move" && <MoveDialog person={dialog.person} onClose={close} />}
+      {canEdit && dialog?.type === "replace" && (
         <ReplaceDialog
           person={dialog.person}
           onClose={close}

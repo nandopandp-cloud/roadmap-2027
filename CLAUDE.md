@@ -54,4 +54,4 @@ Instruções permanentes para trabalhar neste repositório. Leia o [README](READ
 - Estados de carregamento, vazio e erro em toda lista/painel que dependa de dados.
 - Alterações relevantes de planejamento devem gerar entrada de histórico (`lib/services/history.ts`).
 - Testar em 1536px (drawer lado a lado), 1024px (drawer sobreposto) e 390px (drawer em tela cheia).
-- Sem autenticação por enquanto: não implementar login fictício; ver README → Segurança.
+- Acesso só por Google SSO do domínio `jovensgenios.com` (`proxy.ts`, `lib/auth/`). Editores em `EDITOR_EMAILS` (`lib/auth/config.ts`); os demais são somente consulta. Toda ação de alteração na interface deve ser escondida com `useCanEdit()`; toda rota que altera dados usa `handleEdit()`. Ver README → Segurança.

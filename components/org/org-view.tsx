@@ -314,8 +314,12 @@ function OrgPage() {
             ) : empty ? (
               <EmptyState
                 icon={<Network size={22} />}
-                title="Monte o organograma do time"
-                description="Cadastre os squads e as pessoas. Depois, arraste os cards para realocar, edite cargos e lideranças ou substitua quem muda de posição."
+                title={canEdit ? "Monte o organograma do time" : "Organograma ainda não cadastrado"}
+                description={
+                  canEdit
+                    ? "Cadastre os squads e as pessoas. Depois, arraste os cards para realocar, edite cargos e lideranças ou substitua quem muda de posição."
+                    : "Os squads e colaboradores aparecerão aqui quando forem cadastrados."
+                }
                 action={
                   canEdit && (
                     <>

@@ -168,7 +168,9 @@ Para trocar uma arte, substitua o arquivo mantendo o nome. Para gerar a versão 
 
 ## Segurança e limitações
 
-- **Sem autenticação**: a aplicação não possui login. Qualquer pessoa com acesso à URL pode ler e editar. Use apenas em rede/ambiente controlado até que a autenticação seja adicionada (não há login fictício). O ponto natural para isso é um middleware do Next.js + verificação nas rotas de API.
+- **Acesso por Google (SSO)**: a única forma de entrar é "Continuar com o Google" em `/login`. Só contas verificadas do domínio `jovensgenios.com` (e-mail `@jovensgenios.com` e domínio Workspace `hd`) são aceitas. A sessão é um cookie `httpOnly` assinado com HMAC (`AUTH_SECRET`), válido por 7 dias. Configuração em [.env.example](.env.example).
+- **Perfis**: os e-mails em `EDITOR_EMAILS` ([lib/auth/config.ts](lib/auth/config.ts)) podem criar, editar, mover e remover conteúdo; as demais contas do domínio entram em modo **somente consulta** (os controles de edição somem da interface). Para mudar quem edita, altere essa lista; vale no próximo carregamento, sem novo login.
+- **Duas barreiras no servidor**: [proxy.ts](proxy.ts) exige sessão em toda página, API e protótipo, e recusa (403) qualquer método diferente de GET/HEAD para quem não edita ou que venha de outra origem; as rotas de API que alteram dados usam `handleEdit()` ([lib/http/handle.ts](lib/http/handle.ts)), que repete a checagem.
 - **Protótipos isolados**: servidos com CSP `sandbox` e exibidos em iframe `sandbox` sem `allow-same-origin` — não acessam cookies, armazenamento nem o DOM da aplicação.
 - **Markdown**: HTML embutido é ignorado na leitura (`skipHtml`) e imagens externas não são carregadas.
 - Dados de demonstração: veja o aviso no topo.

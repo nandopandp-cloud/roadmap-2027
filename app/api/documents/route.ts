@@ -1,4 +1,4 @@
-import { handle } from "@/lib/http/handle";
+import { handle, handleEdit } from "@/lib/http/handle";
 import { readDocument, writeDocument } from "@/lib/services/artifacts";
 import { DomainError } from "@/lib/services/errors";
 import { recordDocumentRevision } from "@/lib/services/roadmap-service";
@@ -21,7 +21,7 @@ export function GET(request: Request) {
  * (versão, data e nota) no documento associado à iniciativa.
  */
 export function PUT(request: Request) {
-  return handle(async () => {
+  return handleEdit(async () => {
     const body = (await request.json()) as Record<string, unknown>;
     const parsed = documentContentSchema.safeParse(body);
     if (!parsed.success) throw new DomainError(422, parsed.error.issues[0]?.message ?? "Dados inválidos.");

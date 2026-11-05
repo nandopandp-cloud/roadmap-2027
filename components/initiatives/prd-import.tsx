@@ -12,7 +12,7 @@ import { useToast } from "@/components/ui/toast";
 import { api, ApiError } from "@/lib/client/api";
 import { cn } from "@/lib/client/cn";
 import { useInitiativeSelection } from "@/lib/client/selection";
-import { useRoadmap } from "@/lib/client/store";
+import { useCanEdit, useRoadmap } from "@/lib/client/store";
 import type { InitiativeInput } from "@/lib/domain/types";
 import type { PrdImportResult } from "@/lib/services/prd-import";
 
@@ -40,7 +40,8 @@ const REQUIRED: Array<[keyof InitiativeInput, string]> = [
 /** Monta o diálogo quando solicitado pelo store. */
 export function PrdImportHost() {
   const { prdImportOpen } = useRoadmap();
-  return prdImportOpen ? <PrdImportDialog /> : null;
+  const canEdit = useCanEdit();
+  return prdImportOpen && canEdit ? <PrdImportDialog /> : null;
 }
 
 function PrdImportDialog() {

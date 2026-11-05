@@ -11,7 +11,7 @@ import { FilterSelect } from "@/components/ui/filter-select";
 import { cn, plural } from "@/lib/client/cn";
 import { DEFAULT_FILTERS, filterExceptStatus, filterInitiatives, type InitiativeFilters, type SortKey } from "@/lib/client/filtering";
 import { useInitiativeSelection } from "@/lib/client/selection";
-import { useRoadmap } from "@/lib/client/store";
+import { useCanEdit, useRoadmap } from "@/lib/client/store";
 import { INITIATIVE_STATUSES, QUARTERS } from "@/lib/domain/constants";
 import { QUARTER_LABEL } from "@/lib/domain/labels";
 import type { InitiativeStatus } from "@/lib/domain/types";
@@ -33,6 +33,7 @@ const STATUS_TAB_LABEL: Record<InitiativeStatus, string> = {
 
 export function InitiativesView() {
   const { load, data, reload, openForm, openPrdImport } = useRoadmap();
+  const canEdit = useCanEdit();
   const { selectedId, open } = useInitiativeSelection();
   const [filters, setFilters] = useState<InitiativeFilters>(DEFAULT_FILTERS);
   const [layout, setLayout] = useState<"list" | "grid">("list");
@@ -100,12 +101,21 @@ export function InitiativesView() {
               {shortcut}
             </kbd>
           </button>
-          <Button className="h-[52px] rounded-[14px] px-5 text-[15px]" icon={<Sparkles size={18} />} onClick={openPrdImport}>
-            Criar a partir do PRD
-          </Button>
-          <Button variant="primary" className="h-[52px] rounded-[14px] px-6 text-[15px] shadow-[0_8px_20px_rgba(0,133,124,0.25)]" icon={<Plus size={19} />} onClick={() => openForm(null)}>
-            Nova iniciativa
-          </Button>
+          {canEdit && (
+            <>
+              <Button className="h-[52px] rounded-[14px] px-5 text-[15px]" icon={<Sparkles size={18} />} onClick={openPrdImport}>
+                Criar a partir do PRD
+              </Button>
+              <Button
+                variant="primary"
+                className="h-[52px] rounded-[14px] px-6 text-[15px] shadow-[0_8px_20px_rgba(0,133,124,0.25)]"
+                icon={<Plus size={19} />}
+                onClick={() => openForm(null)}
+              >
+                Nova iniciativa
+              </Button>
+            </>
+          )}
         </div>
       </PageHero>
 
@@ -210,19 +220,23 @@ export function InitiativesView() {
               title={data.initiatives.length === 0 ? "Nenhuma iniciativa cadastrada" : "Nenhuma iniciativa encontrada"}
               description={
                 data.initiatives.length === 0
-                  ? "Cadastre a primeira iniciativa conectando um problema real a um resultado esperado."
+                  ? canEdit
+                    ? "Cadastre a primeira iniciativa conectando um problema real a um resultado esperado."
+                    : "Ainda não há iniciativas no catálogo."
                   : "Ajuste a busca ou os filtros para ver outras iniciativas."
               }
               action={
                 data.initiatives.length === 0 ? (
-                  <div className="flex flex-wrap justify-center gap-2">
-                    <Button icon={<Sparkles size={16} />} onClick={openPrdImport}>
-                      Criar a partir do PRD
-                    </Button>
-                    <Button variant="primary" icon={<Plus size={16} />} onClick={() => openForm(null)}>
-                      Nova iniciativa
-                    </Button>
-                  </div>
+                  canEdit && (
+                    <div className="flex flex-wrap justify-center gap-2">
+                      <Button icon={<Sparkles size={16} />} onClick={openPrdImport}>
+                        Criar a partir do PRD
+                      </Button>
+                      <Button variant="primary" icon={<Plus size={16} />} onClick={() => openForm(null)}>
+                        Nova iniciativa
+                      </Button>
+                    </div>
+                  )
                 ) : (
                   <Button onClick={() => setFilters(DEFAULT_FILTERS)}>Limpar filtros</Button>
                 )

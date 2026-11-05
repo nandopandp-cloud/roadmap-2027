@@ -8,7 +8,7 @@ import { PlatformChip } from "@/components/platforms/platform-icon";
 import { buttonClass } from "@/components/ui/button";
 import { EmptyState, Skeleton } from "@/components/ui/feedback";
 import { cn } from "@/lib/client/cn";
-import { useRoadmap } from "@/lib/client/store";
+import { useCanEdit, useRoadmap } from "@/lib/client/store";
 import { useArtifactStatus } from "@/lib/client/use-artifact-status";
 import { prototypeHref } from "@/lib/domain/artifacts";
 import type { Platform } from "@/lib/domain/types";
@@ -26,6 +26,7 @@ const VIEWPORTS = [
  */
 export function PrototypeView({ initiativeId, prototypeId }: { initiativeId: string; prototypeId: string }) {
   const { load, initiativeById, data } = useRoadmap();
+  const canEdit = useCanEdit();
   const [viewport, setViewport] = useState<(typeof VIEWPORTS)[number]["key"]>("desktop");
   const initiative = initiativeById(initiativeId);
   const proto = initiative?.prototypes.find((p) => p.id === prototypeId);
@@ -112,7 +113,12 @@ export function PrototypeView({ initiativeId, prototypeId }: { initiativeId: str
           className="mt-8"
           icon={<TriangleAlert size={22} />}
           title="Arquivo do protótipo não encontrado"
-          description={<>O caminho <code className="font-mono text-[12px]">{proto.path}</code> não existe no repositório. Corrija o caminho na edição da iniciativa.</>}
+          description={
+            <>
+              O caminho <code className="font-mono text-[12px]">{proto.path}</code> não existe no repositório.
+              {canEdit && " Corrija o caminho na edição da iniciativa."}
+            </>
+          }
         />
       ) : proto.source === "externo" ? (
         <EmptyState

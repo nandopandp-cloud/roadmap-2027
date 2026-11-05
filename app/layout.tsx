@@ -1,12 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Nunito } from "next/font/google";
 import type { ReactNode } from "react";
-import { AppShell } from "@/components/layout/app-shell";
-import { ConfirmProvider } from "@/components/ui/dialog";
-import { ToastProvider } from "@/components/ui/toast";
-import { listIllustrationFiles } from "@/lib/assets/available";
-import { AssetsProvider } from "@/lib/client/assets";
-import { RoadmapProvider } from "@/lib/client/store";
 import "./globals.css";
 
 const nunito = Nunito({
@@ -27,17 +21,7 @@ export const viewport: Viewport = { themeColor: "#17145b" };
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="pt-BR" className={nunito.variable}>
-      <body className="font-sans">
-        <AssetsProvider files={listIllustrationFiles()}>
-          <ToastProvider>
-            <ConfirmProvider>
-              <RoadmapProvider>
-                <AppShell>{children}</AppShell>
-              </RoadmapProvider>
-            </ConfirmProvider>
-          </ToastProvider>
-        </AssetsProvider>
-      </body>
+      <body className="font-sans">{children}</body>
     </html>
   );
 }

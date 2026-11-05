@@ -12,7 +12,7 @@ import { Checkbox } from "@/components/ui/fields";
 import { EmptyState, ErrorBanner } from "@/components/ui/feedback";
 import { cn } from "@/lib/client/cn";
 import { useInitiativeSelection } from "@/lib/client/selection";
-import { useRoadmap } from "@/lib/client/store";
+import { useCanEdit, useRoadmap } from "@/lib/client/store";
 import { compareRoadmapOrder } from "@/lib/domain/roadmap-order";
 
 const VIEWS = [
@@ -39,6 +39,7 @@ function useRoadmapView() {
 
 export function RoadmapView() {
   const { load, data, reload, openForm } = useRoadmap();
+  const canEdit = useCanEdit();
   const { selectedId, open } = useInitiativeSelection();
   const { view, setView } = useRoadmapView();
   const [platform, setPlatform] = useState("todas");
@@ -66,11 +67,18 @@ export function RoadmapView() {
         title="Roadmap 2027"
         subtitle="Como as iniciativas se distribuem ao longo do ano. Quarters e prioridades são propostas até serem validados."
       >
-        <div className="mt-8">
-          <Button variant="primary" className="h-[52px] rounded-[14px] px-6 text-[15px] shadow-[0_8px_20px_rgba(0,133,124,0.25)]" icon={<Plus size={19} />} onClick={() => openForm(null, 3)}>
-            Nova iniciativa
-          </Button>
-        </div>
+        {canEdit && (
+          <div className="mt-8">
+            <Button
+              variant="primary"
+              className="h-[52px] rounded-[14px] px-6 text-[15px] shadow-[0_8px_20px_rgba(0,133,124,0.25)]"
+              icon={<Plus size={19} />}
+              onClick={() => openForm(null, 3)}
+            >
+              Nova iniciativa
+            </Button>
+          </div>
+        )}
       </PageHero>
       <PageContainer className="pb-16 pt-6">
       <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-3">
@@ -121,7 +129,7 @@ export function RoadmapView() {
             <span className="flex items-center gap-1.5">
               <GitFork size={13} className="text-[#b36b00]" aria-hidden /> Dependência
             </span>
-            {data.writable && (
+            {canEdit && (
               <span className="flex items-center gap-1.5">
                 <GripVertical size={13} aria-hidden /> Arraste os cards para mudar quarter e ordem
               </span>
@@ -168,8 +176,8 @@ export function RoadmapView() {
         <EmptyState
           className="mt-8"
           title="Nenhuma iniciativa no roadmap"
-          description="Cadastre iniciativas para vê-las distribuídas nos quarters."
-          action={<Button variant="primary" onClick={() => openForm(null)}>Nova iniciativa</Button>}
+          description={canEdit ? "Cadastre iniciativas para vê-las distribuídas nos quarters." : "Ainda não há iniciativas distribuídas nos quarters."}
+          action={canEdit && <Button variant="primary" onClick={() => openForm(null)}>Nova iniciativa</Button>}
         />
       )}
     </PageContainer>

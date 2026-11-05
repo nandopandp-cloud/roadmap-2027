@@ -11,7 +11,7 @@ import { EmptyState } from "@/components/ui/feedback";
 import { useToast } from "@/components/ui/toast";
 import { api, ApiError } from "@/lib/client/api";
 import { formatDate } from "@/lib/client/cn";
-import { useRoadmap } from "@/lib/client/store";
+import { useCanEdit, useRoadmap } from "@/lib/client/store";
 import { useArtifactStatus } from "@/lib/client/use-artifact-status";
 import { documentReaderHref, prototypeHref, prototypeViewerHref } from "@/lib/domain/artifacts";
 import { DOCUMENT_KIND_LABEL, DOCUMENT_STATUS_LABEL, PROTOTYPE_STATUS_LABEL } from "@/lib/domain/labels";
@@ -45,6 +45,7 @@ function MissingFile({ path }: { path: string }) {
 }
 
 function DocumentCard({ initiativeId, doc, exists }: { initiativeId: string; doc: DocumentRef; exists: boolean | undefined }) {
+  const canEdit = useCanEdit();
   const [showVersions, setShowVersions] = useState(false);
   const missing = doc.source === "repo" && exists === false;
   return (
@@ -83,9 +84,11 @@ function DocumentCard({ initiativeId, doc, exists }: { initiativeId: string; doc
             >
               <Eye size={15} aria-hidden /> Ler documento
             </Link>
-            <Link href={`${documentReaderHref(initiativeId, doc)}?editar=1`} className={buttonClass("secondary", "sm")}>
-              <Pencil size={15} aria-hidden /> {missing ? "Criar conteúdo" : "Editar"}
-            </Link>
+            {canEdit && (
+              <Link href={`${documentReaderHref(initiativeId, doc)}?editar=1`} className={buttonClass("secondary", "sm")}>
+                <Pencil size={15} aria-hidden /> {missing ? "Criar conteúdo" : "Editar"}
+              </Link>
+            )}
           </>
         ) : (
           <a href={doc.url} target="_blank" rel="noopener noreferrer" className={buttonClass("outline", "sm")}>
@@ -115,6 +118,7 @@ function DocumentCard({ initiativeId, doc, exists }: { initiativeId: string; doc
 
 export function DocumentsTab({ initiative: i }: { initiative: Initiative }) {
   const { openForm, upsertInitiative } = useRoadmap();
+  const canEdit = useCanEdit();
   const notify = useToast();
   const [creating, setCreating] = useState(false);
   const repoPaths = i.documents.filter((d) => d.source === "repo").map((d) => d.path);
@@ -144,16 +148,22 @@ export function DocumentsTab({ initiative: i }: { initiative: Initiative }) {
             compact
             icon={<FileText size={22} />}
             title="Ainda não há um PRD associado"
-            description="Crie um PRD em Markdown na pasta da iniciativa ou vincule um documento existente."
+            description={
+              canEdit
+                ? "Crie um PRD em Markdown na pasta da iniciativa ou vincule um documento existente."
+                : "Esta iniciativa ainda não tem especificação registrada."
+            }
             action={
-              <>
-                <Button variant="primary" size="sm" icon={<FilePlus2 size={15} />} loading={creating} onClick={createPrd}>
-                  Criar PRD
-                </Button>
-                <Button size="sm" icon={<Link2 size={15} />} onClick={() => openForm(i.id, DOCS_FORM_STEP)}>
-                  Vincular documento existente
-                </Button>
-              </>
+              canEdit && (
+                <>
+                  <Button variant="primary" size="sm" icon={<FilePlus2 size={15} />} loading={creating} onClick={createPrd}>
+                    Criar PRD
+                  </Button>
+                  <Button size="sm" icon={<Link2 size={15} />} onClick={() => openForm(i.id, DOCS_FORM_STEP)}>
+                    Vincular documento existente
+                  </Button>
+                </>
+              )
             }
           />
         ) : (
@@ -178,17 +188,20 @@ export function DocumentsTab({ initiative: i }: { initiative: Initiative }) {
         )}
       </div>
 
-      <div>
-        <Button size="sm" variant="ghost" icon={<Plus size={15} />} onClick={() => openForm(i.id, DOCS_FORM_STEP)}>
-          Adicionar ou editar documentos
-        </Button>
-      </div>
+      {canEdit && (
+        <div>
+          <Button size="sm" variant="ghost" icon={<Plus size={15} />} onClick={() => openForm(i.id, DOCS_FORM_STEP)}>
+            Adicionar ou editar documentos
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
 
 export function PrototypesTab({ initiative: i, platforms }: { initiative: Initiative; platforms: Platform[] }) {
   const { openForm } = useRoadmap();
+  const canEdit = useCanEdit();
   const status = useArtifactStatus(i.prototypes.filter((p) => p.source === "repo").map((p) => p.path));
 
   if (i.prototypes.length === 0) {
@@ -197,11 +210,17 @@ export function PrototypesTab({ initiative: i, platforms }: { initiative: Initia
         <EmptyState
           icon={<MonitorPlay size={22} />}
           title="Ainda não há um protótipo associado a esta iniciativa."
-          description="Cadastre um caminho local (initiatives/…/prototype/index.html) ou uma URL externa."
+          description={
+            canEdit
+              ? "Cadastre um caminho local (initiatives/…/prototype/index.html) ou uma URL externa."
+              : "Quando houver um protótipo navegável, ele aparecerá aqui."
+          }
           action={
-            <Button variant="primary" size="sm" icon={<Plus size={15} />} onClick={() => openForm(i.id, DOCS_FORM_STEP)}>
-              Adicionar protótipo
-            </Button>
+            canEdit && (
+              <Button variant="primary" size="sm" icon={<Plus size={15} />} onClick={() => openForm(i.id, DOCS_FORM_STEP)}>
+                Adicionar protótipo
+              </Button>
+            )
           }
         />
       </div>
@@ -268,11 +287,13 @@ export function PrototypesTab({ initiative: i, platforms }: { initiative: Initia
           );
         })}
       </ul>
-      <div>
-        <Button size="sm" variant="ghost" icon={<Plus size={15} />} onClick={() => openForm(i.id, DOCS_FORM_STEP)}>
-          Adicionar ou editar protótipos
-        </Button>
-      </div>
+      {canEdit && (
+        <div>
+          <Button size="sm" variant="ghost" icon={<Plus size={15} />} onClick={() => openForm(i.id, DOCS_FORM_STEP)}>
+            Adicionar ou editar protótipos
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

@@ -61,7 +61,10 @@ const EMPTY: Snapshot = {
   context: emptyContext(),
   people: [],
   squads: [],
-  writable: true,
+  // Até o snapshot chegar, nada é editável (o perfil vem do servidor).
+  writable: false,
+  readOnlyReason: null,
+  viewer: null,
   storage: "arquivo",
 };
 
@@ -261,6 +264,15 @@ export function RoadmapProvider({ children }: { children: ReactNode }) {
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
+}
+
+/**
+ * Se a pessoa conectada pode criar, editar, mover ou remover conteúdo.
+ * Toda ação de alteração na interface deve ser escondida quando for false;
+ * o servidor também recusa (403) alterações de quem tem perfil de consulta.
+ */
+export function useCanEdit(): boolean {
+  return useRoadmap().data.writable;
 }
 
 export function useRoadmap(): RoadmapStore {

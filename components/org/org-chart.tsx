@@ -335,10 +335,12 @@ export function OrgChart({ filter, expandAll, canvas = false }: { filter: OrgFil
 
   return (
     <>
-      <p id="org-drag-hint" className="sr-only">
-        Arraste o card para realocar a pessoa em outro squad, posição ou no topo (liderança) de um grupo de squads. Segure Alt ou Option ao soltar para adicionar sem tirar do lugar atual. Pelo teclado,
-        use a opção Realocar no menu de ações ou edite o colaborador e o squad.
-      </p>
+      {canEdit && (
+        <p id="org-drag-hint" className="sr-only">
+          Arraste o card para realocar a pessoa em outro squad, posição ou no topo (liderança) de um grupo de squads. Segure Alt ou Option ao soltar para adicionar sem tirar do lugar atual. Pelo teclado,
+          use a opção Realocar no menu de ações ou edite o colaborador e o squad.
+        </p>
+      )}
 
       {groups.map((group) => {
         const zone = leadersZone(group);
@@ -427,7 +429,7 @@ export function OrgChart({ filter, expandAll, canvas = false }: { filter: OrgFil
           <h3 id="org-sem-squad" className="flex items-center gap-2 text-[16px] font-black text-navy">
             <Users size={18} aria-hidden /> Colaboradores sem squad
           </h3>
-          <p className="text-[13px] text-muted">Arraste para um squad ou para o topo de um grupo para realocar.</p>
+          {canEdit && <p className="text-[13px] text-muted">Arraste para um squad ou para o topo de um grupo para realocar.</p>}
           <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {renderMembers(NO_SQUAD, unassigned)}
             {drag && shownIn(NO_SQUAD, drag.id).length === 0 && (

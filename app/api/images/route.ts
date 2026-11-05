@@ -1,4 +1,4 @@
-import { handle } from "@/lib/http/handle";
+import { handleEdit } from "@/lib/http/handle";
 import { getImageStore, storageKind } from "@/lib/repositories";
 import { READ_ONLY_MESSAGE } from "@/lib/repositories/json-file-repository";
 import { DomainError } from "@/lib/services/errors";
@@ -7,7 +7,7 @@ const MAX_BYTES = 3 * 1024 * 1024;
 
 /** Recebe um JPEG (corpo binário) e devolve o identificador da imagem. */
 export function POST(request: Request) {
-  return handle(async () => {
+  return handleEdit(async () => {
     const data = Buffer.from(await request.arrayBuffer());
     if (data.length === 0) throw new DomainError(400, "Nenhuma imagem foi enviada.");
     if (data.length > MAX_BYTES) throw new DomainError(413, "A imagem é grande demais (máximo de 3 MB).");

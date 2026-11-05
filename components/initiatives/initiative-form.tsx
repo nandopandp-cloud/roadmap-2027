@@ -10,7 +10,7 @@ import { useToast } from "@/components/ui/toast";
 import { api, ApiError } from "@/lib/client/api";
 import { cn } from "@/lib/client/cn";
 import { useInitiativeSelection } from "@/lib/client/selection";
-import { useRoadmap, type PrdPrefill } from "@/lib/client/store";
+import { useCanEdit, useRoadmap, type PrdPrefill } from "@/lib/client/store";
 import type { InitiativeInput } from "@/lib/domain/types";
 
 type InputState = InitiativeInput;
@@ -19,7 +19,8 @@ import { fieldErrors, initiativeInputSchema } from "@/lib/validation/schemas";
 /** Monta o formulário quando solicitado pelo store (nova iniciativa ou edição). */
 export function InitiativeFormHost() {
   const { form } = useRoadmap();
-  if (!form) return null;
+  const canEdit = useCanEdit();
+  if (!form || !canEdit) return null;
   return (
     <Suspense fallback={null}>
       <InitiativeForm

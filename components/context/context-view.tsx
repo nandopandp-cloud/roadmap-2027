@@ -8,6 +8,7 @@ import {
   ChartColumn,
   ChevronDown,
   Flag,
+  Layers,
   Lightbulb,
   Pencil,
   Plus,
@@ -20,7 +21,7 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useId, useState, type KeyboardEvent, type ReactNode } from "react";
-import { ContextFieldsEditor, PlatformStrategyEditor, ProposalSectionEditor, type ContextFieldSpec } from "@/components/context/editors";
+import { ContextFieldsEditor, PlatformEditor, PlatformStrategyEditor, ProposalSectionEditor, type ContextFieldSpec } from "@/components/context/editors";
 import { MarkdownView } from "@/components/documents/markdown";
 import { PageContainer, PageHero } from "@/components/layout/page-header";
 import { PlatformTile } from "@/components/platforms/platform-icon";
@@ -499,6 +500,106 @@ function StrategyCard({ strategy, platform, onEdit, onRemove }: { strategy: Plat
   );
 }
 
+/** Catálogo de plataformas do ecossistema (Exploradores, GenieX, Educadores…): cadastro, edição e exclusão. */
+function PlatformCatalog() {
+  const { data, removePlatform } = useRoadmap();
+  const { open } = useInitiativeSelection();
+  const confirm = useConfirm();
+  const notify = useToast();
+  const [edit, setEdit] = useState<Platform | null | undefined>(undefined);
+
+  async function remove(p: Platform) {
+    const ok = await confirm({ title: "Excluir plataforma?", message: `“${p.name}” será removida do catálogo.`, confirmLabel: "Excluir", tone: "danger" });
+    if (!ok) return;
+    try {
+      await removePlatform(p.id);
+      notify("success", "Plataforma excluída.");
+    } catch (error) {
+      notify("error", error instanceof ApiError ? error.message : "Não foi possível excluir.");
+    }
+  }
+
+  return (
+    <section aria-labelledby="catalogo-plataformas" className="mt-8">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex max-w-3xl items-start gap-4">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#eaf1fe] text-blue" aria-hidden>
+            <Layers size={26} strokeWidth={2.2} />
+          </span>
+          <div>
+            <h2 id="catalogo-plataformas" className="text-[24px] font-black leading-tight text-navy">
+              Plataformas do ecossistema
+            </h2>
+            <p className="mt-1 text-[15px] leading-relaxed text-[#3b4470]">
+              Plataformas disponíveis para direcionadores, iniciativas e squads.
+              {data.writable && " Plataformas vinculadas a iniciativas ou a um direcionador não podem ser excluídas."}
+            </p>
+          </div>
+        </div>
+        {data.writable && (
+          <Button size="sm" icon={<Plus size={15} />} onClick={() => setEdit(null)}>
+            Nova plataforma
+          </Button>
+        )}
+      </div>
+
+      {data.platforms.length === 0 ? (
+        <EmptyState className="mt-6" title="Nenhuma plataforma cadastrada" description={data.writable ? "Cadastre a primeira plataforma do ecossistema." : "Ainda não há plataformas no catálogo."} />
+      ) : (
+        <ul className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {data.platforms.map((p) => {
+            const related = data.initiatives.filter((i) => i.platformIds.includes(p.id));
+            const hasStrategy = data.context.platformStrategies.some((s) => s.platformId === p.id);
+            return (
+              <li key={p.id} className="flex flex-col rounded-3xl border border-line bg-surface p-5 shadow-[var(--shadow-card)]">
+                <div className="flex items-start gap-3.5">
+                  <PlatformTile platform={p} size={46} />
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-[16px] font-extrabold text-navy">{p.name}</h3>
+                    <p className="mt-0.5 text-[13px] leading-snug text-muted">{p.description || "Sem descrição."}</p>
+                  </div>
+                  <ItemActions label={`plataforma ${p.name}`} className="-mr-2 -mt-1" onEdit={() => setEdit(p)} onRemove={() => void remove(p)} />
+                </div>
+                <dl className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] text-muted">
+                  <div>
+                    <dt className="inline font-bold text-ink">Responsável: </dt>
+                    <dd className="inline">{p.owner || "não definido"}</dd>
+                  </div>
+                  <div>
+                    <dt className="inline font-bold text-ink">Direcionador: </dt>
+                    <dd className="inline">{hasStrategy ? "registrado" : "não registrado"}</dd>
+                  </div>
+                </dl>
+                <div className="mt-3 border-t border-line pt-3">
+                  {related.length === 0 ? (
+                    <p className="text-[12.5px] italic text-subtle">Nenhuma iniciativa vinculada.</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5">
+                      {related.map((i) => (
+                        <button
+                          key={i.id}
+                          type="button"
+                          onClick={() => open(i.id)}
+                          className="rounded-full bg-[#f2f5fb] px-2.5 py-1 text-[12px] font-bold text-ink hover:bg-brand-soft hover:text-brand"
+                          title={i.title}
+                        >
+                          {i.id}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {edit !== undefined && data.writable && <PlatformEditor platform={edit} onClose={() => setEdit(undefined)} />}
+    </section>
+  );
+}
+
 function PlatformsTab({ onEditFields }: { onEditFields: (edit: FieldsEdit) => void }) {
   const { data } = useRoadmap();
   const remove = useRemove();
@@ -568,6 +669,8 @@ function PlatformsTab({ onEditFields }: { onEditFields: (edit: FieldsEdit) => vo
           </div>
         )}
       </section>
+
+      <PlatformCatalog />
 
       <section aria-labelledby="acompanhamento" className="mt-8 rounded-[26px] border border-[#e6eaf5] bg-surface p-6 shadow-[var(--shadow-card)] sm:p-8">
         <div className="flex flex-wrap items-start justify-between gap-3">

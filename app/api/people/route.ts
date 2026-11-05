@@ -1,6 +1,6 @@
-import { handle } from "@/lib/http/handle";
+import { handleEdit } from "@/lib/http/handle";
 import { createPerson } from "@/lib/services/org-service";
 
 export function POST(request: Request) {
-  return handle(async () => createPerson(await request.json()), 201);
+  return handleEdit(async () => createPerson(await request.json()), 201);
 }

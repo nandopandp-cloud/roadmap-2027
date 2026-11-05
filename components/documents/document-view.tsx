@@ -14,7 +14,7 @@ import { TextField } from "@/components/ui/fields";
 import { useToast } from "@/components/ui/toast";
 import { api, ApiError } from "@/lib/client/api";
 import { cn, formatDate } from "@/lib/client/cn";
-import { useRoadmap } from "@/lib/client/store";
+import { useCanEdit, useRoadmap } from "@/lib/client/store";
 import { DOCUMENT_KIND_LABEL, DOCUMENT_STATUS_LABEL } from "@/lib/domain/labels";
 
 type FileState =
@@ -32,6 +32,7 @@ function bumpVersion(v: string): string {
 
 export function DocumentView({ initiativeId, documentId }: { initiativeId: string; documentId: string }) {
   const { load, initiativeById, upsertInitiative } = useRoadmap();
+  const canEdit = useCanEdit();
   const params = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -40,7 +41,8 @@ export function DocumentView({ initiativeId, documentId }: { initiativeId: strin
 
   const initiative = initiativeById(initiativeId);
   const doc = initiative?.documents.find((d) => d.id === documentId);
-  const editing = params.get("editar") === "1";
+  // Quem só consulta nunca entra no modo de edição, mesmo com ?editar=1 na URL.
+  const editing = canEdit && params.get("editar") === "1";
   const backHref = `/iniciativas?iniciativa=${initiativeId}&aba=${doc?.kind === "decisoes" ? "dependencias" : "prd"}`;
 
   const [file, setFile] = useState<FileState>({ status: "loading" });
@@ -215,7 +217,7 @@ export function DocumentView({ initiativeId, documentId }: { initiativeId: strin
             <code className="font-mono text-[11.5px] text-subtle">· {doc.path}</code>
           </div>
         </div>
-        {!editing && file.status === "ready" && (
+        {canEdit && !editing && file.status === "ready" && (
           <Button variant="outline" icon={<Pencil size={16} />} onClick={() => setEditing(true)}>
             Editar documento
           </Button>
@@ -235,13 +237,16 @@ export function DocumentView({ initiativeId, documentId }: { initiativeId: strin
           title="O arquivo deste documento não foi encontrado"
           description={
             <>
-              O caminho <code className="font-mono text-[12px]">{doc.path}</code> não existe no repositório. Você pode criar o conteúdo agora ou corrigir o caminho na edição da iniciativa.
+              O caminho <code className="font-mono text-[12px]">{doc.path}</code> não existe no repositório.
+              {canEdit && " Você pode criar o conteúdo agora ou corrigir o caminho na edição da iniciativa."}
             </>
           }
           action={
-            <Button variant="primary" icon={<SquarePen size={16} />} onClick={() => setEditing(true)}>
-              Criar conteúdo
-            </Button>
+            canEdit && (
+              <Button variant="primary" icon={<SquarePen size={16} />} onClick={() => setEditing(true)}>
+                Criar conteúdo
+              </Button>
+            )
           }
         />
       )}

@@ -4,6 +4,7 @@ import { CalendarDays, ChevronLeft, ChevronRight, FileText, House, Lock, Users, 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BrandLogo } from "@/components/layout/brand-logo";
+import { UserCard } from "@/components/layout/user-card";
 import { useHasAsset } from "@/lib/client/assets";
 import { cn } from "@/lib/client/cn";
 import { SIDEBAR_ART } from "@/lib/domain/labels";
@@ -122,6 +123,8 @@ export function Sidebar({ collapsed, onToggleCollapsed, mobile, onNavigate }: Si
             );
           })}
         </ul>
+
+        <UserCard compact={compact} />
       </nav>
 
       {/* Puxador: centralizado na borda direita (metade dentro, metade fora do cartão). Fica fora do <nav> porque o cartão corta o que ultrapassa a borda. */}

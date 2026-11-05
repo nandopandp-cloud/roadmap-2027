@@ -16,7 +16,7 @@ import { ApiError } from "@/lib/client/api";
 import { cn } from "@/lib/client/cn";
 import { isTransversal } from "@/lib/client/filtering";
 import { DRAWER_TABS, useInitiativeSelection, type DrawerTab } from "@/lib/client/selection";
-import { useRoadmap } from "@/lib/client/store";
+import { useCanEdit, useRoadmap } from "@/lib/client/store";
 import { ACCENT_TONE } from "@/lib/client/tones";
 import { ILLUSTRATION_ASSET, QUARTER_LABEL } from "@/lib/domain/labels";
 import type { Initiative, Platform } from "@/lib/domain/types";
@@ -45,8 +45,8 @@ function RoundButton({ label, onClick, children, ...rest }: { label: string; onC
   );
 }
 
-/** Menu de ações secundárias (copiar link, excluir). */
-function ActionsMenu({ onEdit, onCopy, onDelete }: { onEdit: () => void; onCopy: () => void; onDelete: () => void }) {
+/** Menu de ações secundárias (copiar link e, para quem edita, editar e excluir). */
+function ActionsMenu({ onEdit, onCopy, onDelete }: { onEdit?: () => void; onCopy: () => void; onDelete?: () => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -75,15 +75,19 @@ function ActionsMenu({ onEdit, onCopy, onDelete }: { onEdit: () => void; onCopy:
       </RoundButton>
       {open && (
         <div role="menu" className="absolute right-0 top-12 z-20 w-56 animate-pop-in rounded-2xl border border-line bg-surface p-1.5 shadow-[var(--shadow-raised)]">
-          <button role="menuitem" type="button" className={cn(item, "text-ink")} onClick={() => (setOpen(false), onEdit())}>
-            <Pencil size={16} aria-hidden /> Editar iniciativa
-          </button>
+          {onEdit && (
+            <button role="menuitem" type="button" className={cn(item, "text-ink")} onClick={() => (setOpen(false), onEdit())}>
+              <Pencil size={16} aria-hidden /> Editar iniciativa
+            </button>
+          )}
           <button role="menuitem" type="button" className={cn(item, "text-ink")} onClick={() => (setOpen(false), onCopy())}>
             <Link2 size={16} aria-hidden /> Copiar link
           </button>
-          <button role="menuitem" type="button" className={cn(item, "text-[#b3242f] hover:bg-[#fdf1f2]")} onClick={() => (setOpen(false), onDelete())}>
-            <Trash2 size={16} aria-hidden /> Excluir iniciativa
-          </button>
+          {onDelete && (
+            <button role="menuitem" type="button" className={cn(item, "text-[#b3242f] hover:bg-[#fdf1f2]")} onClick={() => (setOpen(false), onDelete())}>
+              <Trash2 size={16} aria-hidden /> Excluir iniciativa
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -161,6 +165,7 @@ function HeaderArt({ initiative, platforms }: { initiative: Initiative; platform
 export function InitiativeDrawer() {
   const { selectedId, tab, setTab, close, open } = useInitiativeSelection();
   const { load, data, initiativeById, openForm, removeInitiative } = useRoadmap();
+  const canEdit = useCanEdit();
   const confirm = useConfirm();
   const notify = useToast();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -292,10 +297,16 @@ export function InitiativeDrawer() {
                   )}
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <RoundButton label="Editar iniciativa" onClick={() => openForm(initiative.id)}>
-                    <Pencil size={17} />
-                  </RoundButton>
-                  <ActionsMenu onEdit={() => openForm(initiative.id)} onCopy={copyLink} onDelete={handleDelete} />
+                  {canEdit && (
+                    <RoundButton label="Editar iniciativa" onClick={() => openForm(initiative.id)}>
+                      <Pencil size={17} />
+                    </RoundButton>
+                  )}
+                  <ActionsMenu
+                    onEdit={canEdit ? () => openForm(initiative.id) : undefined}
+                    onCopy={copyLink}
+                    onDelete={canEdit ? handleDelete : undefined}
+                  />
                   <RoundButton label="Fechar detalhes" onClick={close}>
                     <X size={20} />
                   </RoundButton>

@@ -123,7 +123,9 @@ export function SquadsTab({ filter }: { filter: OrgFilter }) {
                   ))}
                 </p>
               ) : (
-                <p className="text-[12.5px] text-subtle">Vincule plataformas ao squad para ver as iniciativas.</p>
+                <p className="text-[12.5px] text-subtle">
+                  {canEdit ? "Vincule plataformas ao squad para ver as iniciativas." : "Nenhuma plataforma vinculada ao squad."}
+                </p>
               )}
             </div>
           </article>

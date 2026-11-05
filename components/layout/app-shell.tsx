@@ -17,7 +17,8 @@ const COLLAPSE_KEY = "jg-roadmap:sidebar-collapsed";
 /** Aviso quando a implantação não grava alterações (armazenamento somente leitura). */
 function ReadOnlyNotice() {
   const { load, data } = useRoadmap();
-  if (load.status !== "ready" || data.writable) return null;
+  // Perfil de consulta não é aviso de problema: aparece no cartão do usuário na sidebar.
+  if (load.status !== "ready" || data.readOnlyReason !== "armazenamento") return null;
   return (
     <div role="status" className="flex shrink-0 items-center gap-2 border-b border-[#f1d9a6] bg-[#fff8e6] px-4 py-2 text-[13px] font-semibold text-[#7a5200]">
       <Info size={16} className="shrink-0" aria-hidden />

@@ -11,7 +11,7 @@ import { useToast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/client/api";
 import { cn, plural } from "@/lib/client/cn";
 import { isTransversal } from "@/lib/client/filtering";
-import { useRoadmap } from "@/lib/client/store";
+import { useCanEdit, useRoadmap } from "@/lib/client/store";
 import { ACCENT_TONE } from "@/lib/client/tones";
 import { QUARTERS } from "@/lib/domain/constants";
 import { QUARTER_LABEL, QUARTER_MONTHS } from "@/lib/domain/labels";
@@ -189,8 +189,10 @@ export function RoadmapBoard({
   onOpen: (id: string) => void;
 }) {
   const { data, moveInitiative } = useRoadmap();
+  const canEdit = useCanEdit();
   const notify = useToast();
-  const canMove = data.writable && !loading;
+  // Perfil de consulta: sem arraste, sem Alt + setas e sem dicas de reordenação.
+  const canMove = canEdit && !loading;
 
   const byId = (id: string) => data.initiatives.find((i) => i.id === id);
   const column = (zone: string, exceptId?: string) => visible.filter((i) => zoneOf(i.quarter) === zone && i.id !== exceptId);
@@ -282,10 +284,12 @@ export function RoadmapBoard({
 
   return (
     <>
-      <p id="roadmap-drag-hint" className="sr-only">
-        Arraste para mudar o quarter ou a posição. No teclado, Alt com seta para a esquerda ou direita troca o quarter e Alt com
-        seta para cima ou para baixo muda a posição.
-      </p>
+      {canMove && (
+        <p id="roadmap-drag-hint" className="sr-only">
+          Arraste para mudar o quarter ou a posição. No teclado, Alt com seta para a esquerda ou direita troca o quarter e Alt com
+          seta para cima ou para baixo muda a posição.
+        </p>
+      )}
 
       <div className="@container mt-6">
         <div className="grid grid-cols-1 gap-4 @2xl:grid-cols-2 @5xl:grid-cols-4">

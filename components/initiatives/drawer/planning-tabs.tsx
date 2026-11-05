@@ -8,13 +8,13 @@ import { PhaseIcon } from "@/components/initiatives/drawer/overview-tab";
 import { BulletList, DrawerSection, InitiativeRow, Prose, SubHeading } from "@/components/initiatives/drawer/parts";
 import { ProgressBar } from "@/components/ui/progress";
 import { PlatformChip } from "@/components/platforms/platform-icon";
-import { ValidationBadge } from "@/components/ui/badges";
+import { PriorityBadge, QuarterBadge, StateTag, StatusBadge, ValidationBadge } from "@/components/ui/badges";
 import { buttonClass, Spinner } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/fields";
 import { useToast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/client/api";
 import { cn, formatDate, formatDateTime } from "@/lib/client/cn";
-import { useRoadmap } from "@/lib/client/store";
+import { useCanEdit, useRoadmap } from "@/lib/client/store";
 import { documentReaderHref } from "@/lib/domain/artifacts";
 import { INITIATIVE_STATUSES, PHASE_STATES, PRIORITIES, QUARTERS } from "@/lib/domain/constants";
 import { PHASE_STATE_LABEL, PRIORITY_LABEL, QUARTER_LABEL, QUARTER_MONTHS, STATUS_LABEL } from "@/lib/domain/labels";
@@ -50,9 +50,20 @@ function InlineSelect({
   );
 }
 
+/** Valor de planejamento exibido sem edição (perfil de consulta). */
+function ReadOnlyValue({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-[12px] font-bold text-subtle">{label}</span>
+      <span className="flex h-10 items-center">{children}</span>
+    </div>
+  );
+}
+
 /** Aba Roadmap: planejamento editável, marcos, dependências e histórico. */
 export function RoadmapTab({ initiative: i, onOpen }: { initiative: Initiative; onOpen: (id: string) => void }) {
   const { patchPlanning, data } = useRoadmap();
+  const canEdit = useCanEdit();
   const notify = useToast();
   const [saving, setSaving] = useState(false);
   const [showAllHistory, setShowAllHistory] = useState(false);
@@ -87,54 +98,76 @@ export function RoadmapTab({ initiative: i, onOpen }: { initiative: Initiative; 
         title="Planejamento"
         action={saving ? <Spinner className="text-violet" /> : undefined}
       >
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <InlineSelect
-            label="Quarter"
-            value={i.quarter ?? ""}
-            disabled={saving}
-            onChange={(v) => save({ quarter: (v || null) as Initiative["quarter"] }, "Quarter atualizado.")}
-          >
-            <option value="">Sem quarter</option>
-            {QUARTERS.map((q) => (
-              <option key={q} value={q}>
-                {QUARTER_LABEL[q]}
-              </option>
-            ))}
-          </InlineSelect>
-          <InlineSelect
-            label="Prioridade"
-            value={i.priority ?? ""}
-            disabled={saving}
-            onChange={(v) => save({ priority: (v || null) as Initiative["priority"] }, "Prioridade atualizada.")}
-          >
-            <option value="">A definir</option>
-            {PRIORITIES.map((p) => (
-              <option key={p} value={p}>
-                {PRIORITY_LABEL[p]}
-              </option>
-            ))}
-          </InlineSelect>
-          <InlineSelect
-            label="Status"
-            value={i.status}
-            disabled={saving}
-            onChange={(v) => save({ status: v as Initiative["status"] }, "Status atualizado.")}
-          >
-            {INITIATIVE_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {STATUS_LABEL[s]}
-              </option>
-            ))}
-          </InlineSelect>
-        </div>
-        <div className="mt-4">
-          <Checkbox
-            label="Quarter e prioridade validados"
-            hint="Marque somente após validação com as áreas envolvidas."
-            checked={i.planningValidated}
-            onChange={(v) => save({ planningValidated: v }, v ? "Planejamento marcado como validado." : "Planejamento marcado como pendente.")}
-          />
-        </div>
+        {canEdit ? (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <InlineSelect
+              label="Quarter"
+              value={i.quarter ?? ""}
+              disabled={saving}
+              onChange={(v) => save({ quarter: (v || null) as Initiative["quarter"] }, "Quarter atualizado.")}
+            >
+              <option value="">Sem quarter</option>
+              {QUARTERS.map((q) => (
+                <option key={q} value={q}>
+                  {QUARTER_LABEL[q]}
+                </option>
+              ))}
+            </InlineSelect>
+            <InlineSelect
+              label="Prioridade"
+              value={i.priority ?? ""}
+              disabled={saving}
+              onChange={(v) => save({ priority: (v || null) as Initiative["priority"] }, "Prioridade atualizada.")}
+            >
+              <option value="">A definir</option>
+              {PRIORITIES.map((p) => (
+                <option key={p} value={p}>
+                  {PRIORITY_LABEL[p]}
+                </option>
+              ))}
+            </InlineSelect>
+            <InlineSelect
+              label="Status"
+              value={i.status}
+              disabled={saving}
+              onChange={(v) => save({ status: v as Initiative["status"] }, "Status atualizado.")}
+            >
+              {INITIATIVE_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {STATUS_LABEL[s]}
+                </option>
+              ))}
+            </InlineSelect>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <ReadOnlyValue label="Quarter">
+              <QuarterBadge quarter={i.quarter} />
+            </ReadOnlyValue>
+            <ReadOnlyValue label="Prioridade">
+              <PriorityBadge priority={i.priority} />
+            </ReadOnlyValue>
+            <ReadOnlyValue label="Status">
+              <StatusBadge status={i.status} />
+            </ReadOnlyValue>
+          </div>
+        )}
+        {canEdit ? (
+          <div className="mt-4">
+            <Checkbox
+              label="Quarter e prioridade validados"
+              hint="Marque somente após validação com as áreas envolvidas."
+              checked={i.planningValidated}
+              onChange={(v) => save({ planningValidated: v }, v ? "Planejamento marcado como validado." : "Planejamento marcado como pendente.")}
+            />
+          </div>
+        ) : (
+          i.planningValidated && (
+            <p className="mt-4">
+              <StateTag tone="ok">Quarter e prioridade validados</StateTag>
+            </p>
+          )
+        )}
         {!i.planningValidated && (
           <p className="mt-3 flex gap-2 rounded-xl bg-[#fff8db] px-3 py-2 text-[13px] font-semibold text-[#735600]">
             <Info size={16} className="mt-0.5 shrink-0" aria-hidden />
@@ -151,7 +184,7 @@ export function RoadmapTab({ initiative: i, onOpen }: { initiative: Initiative; 
 
       <DrawerSection icon={Gauge} color="#2868E8" title="Etapas de progresso" action={progress !== null ? <span className="text-[14px] font-extrabold text-navy">{progress}%</span> : undefined}>
         {i.phases.length === 0 ? (
-          <Prose empty="Nenhuma etapa definida. Adicione etapas na edição da iniciativa." />
+          <Prose empty={canEdit ? "Nenhuma etapa definida. Adicione etapas na edição da iniciativa." : "Nenhuma etapa definida."} />
         ) : (
           <>
             <ProgressBar value={progress} showLabel={false} />
@@ -160,20 +193,24 @@ export function RoadmapTab({ initiative: i, onOpen }: { initiative: Initiative; 
                 <li key={ph.id} className="flex items-center gap-3">
                   <PhaseIcon state={ph.state} />
                   <span className="flex-1 text-[14px] font-semibold text-ink">{ph.title}</span>
-                  <Select
-                    aria-label={`Situação da etapa ${ph.title}`}
-                    value={ph.state}
-                    disabled={saving}
-                    onChange={(v) => setPhase(ph.id, v as Phase["state"])}
-                    chevronSize={15}
-                    className="h-9 w-auto min-w-[150px] rounded-lg border border-line bg-surface px-2.5 text-[13px] font-semibold text-ink hover:border-line-strong focus:border-violet focus:outline-none focus:ring-4 focus:ring-[#6045d8]/12"
-                  >
-                    {PHASE_STATES.map((st) => (
-                      <option key={st} value={st}>
-                        {PHASE_STATE_LABEL[st]}
-                      </option>
-                    ))}
-                  </Select>
+                  {canEdit ? (
+                    <Select
+                      aria-label={`Situação da etapa ${ph.title}`}
+                      value={ph.state}
+                      disabled={saving}
+                      onChange={(v) => setPhase(ph.id, v as Phase["state"])}
+                      chevronSize={15}
+                      className="h-9 w-auto min-w-[150px] rounded-lg border border-line bg-surface px-2.5 text-[13px] font-semibold text-ink hover:border-line-strong focus:border-violet focus:outline-none focus:ring-4 focus:ring-[#6045d8]/12"
+                    >
+                      {PHASE_STATES.map((st) => (
+                        <option key={st} value={st}>
+                          {PHASE_STATE_LABEL[st]}
+                        </option>
+                      ))}
+                    </Select>
+                  ) : (
+                    <StateTag tone={ph.state === "concluida" ? "ok" : "neutral"}>{PHASE_STATE_LABEL[ph.state]}</StateTag>
+                  )}
                 </li>
               ))}
             </ul>

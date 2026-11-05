@@ -1,5 +1,6 @@
 import type { RoadmapTarget } from "@/lib/domain/roadmap-order";
 import type { Initiative, Person, PersonMove, Platform, Squad, StrategyContext } from "@/lib/domain/types";
+import type { Viewer } from "@/lib/auth/session";
 import type { PrdImportResult } from "@/lib/services/prd-import";
 
 export interface Snapshot {
@@ -8,8 +9,15 @@ export interface Snapshot {
   context: StrategyContext;
   people: Person[];
   squads: Squad[];
-  /** false quando a implantação não consegue gravar alterações (ex.: Vercel). */
+  /**
+   * true quando a pessoa conectada pode alterar conteúdo: o armazenamento grava
+   * e o perfil dela é de edição (ver lib/auth/config.ts).
+   */
   writable: boolean;
+  /** Por que a interface está em modo consulta (null quando `writable`). */
+  readOnlyReason: "armazenamento" | "perfil" | null;
+  /** Pessoa conectada (conta Google) e seu perfil. */
+  viewer: Viewer | null;
   /** Onde os dados estão sendo gravados. */
   storage: "postgres" | "arquivo";
 }
@@ -37,6 +45,11 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
     throw new ApiError("Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.", 0);
   }
   const body = await response.json().catch(() => null);
+  if (response.status === 401 && typeof window !== "undefined") {
+    // Sessão expirou: volta ao login e retorna para a mesma página depois.
+    const next = `${window.location.pathname}${window.location.search}`;
+    window.location.assign(`/login?erro=sessao&next=${encodeURIComponent(next)}`);
+  }
   if (!response.ok) {
     throw new ApiError(body?.error ?? "Erro inesperado.", response.status, body?.fields ?? {});
   }

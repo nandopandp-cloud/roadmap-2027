@@ -10,7 +10,7 @@ import { useFocusTrap } from "@/components/ui/dialog";
 import { cn } from "@/lib/client/cn";
 import { highlightParts, queryTerms, searchInitiatives, type SearchResult } from "@/lib/client/search";
 import { useInitiativeSelection } from "@/lib/client/selection";
-import { useRoadmap } from "@/lib/client/store";
+import { useCanEdit, useRoadmap } from "@/lib/client/store";
 import { documentReaderHref, prototypeViewerHref } from "@/lib/domain/artifacts";
 import { QUARTER_LABEL } from "@/lib/domain/labels";
 
@@ -76,6 +76,7 @@ function Mark({ text, terms }: { text: string; terms: string[] }) {
 
 function SearchLightbox({ onClose }: { onClose: () => void }) {
   const { data, load, openForm, openPrdImport } = useRoadmap();
+  const canEdit = useCanEdit();
   const router = useRouter();
   const pathname = usePathname();
   const { open: openInitiative } = useInitiativeSelection();
@@ -106,9 +107,15 @@ function SearchLightbox({ onClose }: { onClose: () => void }) {
   );
 
   const rows = useMemo<Row[]>(() => {
+    // Ações que abrem formulários só aparecem para quem pode editar.
+    const editActions: Row[] = canEdit
+      ? [
+          { type: "action", id: "a-prd", label: "Nova iniciativa a partir do PRD", hint: "Colar o PRD e preencher os campos automaticamente", icon: Sparkles, run: () => go(openPrdImport) },
+          { type: "action", id: "a-nova", label: "Nova iniciativa", hint: "Criar uma iniciativa", icon: Plus, run: () => go(() => openForm(null)) },
+        ]
+      : [];
     const actions: Row[] = [
-      { type: "action", id: "a-prd", label: "Nova iniciativa a partir do PRD", hint: "Colar o PRD e preencher os campos automaticamente", icon: Sparkles, run: () => go(openPrdImport) },
-      { type: "action", id: "a-nova", label: "Nova iniciativa", hint: "Criar uma iniciativa", icon: Plus, run: () => go(() => openForm(null)) },
+      ...editActions,
       { type: "action", id: "a-ini", label: "Ir para Iniciativas", hint: "Catálogo de iniciativas", icon: FileText, run: () => go(() => router.push("/iniciativas")) },
       { type: "action", id: "a-road", label: "Ir para o Roadmap", hint: "Visão por quarters", icon: CalendarDays, run: () => go(() => router.push("/roadmap")) },
     ];
@@ -122,7 +129,7 @@ function SearchLightbox({ onClose }: { onClose: () => void }) {
     }
     const matchingActions = actions.filter((a) => a.type === "action" && terms.every((t) => (a.label + " " + a.hint).toLowerCase().includes(t)));
     return [...results.map<Row>((r) => ({ type: "result", id: r.id, result: r })), ...matchingActions];
-  }, [data, query, terms, go, openForm, openPrdImport, router]);
+  }, [data, query, terms, go, openForm, openPrdImport, router, canEdit]);
 
   useEffect(() => setActive(0), [query]);
   useEffect(() => {
