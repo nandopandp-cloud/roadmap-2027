@@ -55,4 +55,4 @@ export const INITIATIVES_DIR = "initiatives";
 /** Função do colaborador no squad (resumo de composição dos squads). */
 export const DISCIPLINES = ["produto", "design", "engenharia", "qa"] as const;
 
-export const PLATFORM_ACCENTS = ["blue", "purple", "teal", "orange", "pink", "indigo"] as const;
+export const PLATFORM_ACCENTS = ["blue", "purple", "teal", "orange", "pink", "indigo", "green", "red", "yellow", "cyan", "brown", "slate"] as const;

@@ -10,19 +10,10 @@ import { useToast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/client/api";
 import { cn } from "@/lib/client/cn";
 import { useRoadmap } from "@/lib/client/store";
-import { ACCENT_TONE } from "@/lib/client/tones";
+import { ACCENT_LABEL, ACCENT_TONE } from "@/lib/client/tones";
 import { PLATFORM_ACCENTS, PLATFORM_ICONS } from "@/lib/domain/constants";
 import type { Squad, SquadInput } from "@/lib/domain/types";
 import { fieldErrors, squadInputSchema } from "@/lib/validation/schemas";
-
-const ACCENT_LABEL: Record<SquadInput["accent"], string> = {
-  blue: "Azul",
-  purple: "Roxo",
-  teal: "Turquesa",
-  orange: "Laranja",
-  pink: "Rosa",
-  indigo: "Índigo",
-};
 
 export const emptySquad = (): SquadInput => ({ name: "", description: "", icon: "layers", accent: "indigo", leaderIds: [], platformIds: [] });
 

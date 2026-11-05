@@ -44,6 +44,28 @@ export const ACCENT_TONE: Record<PlatformAccent, AccentTone> = {
   orange: { soft: "#FFF1E6", fg: "#934400", solid: "#F28A1F" },
   pink: { soft: "#FDEBF3", fg: "#A3245F", solid: "#E0508F" },
   indigo: { soft: "#ECEEFD", fg: "#3B3FB0", solid: "#5B5FE0" },
+  green: { soft: "#E8F6E9", fg: "#24692C", solid: "#3DA94A" },
+  red: { soft: "#FDECEC", fg: "#A42828", solid: "#E04848" },
+  yellow: { soft: "#FFF7DB", fg: "#7A5A00", solid: "#E5A800" },
+  cyan: { soft: "#E3F5FB", fg: "#0B6382", solid: "#1DA2D0" },
+  brown: { soft: "#F5EEE8", fg: "#6E4527", solid: "#A0683F" },
+  slate: { soft: "#EEF0F4", fg: "#3E4757", solid: "#64708A" },
+};
+
+/** Nome em português de cada cor de plataforma/squad (rótulos acessíveis dos seletores). */
+export const ACCENT_LABEL: Record<PlatformAccent, string> = {
+  blue: "Azul",
+  purple: "Roxo",
+  teal: "Turquesa",
+  orange: "Laranja",
+  pink: "Rosa",
+  indigo: "Índigo",
+  green: "Verde",
+  red: "Vermelho",
+  yellow: "Amarelo",
+  cyan: "Ciano",
+  brown: "Marrom",
+  slate: "Cinza-azulado",
 };
 
 export const TRANSVERSAL_TONE: Tone = { bg: "#E3F6F3", fg: "#00665E", dot: "#00A99D" };

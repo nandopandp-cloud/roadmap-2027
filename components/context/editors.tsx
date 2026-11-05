@@ -10,7 +10,7 @@ import { useToast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/client/api";
 import { cn } from "@/lib/client/cn";
 import { useRoadmap } from "@/lib/client/store";
-import { ACCENT_TONE } from "@/lib/client/tones";
+import { ACCENT_LABEL, ACCENT_TONE } from "@/lib/client/tones";
 import { CONTEXT_ARTS, METRIC_TARGET_STATES, PLATFORM_ACCENTS, PLATFORM_ICONS, PROBLEM_VALIDATION } from "@/lib/domain/constants";
 import { CONTEXT_ART, METRIC_TARGET_STATE_LABEL, PROBLEM_VALIDATION_LABEL } from "@/lib/domain/labels";
 import type {
@@ -563,12 +563,13 @@ export function PlatformEditor({ platform, onClose }: { platform: Platform | nul
             {PLATFORM_ACCENTS.map((accent) => (
               <label
                 key={accent}
+                title={ACCENT_LABEL[accent]}
                 className={cn(
                   "relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-2 has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-[#6045d8]/20",
                   draft.accent === accent ? "border-navy" : "border-transparent",
                 )}
               >
-                <HiddenInput type="radio" name="platform-accent" checked={draft.accent === accent} onChange={() => setDraft({ ...draft, accent })} aria-label={`Cor ${accent}`} />
+                <HiddenInput type="radio" name="platform-accent" checked={draft.accent === accent} onChange={() => setDraft({ ...draft, accent })} aria-label={`Cor ${ACCENT_LABEL[accent]}`} />
                 <span className="h-7 w-7 rounded-full" style={{ background: ACCENT_TONE[accent].solid }} />
               </label>
             ))}
