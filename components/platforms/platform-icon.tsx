@@ -17,12 +17,25 @@ function ExplorerGlyph({ size = 16, className }: LucideProps) {
   );
 }
 
+/** Letras "Ab" em traço — ícone próprio da plataforma de alfabetização. */
+function LiteracyGlyph({ size = 16, strokeWidth = 2, className }: LucideProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden className={className}>
+      <path d="M2.5 18 7 5.5 11.5 18" />
+      <path d="M4.2 13.6h5.6" />
+      <path d="M15 5.5V18" />
+      <circle cx="18" cy="14.75" r="3.25" />
+    </svg>
+  );
+}
+
 export const PLATFORM_GLYPHS: Record<PlatformIconKey, ComponentType<LucideProps>> = {
   settings: Settings,
   explorer: ExplorerGlyph,
   teacher: GraduationCap,
   family: Users,
   book: BookOpen,
+  literacy: LiteracyGlyph,
   sparkles: Sparkles,
   layers: Layers,
 };
@@ -33,6 +46,7 @@ export const PLATFORM_ICON_LABEL: Record<PlatformIconKey, string> = {
   teacher: "Educador",
   family: "Família",
   book: "Livro",
+  literacy: "Alfabetização",
   sparkles: "Brilho",
   layers: "Camadas",
 };

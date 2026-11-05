@@ -39,7 +39,7 @@ export const PROBLEM_VALIDATION = ["confirmado", "em_validacao", "hipotese"] as 
 /** Ilustrações da tela Contexto (seções da proposta e plataformas). */
 export const CONTEXT_ARTS = ["alvo", "notebook", "calendario", "documento", "astronauta", "nexo", "educadora"] as const;
 
-export const PLATFORM_ICONS = ["settings", "explorer", "teacher", "family", "book", "sparkles", "layers"] as const;
+export const PLATFORM_ICONS = ["settings", "explorer", "teacher", "family", "book", "literacy", "sparkles", "layers"] as const;
 
 export const ILLUSTRATIONS = ["nexo", "login-qr", "astronauta", "ilha", "foguete", "satelite", "planeta", "tecnologia"] as const;
 
