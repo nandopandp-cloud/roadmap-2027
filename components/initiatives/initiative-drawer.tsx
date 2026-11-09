@@ -189,7 +189,7 @@ export function InitiativeDrawer() {
     scrollRef.current?.scrollTo({ top: 0 });
     // Em telas estreitas a barra de abas rola na horizontal: mantém a aba ativa visível.
     document.getElementById(`drawer-tab-${tab}`)?.scrollIntoView({ block: "nearest", inline: "center" });
-  }, [selectedId, tab]);
+  }, [selectedId, tab, !!initiative]);
 
   if (!selectedId) return null;
 

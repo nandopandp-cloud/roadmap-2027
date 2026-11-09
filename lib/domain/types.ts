@@ -28,6 +28,7 @@ import type {
   proposalStepSchema,
   commitmentSchema,
   prototypeRefSchema,
+  repositoryBranchSchema,
   repositoryLinkSchema,
   squadInputSchema,
   squadSchema,
@@ -80,6 +81,7 @@ export type PrototypeRef = z.infer<typeof prototypeRefSchema>;
 export type Metric = z.infer<typeof metricSchema>;
 export type HistoryEntry = z.infer<typeof historyEntrySchema>;
 export type RepositoryLink = z.infer<typeof repositoryLinkSchema>;
+export type RepositoryBranch = z.infer<typeof repositoryBranchSchema>;
 export type Initiative = z.infer<typeof initiativeSchema>;
 export type InitiativeInput = z.infer<typeof initiativeInputSchema>;
 

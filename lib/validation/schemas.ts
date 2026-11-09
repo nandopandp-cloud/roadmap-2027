@@ -151,15 +151,21 @@ export const customImageSchema = z.object({
   y: z.number().min(-2).max(2).default(0),
 });
 
+/** Branch do projeto no GitHub (https://github.com/<org>/<repo>/tree/<branch>). */
+export const repositoryBranchSchema = z.object({
+  id: localId,
+  url: required("O link da branch", 500),
+});
+
 /**
- * Repositório do GitHub vinculado à iniciativa: link do repositório e, opcionalmente,
- * o link da branch do projeto (https://github.com/<org>/<repo>/tree/<branch>).
+ * Repositório do GitHub vinculado à iniciativa: link do repositório e as branches
+ * do projeto nele (nenhuma, uma ou várias).
  */
 export const repositoryLinkSchema = z
   .object({
     id: localId,
     url: required("O link do repositório", 300),
-    branchUrl: text(500).default(""),
+    branches: z.array(repositoryBranchSchema).max(20, "Vincule no máximo 20 branches por repositório.").default([]),
     note: text(200).default(""),
   })
   .superRefine((v, ctx) => {
@@ -168,10 +174,15 @@ export const repositoryLinkSchema = z
       ctx.addIssue({ code: "custom", path: ["url"], message: "Informe o link de um repositório do GitHub (https://github.com/organização/repositório)." });
       return;
     }
-    if (!v.branchUrl) return;
-    const branch = parseGithubBranch(v.branchUrl);
-    if (!branch) ctx.addIssue({ code: "custom", path: ["branchUrl"], message: "Informe o link da branch (https://github.com/organização/repositório/tree/branch)." });
-    else if (!sameGithubRepo(repo, branch)) ctx.addIssue({ code: "custom", path: ["branchUrl"], message: `A branch precisa ser do repositório ${repo.owner}/${repo.repo}.` });
+    const seen: string[] = [];
+    v.branches.forEach((b, idx) => {
+      const path = ["branches", idx, "url"];
+      const branch = parseGithubBranch(b.url);
+      if (!branch) ctx.addIssue({ code: "custom", path, message: "Informe o link da branch (https://github.com/organização/repositório/tree/branch)." });
+      else if (!sameGithubRepo(repo, branch)) ctx.addIssue({ code: "custom", path, message: `A branch precisa ser do repositório ${repo.owner}/${repo.repo}.` });
+      else if (seen.includes(branch.branch)) ctx.addIssue({ code: "custom", path, message: `A branch ${branch.branch} já foi informada.` });
+      else seen.push(branch.branch);
+    });
   });
 
 export const historyEntrySchema = z.object({

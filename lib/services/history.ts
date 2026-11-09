@@ -61,18 +61,29 @@ const repoName = (r: RepositoryLink) => {
   const parsed = parseGithubRepo(r.url);
   return parsed ? `${parsed.owner}/${parsed.repo}` : r.url;
 };
-const branchName = (r: RepositoryLink) => (r.branchUrl ? (parseGithubBranch(r.branchUrl)?.branch ?? r.branchUrl) : "");
+const branchName = (url: string) => parseGithubBranch(url)?.branch ?? url;
+const branchList = (urls: string[]) => urls.map(branchName).join(", ");
 
 /** Mudanças nos repositórios do GitHub vinculados (aba Repositório). */
 export function describeRepositoryChanges(before: RepositoryLink[], after: RepositoryLink[]): string[] {
   const changes: string[] = [];
   for (const r of after) {
     const prev = before.find((x) => x.id === r.id);
-    const branch = branchName(r);
-    if (!prev) changes.push(`Repositório vinculado: ${repoName(r)}${branch ? ` (branch ${branch})` : ""}.`);
-    else if (prev.url !== r.url) changes.push(`Repositório ${repoName(prev)} substituído por ${repoName(r)}.`);
-    else if (prev.branchUrl !== r.branchUrl)
-      changes.push(branch ? `Branch de ${repoName(r)} definida como ${branch}.` : `Branch de ${repoName(r)} removida.`);
+    const urls = r.branches.map((b) => b.url);
+    if (!prev) {
+      const branches = urls.length ? ` (${urls.length > 1 ? "branches" : "branch"} ${branchList(urls)})` : "";
+      changes.push(`Repositório vinculado: ${repoName(r)}${branches}.`);
+      continue;
+    }
+    if (prev.url !== r.url) {
+      changes.push(`Repositório ${repoName(prev)} substituído por ${repoName(r)}.`);
+      continue;
+    }
+    const prevUrls = prev.branches.map((b) => b.url);
+    const added = urls.filter((u) => !prevUrls.includes(u));
+    const removed = prevUrls.filter((u) => !urls.includes(u));
+    if (added.length) changes.push(`${added.length > 1 ? "Branches adicionadas" : "Branch adicionada"} em ${repoName(r)}: ${branchList(added)}.`);
+    if (removed.length) changes.push(`${removed.length > 1 ? "Branches removidas" : "Branch removida"} de ${repoName(r)}: ${branchList(removed)}.`);
   }
   before.filter((r) => !after.some((x) => x.id === r.id)).forEach((r) => changes.push(`Repositório desvinculado: ${repoName(r)}.`));
   return changes;

@@ -2,9 +2,9 @@ import { seedContext } from "@/data/seed/context";
 import { ILLUSTRATIONS } from "@/lib/domain/constants";
 import { inferDiscipline } from "@/lib/domain/org";
 import { defaultRoadmapOrder } from "@/lib/domain/roadmap-order";
-import type { Database, IllustrationKey, Person, PlatformStrategy, ProposalSection, Squad, StrategyContext } from "@/lib/domain/types";
+import type { Database, IllustrationKey, Person, PlatformStrategy, ProposalSection, RepositoryLink, Squad, StrategyContext } from "@/lib/domain/types";
 
-export const SCHEMA_VERSION = 10;
+export const SCHEMA_VERSION = 11;
 
 /** Ilustrações removidas da biblioteca → equivalentes atuais. */
 const RENAMED_ILLUSTRATIONS: Record<string, IllustrationKey | null> = { cometa: null, lua: null };
@@ -25,6 +25,7 @@ const RENAMED_ILLUSTRATIONS: Record<string, IllustrationKey | null> = { cometa: 
  *          destaques numéricos, principais resultados) e faixa de compromisso — a seção
  *          "compromisso-2027" da proposta passa a ser `commitment`. Edições são preservadas.
  * v9 → v10: repositórios do GitHub vinculados à iniciativa (repositories), vazios até o time cadastrar.
+ * v10 → v11: várias branches por repositório (branchUrl → branches).
  */
 export function migrateDatabase(db: Database): { db: Database; changed: boolean } {
   if ((db.schemaVersion ?? 1) >= SCHEMA_VERSION) return { db, changed: false };
@@ -42,7 +43,7 @@ export function migrateDatabase(db: Database): { db: Database; changed: boolean 
       phases: raw.phases ?? [],
       customImage: raw.customImage ?? null,
       roadmapOrder: raw.roadmapOrder ?? defaultRoadmapOrder(raw),
-      repositories: raw.repositories ?? [],
+      repositories: (raw.repositories ?? []).map(migrateRepository),
     };
   });
   return {
@@ -56,6 +57,14 @@ export function migrateDatabase(db: Database): { db: Database; changed: boolean 
     },
     changed: true,
   };
+}
+
+type LegacyRepository = Omit<RepositoryLink, "branches"> & { branches?: RepositoryLink["branches"]; branchUrl?: string };
+
+function migrateRepository(raw: LegacyRepository): RepositoryLink {
+  const { branchUrl, ...repo } = raw;
+  if (repo.branches) return repo as RepositoryLink;
+  return { ...repo, branches: branchUrl ? [{ id: `${repo.id}-b1`, url: branchUrl }] : [] };
 }
 
 type LegacyPerson = Person & { squadId?: string | null; squadOrder?: number };

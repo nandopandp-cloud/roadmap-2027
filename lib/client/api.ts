@@ -1,6 +1,7 @@
 import type { RoadmapTarget } from "@/lib/domain/roadmap-order";
 import type { Initiative, Person, PersonMove, Platform, Squad, StrategyContext } from "@/lib/domain/types";
 import type { Viewer } from "@/lib/auth/session";
+import type { GithubBranchList } from "@/lib/services/github-service";
 import type { PrdImportResult } from "@/lib/services/prd-import";
 
 export interface Snapshot {
@@ -60,6 +61,8 @@ const json = (data: unknown) => JSON.stringify(data);
 
 export const api = {
   snapshot: () => request<Snapshot>("/api/snapshot"),
+  githubBranches: (repositoryUrl: string) =>
+    request<GithubBranchList>(`/api/github/branches?repositorio=${encodeURIComponent(repositoryUrl)}`),
   fetchRemoteImage: (url: string) => request<{ dataUrl: string }>("/api/images/remote", { method: "POST", body: json({ url }) }),
 
   createInitiative: (data: unknown) => request<Initiative>("/api/initiatives", { method: "POST", body: json(data) }),

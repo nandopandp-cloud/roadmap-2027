@@ -172,6 +172,7 @@ Para trocar uma arte, substitua o arquivo mantendo o nome. Para gerar a versão 
 - **Perfis**: os e-mails em `EDITOR_EMAILS` ([lib/auth/config.ts](lib/auth/config.ts)) podem criar, editar, mover e remover conteúdo; as demais contas do domínio entram em modo **somente consulta** (os controles de edição somem da interface). Para mudar quem edita, altere essa lista; vale no próximo carregamento, sem novo login.
 - **Duas barreiras no servidor**: [proxy.ts](proxy.ts) exige sessão em toda página, API e protótipo, e recusa (403) qualquer método diferente de GET/HEAD para quem não edita ou que venha de outra origem; as rotas de API que alteram dados usam `handleEdit()` ([lib/http/handle.ts](lib/http/handle.ts)), que repete a checagem.
 - **Protótipos isolados**: servidos com CSP `sandbox` e exibidos em iframe `sandbox` sem `allow-same-origin` — não acessam cookies, armazenamento nem o DOM da aplicação.
+- **GitHub (aba Repositório)**: ao informar o link de um repositório, o servidor lista as branches pela API do GitHub (`GET /api/github/branches`, só para quem edita). Repositórios privados exigem `GITHUB_TOKEN` (somente leitura) — ver [.env.example](.env.example). Sem acesso, as branches podem ser informadas pelo link.
 - **Markdown**: HTML embutido é ignorado na leitura (`skipHtml`) e imagens externas não são carregadas.
 - Dados de demonstração: veja o aviso no topo.
 
