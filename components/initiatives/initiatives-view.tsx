@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState, ErrorBanner, Skeleton } from "@/components/ui/feedback";
 import { FilterSelect } from "@/components/ui/filter-select";
 import { cn, plural } from "@/lib/client/cn";
-import { DEFAULT_FILTERS, filterExceptStatus, filterInitiatives, type InitiativeFilters, type SortKey } from "@/lib/client/filtering";
+import { DEFAULT_FILTERS, filterExceptStatus, filterInitiatives, UPCOMING_FILTER, type InitiativeFilters, type SortKey } from "@/lib/client/filtering";
 import { useInitiativeSelection } from "@/lib/client/selection";
 import { useCanEdit, useRoadmap } from "@/lib/client/store";
 import { INITIATIVE_STATUSES, QUARTERS } from "@/lib/domain/constants";
@@ -65,6 +65,7 @@ export function InitiativesView() {
   const statusTabs = INITIATIVE_STATUSES.map((s) => ({ s, count: statusBase.filter((i) => i.status === s).length })).filter(
     (t) => t.count > 0 || t.s === filters.status,
   );
+  const upcomingCount = statusBase.filter((i) => i.upcoming).length;
   const categories = useMemo(
     () => Array.from(new Set(data.initiatives.map((i) => i.category).filter(Boolean))).sort((a, b) => a.localeCompare(b, "pt-BR")),
     [data.initiatives],
@@ -131,6 +132,18 @@ export function InitiativesView() {
             <button type="button" role="radio" aria-checked={filters.status === "todos"} className={pill(filters.status === "todos")} onClick={() => set("status", "todos")}>
               Todas ({statusBase.length})
             </button>
+            {(upcomingCount > 0 || filters.status === UPCOMING_FILTER) && (
+              <button
+                type="button"
+                role="radio"
+                aria-checked={filters.status === UPCOMING_FILTER}
+                className={pill(filters.status === UPCOMING_FILTER)}
+                onClick={() => set("status", UPCOMING_FILTER)}
+              >
+                <Hourglass size={15} aria-hidden className="mr-1.5" />
+                Em breve ({upcomingCount})
+              </button>
+            )}
             {statusTabs.map(({ s, count }) => (
               <button key={s} type="button" role="radio" aria-checked={filters.status === s} className={pill(filters.status === s)} onClick={() => set("status", s)}>
                 {STATUS_TAB_LABEL[s]} ({count})

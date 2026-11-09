@@ -8,9 +8,13 @@ export interface InitiativeFilters {
   quarter: Quarter | "todos" | "sem";
   platform: string | "todas";
   category: string | "todas";
-  status: InitiativeStatus | "todos";
+  /** Status da iniciativa, todas, ou "em-breve" (sinalizadas, com cadastro incompleto). */
+  status: InitiativeStatus | "todos" | typeof UPCOMING_FILTER;
   sort: SortKey;
 }
+
+/** Filtro das iniciativas "em breve" (não é um status: elas continuam contando no status delas). */
+export const UPCOMING_FILTER = "em-breve";
 
 export const DEFAULT_FILTERS: InitiativeFilters = {
   query: "",
@@ -57,7 +61,7 @@ export function filterInitiatives(list: Initiative[], f: InitiativeFilters): Ini
     if (f.category !== "todas" && i.category !== f.category) return false;
     if (f.quarter === "sem" ? i.quarter !== null : f.quarter !== "todos" && i.quarter !== f.quarter) return false;
     if (f.platform !== "todas" && !i.platformIds.includes(f.platform)) return false;
-    if (f.status !== "todos" && i.status !== f.status) return false;
+    if (f.status === UPCOMING_FILTER ? !i.upcoming : f.status !== "todos" && i.status !== f.status) return false;
     if (terms.length) {
       const text = haystack(i);
       if (!terms.every((t) => text.includes(t))) return false;
