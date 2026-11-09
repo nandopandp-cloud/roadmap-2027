@@ -40,6 +40,15 @@ export function describeChanges(before: Initiative, after: InitiativeInput): str
   protos.added.forEach((p) => changes.push(`Protótipo associado: ${p.name}.`));
   protos.removed.forEach((p) => changes.push(`Protótipo desassociado: ${p.name}.`));
 
+  /** Mesmos itens em outra sequência (adições e remoções já são descritas acima). */
+  const reordered = <T extends { id: string }>(a: T[], b: T[]) => {
+    const kept = a.filter((x) => b.some((y) => y.id === x.id)).map((x) => x.id);
+    const after = b.filter((x) => a.some((y) => y.id === x.id)).map((x) => x.id);
+    return kept.length > 1 && kept.join() !== after.join();
+  };
+  if (reordered(before.documents, after.documents)) changes.push("Ordem dos documentos alterada.");
+  if (reordered(before.prototypes, after.prototypes)) changes.push("Ordem dos protótipos alterada.");
+
   const addedDeps = after.dependsOn.filter((d) => !before.dependsOn.includes(d));
   const removedDeps = before.dependsOn.filter((d) => !after.dependsOn.includes(d));
   if (addedDeps.length) changes.push(`Nova dependência: ${addedDeps.join(", ")}.`);

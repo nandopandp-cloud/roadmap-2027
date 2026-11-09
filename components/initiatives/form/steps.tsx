@@ -1,8 +1,9 @@
 "use client";
 
-import { ImagePlus, Plus, Trash2 } from "lucide-react";
+import { FileText, ImagePlus, MonitorPlay, Plus, Trash2 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { ImageEditor } from "@/components/initiatives/form/image-editor";
+import { SortableRepeater } from "@/components/initiatives/form/sortable-repeater";
 import { newDocument, newMetric, newMilestone, newPhase, newPrototype } from "@/components/initiatives/form/defaults";
 import { illustrationFor, InitiativeIllustration } from "@/components/initiatives/initiative-illustration";
 import { PLATFORM_GLYPHS } from "@/components/platforms/platform-icon";
@@ -51,6 +52,8 @@ export interface StepProps {
   /** Nova iniciativa criada a partir de um PRD (o texto será salvo como prd.md). */
   importedPrd?: boolean;
 }
+
+const hasFieldError = (errors: Record<string, string>, prefix: string) => Object.keys(errors).some((k) => k.startsWith(prefix) && errors[k]);
 
 function Group({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
   return (
@@ -500,26 +503,45 @@ export function DocumentationStep({ draft, set, errors, platforms, folder, impor
         </p>
       )}
       <Group title="Documentos" description="PRDs, registros de decisão e outros documentos: escreva ou cole o texto aqui, aponte um arquivo do repositório ou um link externo. Nenhum documento é obrigatório para criar a iniciativa.">
-        <Repeater
+        <SortableRepeater
+          zone="form-documentos"
           items={draft.documents}
           onChange={(v) => set("documents", v)}
           create={() => newDocument(draft.documents.some((d) => d.kind === "prd"))}
           addLabel="Adicionar documento"
           empty="Nenhum documento associado."
+          icon={<FileText size={18} />}
+          hasError={(idx) => hasFieldError(errors, `documents.${idx}.`)}
           itemLabel={(d, idx) => d.title || `Documento ${idx + 1}`}
+          itemSummary={(d) =>
+            [
+              DOCUMENT_KIND_LABEL[d.kind],
+              DOCUMENT_STATUS_LABEL[d.status],
+              d.version && `versão ${d.version}`,
+              d.content !== undefined ? "texto escrito aqui" : d.source === "repo" ? d.path || "arquivo no repositório" : d.url || "link externo",
+            ]
+              .filter(Boolean)
+              .join(" · ")
+          }
           render={(d, update, idx) => <DocumentFields doc={d} update={update} errors={errors} idx={idx} pathHint={pathHint} />}
         />
         {errors.documents && <p className="text-xs font-semibold text-[#c42b3a]">{errors.documents}</p>}
       </Group>
 
       <Group title="Protótipos" description="Experiências navegáveis em HTML local (pasta prototype/) ou URLs externas.">
-        <Repeater
+        <SortableRepeater
+          zone="form-prototipos"
           items={draft.prototypes}
           onChange={(v) => set("prototypes", v)}
           create={() => newPrototype(folder)}
           addLabel="Adicionar protótipo"
           empty="Nenhum protótipo associado."
+          icon={<MonitorPlay size={18} />}
+          hasError={(idx) => hasFieldError(errors, `prototypes.${idx}.`)}
           itemLabel={(p, idx) => p.name || `Protótipo ${idx + 1}`}
+          itemSummary={(p) =>
+            [PROTOTYPE_STATUS_LABEL[p.status], p.source === "repo" ? p.path || "HTML local" : p.url || "URL externa"].filter(Boolean).join(" · ")
+          }
           render={(p, update, idx) => (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <TextField label="Nome do protótipo" required value={p.name} onChange={(e) => update({ name: e.target.value })} error={errors[`prototypes.${idx}.name`]} />
