@@ -3,7 +3,7 @@
 import { ChevronRight } from "lucide-react";
 import { InitiativeIllustration } from "@/components/initiatives/initiative-illustration";
 import { PlatformPill } from "@/components/platforms/platform-icon";
-import { StatusBadge } from "@/components/ui/badges";
+import { StatusBadge, UpcomingBadge } from "@/components/ui/badges";
 import { ProgressBar, TagChip } from "@/components/ui/progress";
 import { cn } from "@/lib/client/cn";
 import { QUARTER_LABEL } from "@/lib/domain/labels";
@@ -45,11 +45,14 @@ export function InitiativeCard({ initiative: i, platforms, selected, layout, onO
         <span className="flex flex-1 flex-col p-5">
           <span className="flex items-center justify-between gap-2">
             <span className="text-[13.5px] font-semibold text-muted">{quarter}</span>
-            <StatusBadge status={i.status} size="sm" />
+            <span className="flex flex-wrap justify-end gap-1.5">
+              {i.upcoming && <UpcomingBadge size="sm" />}
+              <StatusBadge status={i.status} size="sm" />
+            </span>
           </span>
           <span className="mt-2.5 block text-[18px] font-extrabold leading-snug text-navy">{i.title}</span>
           {i.summary && <span className="mt-1 line-clamp-2 text-[14px] leading-relaxed text-muted">{i.summary}</span>}
-          <ProgressBar value={progress} className="mt-4" />
+          {!i.upcoming && <ProgressBar value={progress} className="mt-4" />}
           <span className="mt-4 flex flex-wrap gap-2">{platformsRow}</span>
           <span className="mt-3 text-[11.5px] font-extrabold tracking-wide text-subtle">{i.id}</span>
         </span>
@@ -74,11 +77,12 @@ export function InitiativeCard({ initiative: i, platforms, selected, layout, onO
             {i.summary && <span className="mt-1 line-clamp-2 text-[14.5px] leading-relaxed text-muted">{i.summary}</span>}
           </span>
           <span className="flex w-full shrink-0 flex-col gap-3 md:w-[200px]">
-            <span className="flex items-center gap-3">
+            <span className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
               <span className="whitespace-nowrap text-[14px] font-semibold text-muted">{quarter}</span>
               <StatusBadge status={i.status} size="sm" />
+              {i.upcoming && <UpcomingBadge size="sm" />}
             </span>
-            <ProgressBar value={progress} />
+            {!i.upcoming && <ProgressBar value={progress} />}
           </span>
         </span>
 

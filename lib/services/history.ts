@@ -19,6 +19,8 @@ export function describeChanges(before: Initiative, after: InitiativeInput): str
     changes.push(`Quarter alterado de ${quarter(before.quarter)} para ${quarter(after.quarter)}.`);
   if (before.priority !== after.priority)
     changes.push(`Prioridade alterada de ${priority(before.priority)} para ${priority(after.priority)}.`);
+  if (before.upcoming !== after.upcoming)
+    changes.push(after.upcoming ? "Iniciativa marcada como em breve (cadastro incompleto)." : "Cadastro da iniciativa completado: deixou de ser “em breve”.");
   if (before.planningValidated !== after.planningValidated)
     changes.push(after.planningValidated ? "Quarter e prioridade marcados como validados." : "Planejamento voltou a ficar pendente de validação.");
 

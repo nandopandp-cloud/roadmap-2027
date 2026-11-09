@@ -228,7 +228,7 @@ export function extractFromPrd(content: string, ctx: { platforms: Platform[]; in
   const found: PrdImportReport["found"] = [];
   const warnings: string[] = [];
   const input: InitiativeInput = {
-    title: "", summary: "", category: "", tags: [], illustration: null, customImage: null,
+    title: "", summary: "", upcoming: false, category: "", tags: [], illustration: null, customImage: null,
     problem: "", currentContext: "", audience: "", userPain: "", motivator: "", evidence: [], hypothesis: "", expectedOutcome: "", objectives: [], deliverables: [],
     quarter: null, priority: null, status: "definicao", planningValidated: false, owner: "", milestones: [], phases: defaultPhases(),
     dependsOn: [], relatedInitiativeIds: [], risks: [], pendingDecisions: [],

@@ -191,11 +191,16 @@ export const historyEntrySchema = z.object({
   description: text(500),
 });
 
-/** Campos editáveis de uma iniciativa (o que o formulário envia). */
-export const initiativeInputSchema = z.object({
+/** Campos editáveis de uma iniciativa (o que o formulário envia), sem as regras de preenchimento. */
+const initiativeFieldsSchema = z.object({
   // Identificação
   title: required("O nome", 160),
   summary: text(400).default(""),
+  /**
+   * Iniciativa "em breve": sinalizada só com nome e descrição para avisar que será considerada.
+   * Enquanto marcada, problema, motivador e resultado esperado não são exigidos.
+   */
+  upcoming: z.boolean().default(false),
   category: text(80).default(""),
   tags: z.array(text(40)).max(20).default([]),
   illustration: z.enum(ILLUSTRATIONS).nullable().default(null),
@@ -203,14 +208,14 @@ export const initiativeInputSchema = z.object({
   customImage: customImageSchema.nullable().default(null),
 
   // Problema e motivação
-  problem: required("O problema", 4000),
+  problem: text().default(""),
   currentContext: text().default(""),
   audience: text(1000).default(""),
   userPain: text().default(""),
-  motivator: required("O motivador", 4000),
+  motivator: text().default(""),
   evidence: list(),
   hypothesis: text().default(""),
-  expectedOutcome: required("O resultado esperado", 2000),
+  expectedOutcome: text(2000).default(""),
   objectives: list(),
   deliverables: list(),
 
@@ -246,7 +251,32 @@ export const initiativeInputSchema = z.object({
   metrics: z.array(metricSchema).max(30).default([]),
 });
 
-export const initiativeSchema = initiativeInputSchema.extend({
+/** Campos exigidos de toda iniciativa que não está marcada como "em breve". */
+const COMPLETE_FIELDS = [
+  ["problem", "O problema"],
+  ["motivator", "O motivador"],
+  ["expectedOutcome", "O resultado esperado"],
+] as const;
+
+/** Iniciativa como enviada pelo formulário: cadastro completo, salvo se marcada como "em breve". */
+export const initiativeInputSchema = COMPLETE_FIELDS.reduce(
+  (schema, [field, label]) =>
+    schema.refine((v) => v.upcoming || !!v[field]?.trim(), {
+      path: [field],
+      message: `${label} é obrigatório.`,
+      // Avalia mesmo quando outros campos têm erro, para mostrar todas as pendências de uma vez.
+      when: (payload) => typeof payload.value === "object" && payload.value !== null,
+    }),
+  initiativeFieldsSchema,
+);
+
+/** Sinalizar uma iniciativa "em breve": só nome e descrição. */
+export const upcomingInitiativeSchema = z.object({
+  title: required("O nome", 160),
+  summary: text(400).default(""),
+});
+
+export const initiativeSchema = initiativeFieldsSchema.extend({
   documents: z.array(documentRefSchema).max(30).default([]),
   id: z.string().regex(INITIATIVE_ID_PATTERN),
   /** Pasta estável dos artefatos no repositório (não muda quando o título muda). */

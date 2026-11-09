@@ -12,6 +12,7 @@ import {
   fieldErrors,
   initiativeFromPrdSchema,
   initiativeInputSchema,
+  upcomingInitiativeSchema,
   planningPatchSchema,
   prdAnalysisSchema,
   platformInputSchema,
@@ -169,6 +170,16 @@ async function insertInitiative(db: Database, input: InitiativeInput, files: Doc
 export async function createInitiative(data: unknown, files: DocumentFiles): Promise<Initiative> {
   const input = cleanPlatformNotes(parse(initiativeInputSchema, data));
   return getRepository().transaction((db) => insertInitiative(db, input, files, "Iniciativa criada."));
+}
+
+/**
+ * Sinaliza uma iniciativa "em breve": só nome e descrição, para avisar que ela será considerada.
+ * Problema, PRD, planejamento e métricas ficam para quando ela for detalhada.
+ */
+export async function createUpcomingInitiative(data: unknown, files: DocumentFiles): Promise<Initiative> {
+  const { title, summary } = parse(upcomingInitiativeSchema, data);
+  const input = parse(initiativeInputSchema, { title, summary, upcoming: true, status: "ideia" });
+  return getRepository().transaction((db) => insertInitiative(db, input, files, "Iniciativa sinalizada como em breve (só nome e descrição)."));
 }
 
 /** Identifica no texto do PRD os campos da iniciativa (nada é gravado). */

@@ -1,8 +1,9 @@
 "use client";
 
-import { LayoutGrid, List, Plus, Rocket, Search, Sparkles, X } from "lucide-react";
+import { Hourglass, LayoutGrid, List, Plus, Rocket, Search, Sparkles, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { InitiativeCard } from "@/components/initiatives/initiative-card";
+import { UpcomingInitiativeDialog } from "@/components/initiatives/upcoming-dialog";
 import { PageContainer, PageHero } from "@/components/layout/page-header";
 import { useGlobalSearch } from "@/components/search/global-search";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,7 @@ export function InitiativesView() {
   const [filters, setFilters] = useState<InitiativeFilters>(DEFAULT_FILTERS);
   const [layout, setLayout] = useState<"list" | "grid">("list");
   const [shortcut, setShortcut] = useState("Ctrl K");
+  const [upcomingOpen, setUpcomingOpen] = useState(false);
   const { open: openSearch } = useGlobalSearch();
 
   useEffect(() => {
@@ -87,13 +89,13 @@ export function InitiativesView() {
         title="Roadmap 2027"
         subtitle="Iniciativas que serão discutidos para o roadmap de produto 2027."
       >
-        <div role="search" aria-label="Buscar iniciativas" className="mt-8 flex flex-col gap-3 sm:flex-row">
+        <div role="search" aria-label="Buscar iniciativas" className="mt-8 flex flex-col gap-3 xl:flex-row">
           <button
             type="button"
             onClick={openSearch}
             aria-haspopup="dialog"
             aria-label="Buscar iniciativas por nome, tema ou palavra-chave"
-            className="relative flex h-[52px] min-w-0 flex-1 items-center rounded-[14px] border border-white/70 bg-white/90 pl-12 pr-4 text-left shadow-[0_6px_24px_rgba(23,27,77,0.08)] backdrop-blur transition-all hover:border-violet/40 hover:shadow-[0_8px_28px_rgba(96,69,216,0.18)]"
+            className="relative flex h-[52px] min-w-0 shrink-0 items-center xl:flex-1 rounded-[14px] border border-white/70 bg-white/90 pl-12 pr-4 text-left shadow-[0_6px_24px_rgba(23,27,77,0.08)] backdrop-blur transition-all hover:border-violet/40 hover:shadow-[0_8px_28px_rgba(96,69,216,0.18)]"
           >
             <Search size={20} aria-hidden className="absolute left-4 text-navy" />
             <span className="flex-1 truncate text-[14.5px] text-subtle">Buscar iniciativas por nome, tema ou palavra-chave...</span>
@@ -102,7 +104,10 @@ export function InitiativesView() {
             </kbd>
           </button>
           {canEdit && (
-            <>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Button className="h-[52px] rounded-[14px] px-5 text-[15px]" icon={<Hourglass size={18} />} onClick={() => setUpcomingOpen(true)}>
+                Sinalizar em breve
+              </Button>
               <Button className="h-[52px] rounded-[14px] px-5 text-[15px]" icon={<Sparkles size={18} />} onClick={openPrdImport}>
                 Criar a partir do PRD
               </Button>
@@ -114,10 +119,11 @@ export function InitiativesView() {
               >
                 Nova iniciativa
               </Button>
-            </>
+            </div>
           )}
         </div>
       </PageHero>
+      <UpcomingInitiativeDialog open={upcomingOpen} onClose={() => setUpcomingOpen(false)} />
 
       <PageContainer className="pb-16 pt-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -229,6 +235,9 @@ export function InitiativesView() {
                 data.initiatives.length === 0 ? (
                   canEdit && (
                     <div className="flex flex-wrap justify-center gap-2">
+                      <Button icon={<Hourglass size={16} />} onClick={() => setUpcomingOpen(true)}>
+                        Sinalizar em breve
+                      </Button>
                       <Button icon={<Sparkles size={16} />} onClick={openPrdImport}>
                         Criar a partir do PRD
                       </Button>

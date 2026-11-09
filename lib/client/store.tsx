@@ -22,6 +22,8 @@ interface FormRequest {
   initiativeId: string | null;
   step?: number;
   prefill?: PrdPrefill;
+  /** Completar o cadastro de uma iniciativa "em breve": o formulário abre com a marcação desfeita. */
+  complete?: boolean;
 }
 
 interface RoadmapStore {
@@ -47,7 +49,7 @@ interface RoadmapStore {
   saveSquad: (id: string | null, data: unknown) => Promise<Squad>;
   removeSquad: (id: string) => Promise<void>;
   form: FormRequest | null;
-  openForm: (initiativeId: string | null, step?: number, prefill?: PrdPrefill) => void;
+  openForm: (initiativeId: string | null, step?: number, prefill?: PrdPrefill, options?: { complete?: boolean }) => void;
   closeForm: () => void;
   /** Criação de iniciativa a partir do texto de um PRD. */
   prdImportOpen: boolean;
@@ -254,7 +256,7 @@ export function RoadmapProvider({ children }: { children: ReactNode }) {
       saveSquad,
       removeSquad,
       form,
-      openForm: (initiativeId, step, prefill) => setForm({ initiativeId, step, prefill }),
+      openForm: (initiativeId, step, prefill, options) => setForm({ initiativeId, step, prefill, complete: options?.complete }),
       closeForm: () => setForm(null),
       prdImportOpen,
       openPrdImport: () => setPrdImportOpen(true),

@@ -24,16 +24,27 @@ export function InitiativeFormHost() {
   return (
     <Suspense fallback={null}>
       <InitiativeForm
-        key={`${form.initiativeId ?? "nova"}-${form.step ?? 0}`}
+        key={`${form.initiativeId ?? "nova"}-${form.step ?? 0}-${form.complete ? "completar" : ""}`}
         initiativeId={form.initiativeId}
         initialStep={form.step ?? 0}
         prefill={form.initiativeId ? undefined : form.prefill}
+        complete={!!form.complete}
       />
     </Suspense>
   );
 }
 
-function InitiativeForm({ initiativeId, initialStep, prefill }: { initiativeId: string | null; initialStep: number; prefill?: PrdPrefill }) {
+function InitiativeForm({
+  initiativeId,
+  initialStep,
+  prefill,
+  complete,
+}: {
+  initiativeId: string | null;
+  initialStep: number;
+  prefill?: PrdPrefill;
+  complete: boolean;
+}) {
   const { data, initiativeById, closeForm, upsertInitiative } = useRoadmap();
   const { open } = useInitiativeSelection();
   const confirm = useConfirm();
@@ -43,7 +54,8 @@ function InitiativeForm({ initiativeId, initialStep, prefill }: { initiativeId: 
   // Estado inicial congelado na abertura: base para detectar alterações não salvas.
   const [initial] = useState<InputState>(() => (editing ? toInput(editing) : emptyInput()));
   // Vindo de um PRD, o rascunho começa preenchido (e conta como alteração não salva).
-  const [draft, setDraft] = useState<InitiativeInput>(() => prefill?.input ?? initial);
+  // "Completar cadastro" de uma iniciativa em breve: começa já sem a marcação (cadastro completo exigido).
+  const [draft, setDraft] = useState<InitiativeInput>(() => prefill?.input ?? (complete ? { ...initial, upcoming: false } : initial));
   const [step, setStep] = useState(initialStep);
   const [errors, setErrors] = useState<Record<string, string>>(prefill?.errors ?? {});
   const [saving, setSaving] = useState(false);
@@ -153,10 +165,12 @@ function InitiativeForm({ initiativeId, initialStep, prefill }: { initiativeId: 
       title={editing ? `Editar ${editing.id}` : "Nova iniciativa"}
       description={
         editing
-          ? editing.title
+          ? complete && editing.upcoming
+            ? `${editing.title} — complete o cadastro: problema, motivador e resultado esperado passam a ser obrigatórios.`
+            : editing.title
           : prefill
             ? "Campos preenchidos a partir do PRD. Revise o que precisar e crie a iniciativa — o texto original do PRD será salvo e associado a ela."
-            : "Campos obrigatórios: nome, problema, motivador, resultado esperado e status. O restante pode ser preenchido aos poucos."
+            : "Campos obrigatórios: nome, problema, motivador, resultado esperado e status. O restante pode ser preenchido aos poucos. Para só sinalizar uma iniciativa futura, marque “Iniciativa em breve”."
       }
       footer={
         <>

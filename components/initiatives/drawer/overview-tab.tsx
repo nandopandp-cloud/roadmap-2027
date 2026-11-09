@@ -9,6 +9,8 @@ import {
   Gauge,
   GitFork,
   Globe2,
+  Hourglass,
+  Pencil,
   Lightbulb,
   ListChecks,
   Play,
@@ -21,7 +23,9 @@ import type { ReactNode } from "react";
 import { BulletList, DrawerSection, Prose } from "@/components/initiatives/drawer/parts";
 import { PlatformTile } from "@/components/platforms/platform-icon";
 import { StateTag } from "@/components/ui/badges";
+import { Button } from "@/components/ui/button";
 import { ProgressBar } from "@/components/ui/progress";
+import { useCanEdit, useRoadmap } from "@/lib/client/store";
 import { cn, formatDate } from "@/lib/client/cn";
 import type { DrawerTab } from "@/lib/client/selection";
 import { documentReaderHref, primaryPrd, primaryPrototype, prototypeViewerHref } from "@/lib/domain/artifacts";
@@ -82,6 +86,38 @@ function DocTile({
   );
 }
 
+/** Etapa "Problema e motivação" do formulário, onde o cadastro de uma iniciativa em breve é completado. */
+const PROBLEM_FORM_STEP = 1;
+
+/** Aviso de iniciativa "em breve": sinalizada só com nome e descrição. */
+function UpcomingNotice({ initiative: i }: { initiative: Initiative }) {
+  const { openForm } = useRoadmap();
+  const canEdit = useCanEdit();
+  return (
+    <section className="flex flex-col gap-3 rounded-[18px] border border-[#f6cfe3] bg-[#fff7fb] p-5 sm:flex-row sm:items-start">
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#ffe4f1] text-[#9c1f62]" aria-hidden>
+        <Hourglass size={22} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <h3 className="text-[16.5px] font-extrabold text-navy">Iniciativa em breve</h3>
+        <p className="mt-1 text-[14.5px] leading-relaxed text-muted">
+          Esta iniciativa foi sinalizada para ser considerada em breve. Por enquanto só o nome e a descrição foram cadastrados; problema, PRD, planejamento e
+          métricas serão detalhados depois.
+        </p>
+        {canEdit && (
+          <Button className="mt-3" size="sm" variant="primary" icon={<Pencil size={15} />} onClick={() => openForm(i.id, PROBLEM_FORM_STEP, undefined, { complete: true })}>
+            Completar cadastro
+          </Button>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/** Há conteúdo além do nome e da descrição (uma iniciativa em breve pode ter sido detalhada em parte). */
+const hasDetails = (i: Initiative) =>
+  !!(i.problem || i.motivator || i.expectedOutcome || i.objectives.length || i.deliverables.length || i.platformIds.length || i.phases.length || i.documents.length || i.metrics.length);
+
 export function OverviewTab({
   initiative: i,
   platforms,
@@ -98,8 +134,11 @@ export function OverviewTab({
   const protoPlatforms = proto?.platformIds.map((id) => platforms.find((p) => p.id === id)?.name).filter(Boolean) ?? [];
   const progress = progressOf(i.phases);
 
+  if (i.upcoming && !hasDetails(i)) return <UpcomingNotice initiative={i} />;
+
   return (
     <div className="flex flex-col gap-4">
+      {i.upcoming && <UpcomingNotice initiative={i} />}
       <DrawerSection icon={Target} color="#E8505B" title="Motivador">
         <Prose empty="Motivador não informado.">{i.motivator}</Prose>
       </DrawerSection>

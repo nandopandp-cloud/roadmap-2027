@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/client/cn";
-import { PRIORITY_TONE, QUARTER_TONE, STATUS_TONE, TRANSVERSAL_TONE, VALIDATION_TONE, type Tone } from "@/lib/client/tones";
+import { PRIORITY_TONE, QUARTER_TONE, STATUS_TONE, TRANSVERSAL_TONE, UPCOMING_TONE, VALIDATION_TONE, type Tone } from "@/lib/client/tones";
 import { PRIORITY_LABEL, PROBLEM_VALIDATION_LABEL, QUARTER_LABEL, STATUS_LABEL } from "@/lib/domain/labels";
 import type { InitiativeStatus, Priority, ProblemValidation, Quarter } from "@/lib/domain/types";
 
@@ -29,6 +29,15 @@ export function Badge({
       {dot && <span aria-hidden className="h-2 w-2 rounded-full" style={{ background: tone.dot }} />}
       {children}
     </span>
+  );
+}
+
+/** Iniciativa sinalizada "em breve": só nome e descrição cadastrados. */
+export function UpcomingBadge({ size }: { size?: "sm" | "md" }) {
+  return (
+    <Badge tone={UPCOMING_TONE} dot size={size}>
+      Em breve
+    </Badge>
   );
 }
 

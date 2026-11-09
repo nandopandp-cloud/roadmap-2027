@@ -69,6 +69,8 @@ export const ACCENT_LABEL: Record<PlatformAccent, string> = {
 };
 
 export const TRANSVERSAL_TONE: Tone = { bg: "#E3F6F3", fg: "#00665E", dot: "#00A99D" };
+/** Iniciativa "em breve" (sinalizada, cadastro incompleto). */
+export const UPCOMING_TONE: Tone = { bg: "#FFF1F8", fg: "#9C1F62", dot: "#E0559E" };
 export const QUARTER_TONE: Tone = { bg: "#EFEBFC", fg: "#4A2D91", dot: "#6045D8" };
 
 /** Funções no squad: tons suaves distintos entre si. */

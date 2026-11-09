@@ -4,7 +4,7 @@ import { ArrowDownToLine, CircleDashed, Flag, GitFork, GripVertical } from "luci
 import type { KeyboardEvent, PointerEvent, ReactNode } from "react";
 import { PLATFORM_GLYPHS } from "@/components/platforms/platform-icon";
 import { useCardDrag, type ActiveDrag, type DropTarget } from "@/components/ui/use-card-drag";
-import { PriorityBadge, StatusBadge, TransversalBadge } from "@/components/ui/badges";
+import { PriorityBadge, StatusBadge, TransversalBadge, UpcomingBadge } from "@/components/ui/badges";
 import { Skeleton } from "@/components/ui/feedback";
 import { ProgressBar } from "@/components/ui/progress";
 import { useToast } from "@/components/ui/toast";
@@ -66,11 +66,12 @@ function CardContent({ initiative: i, platforms, milestones, blockedBy, draggabl
       </span>
       <span className="text-[15.5px] font-extrabold leading-snug text-navy">{i.title}</span>
       <span className="flex flex-wrap gap-1.5">
+        {i.upcoming && <UpcomingBadge size="sm" />}
         <StatusBadge status={i.status} size="sm" />
         <PriorityBadge priority={i.priority} size="sm" />
       </span>
       <PlatformDots ids={i.platformIds} platforms={platforms} />
-      <ProgressBar value={progressOf(i.phases)} />
+      {!i.upcoming && <ProgressBar value={progressOf(i.phases)} />}
       {milestones.length > 0 && (
         <span className="flex flex-col gap-1 border-t border-line pt-2">
           {milestones.map((m) => (

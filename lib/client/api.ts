@@ -66,6 +66,8 @@ export const api = {
   fetchRemoteImage: (url: string) => request<{ dataUrl: string }>("/api/images/remote", { method: "POST", body: json({ url }) }),
 
   createInitiative: (data: unknown) => request<Initiative>("/api/initiatives", { method: "POST", body: json(data) }),
+  createUpcomingInitiative: (data: { title: string; summary: string }) =>
+    request<Initiative>("/api/initiatives/em-breve", { method: "POST", body: json(data) }),
   updateInitiative: (id: string, data: unknown) =>
     request<Initiative>(`/api/initiatives/${id}`, { method: "PUT", body: json(data) }),
   patchPlanning: (id: string, data: unknown) =>

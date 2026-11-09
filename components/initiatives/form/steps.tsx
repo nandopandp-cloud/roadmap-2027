@@ -142,6 +142,18 @@ export function IdentificationStep({ draft, set, errors, others, editingId, next
         onChange={(e) => set("summary", e.target.value)}
         error={errors.summary}
       />
+      <div className="rounded-2xl border border-line bg-[#fafbff] px-4 py-3.5">
+        <Checkbox
+          label="Iniciativa em breve (cadastro incompleto)"
+          checked={draft.upcoming}
+          onChange={(v) => set("upcoming", v)}
+          hint={
+            draft.upcoming
+              ? "Só o nome é obrigatório. Desmarque quando a iniciativa for detalhada: problema, motivador e resultado esperado passam a ser exigidos."
+              : "Marque para sinalizar uma iniciativa que será considerada em breve, sem exigir problema, motivador e resultado esperado."
+          }
+        />
+      </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <TextField label="Categoria" value={draft.category} onChange={(e) => set("category", e.target.value)} placeholder="Ex.: Acesso e identidade" />
         <TextField
@@ -208,7 +220,7 @@ export function IdentificationStep({ draft, set, errors, others, editingId, next
 export function ProblemStep({ draft, set, errors }: StepProps) {
   return (
     <div className="flex flex-col gap-5">
-      <TextAreaField label="Problema que queremos resolver" required rows={3} value={draft.problem} onChange={(e) => set("problem", e.target.value)} error={errors.problem} />
+      <TextAreaField label="Problema que queremos resolver" required={!draft.upcoming} rows={3} value={draft.problem} onChange={(e) => set("problem", e.target.value)} error={errors.problem} />
       <TextAreaField label="Contexto atual" rows={3} value={draft.currentContext} onChange={(e) => set("currentContext", e.target.value)} />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <TextAreaField label="Público afetado" rows={3} value={draft.audience} onChange={(e) => set("audience", e.target.value)} />
@@ -216,7 +228,7 @@ export function ProblemStep({ draft, set, errors }: StepProps) {
       </div>
       <TextAreaField
         label="Motivador de negócio ou pedagógico"
-        required
+        required={!draft.upcoming}
         rows={3}
         value={draft.motivator}
         onChange={(e) => set("motivator", e.target.value)}
@@ -237,7 +249,7 @@ export function ProblemStep({ draft, set, errors }: StepProps) {
       />
       <TextAreaField
         label="Resultado esperado"
-        required
+        required={!draft.upcoming}
         rows={2}
         value={draft.expectedOutcome}
         onChange={(e) => set("expectedOutcome", e.target.value)}

@@ -8,7 +8,7 @@ import { DependenciesTab, RoadmapTab } from "@/components/initiatives/drawer/pla
 import { RepositoryTab } from "@/components/initiatives/drawer/repository-tab";
 import { FallbackImg, illustrationFor } from "@/components/initiatives/initiative-illustration";
 import { PLATFORM_GLYPHS, PlatformPill } from "@/components/platforms/platform-icon";
-import { StatusBadge } from "@/components/ui/badges";
+import { StatusBadge, UpcomingBadge } from "@/components/ui/badges";
 import { Button } from "@/components/ui/button";
 import { useConfirm, useFocusTrap } from "@/components/ui/dialog";
 import { EmptyState, Skeleton } from "@/components/ui/feedback";
@@ -290,6 +290,7 @@ export function InitiativeDrawer() {
               <div className="relative z-10 flex items-start justify-between gap-3">
                 <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 pt-1.5">
                   <StatusBadge status={initiative.status} />
+                  {initiative.upcoming && <UpcomingBadge />}
                   <span className="text-[14px] font-semibold text-muted">
                     {initiative.quarter ? QUARTER_LABEL[initiative.quarter] : "Sem quarter"}
                   </span>
