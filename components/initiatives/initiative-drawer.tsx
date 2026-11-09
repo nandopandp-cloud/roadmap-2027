@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 
 import { DocumentsTab, PrototypesTab } from "@/components/initiatives/drawer/artifacts-tabs";
 import { OverviewTab } from "@/components/initiatives/drawer/overview-tab";
 import { DependenciesTab, RoadmapTab } from "@/components/initiatives/drawer/planning-tabs";
+import { RepositoryTab } from "@/components/initiatives/drawer/repository-tab";
 import { FallbackImg, illustrationFor } from "@/components/initiatives/initiative-illustration";
 import { PLATFORM_GLYPHS, PlatformPill } from "@/components/platforms/platform-icon";
 import { StatusBadge } from "@/components/ui/badges";
@@ -25,6 +26,7 @@ const TAB_LABEL: Record<DrawerTab, string> = {
   "visao-geral": "Visão geral",
   prd: "PRD",
   prototipo: "Protótipo",
+  repositorio: "Repositório",
   roadmap: "Roadmap",
   dependencias: "Dependências",
 };
@@ -185,6 +187,8 @@ export function InitiativeDrawer() {
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 });
+    // Em telas estreitas a barra de abas rola na horizontal: mantém a aba ativa visível.
+    document.getElementById(`drawer-tab-${tab}`)?.scrollIntoView({ block: "nearest", inline: "center" });
   }, [selectedId, tab]);
 
   if (!selectedId) return null;
@@ -342,7 +346,7 @@ export function InitiativeDrawer() {
                     onClick={() => setTab(t)}
                     onKeyDown={onTabKey}
                     className={cn(
-                      "relative shrink-0 whitespace-nowrap px-4 py-4 text-[15px] font-semibold transition-colors",
+                      "relative shrink-0 whitespace-nowrap px-3 py-4 text-[15px] font-semibold transition-colors",
                       tab === t ? "text-navy" : "text-muted hover:text-ink",
                     )}
                   >
@@ -357,6 +361,7 @@ export function InitiativeDrawer() {
               {tab === "visao-geral" && <OverviewTab initiative={initiative} platforms={data.platforms} onTab={setTab} />}
               {tab === "prd" && <DocumentsTab initiative={initiative} />}
               {tab === "prototipo" && <PrototypesTab initiative={initiative} platforms={data.platforms} />}
+              {tab === "repositorio" && <RepositoryTab key={initiative.id} initiative={initiative} />}
               {tab === "roadmap" && <RoadmapTab initiative={initiative} onOpen={(id) => open(id)} />}
               {tab === "dependencias" && <DependenciesTab initiative={initiative} platforms={data.platforms} onOpen={(id) => open(id)} />}
             </div>

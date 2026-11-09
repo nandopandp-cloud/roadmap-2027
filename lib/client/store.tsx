@@ -32,7 +32,7 @@ interface RoadmapStore {
   platformById: (id: string) => Platform | undefined;
   upsertInitiative: (initiative: Initiative) => void;
   removeInitiative: (id: string) => Promise<void>;
-  patchPlanning: (id: string, patch: Partial<Pick<Initiative, "quarter" | "priority" | "status" | "planningValidated" | "phases">>) => Promise<Initiative>;
+  patchPlanning: (id: string, patch: Partial<Pick<Initiative, "quarter" | "priority" | "status" | "planningValidated" | "phases" | "repositories">>) => Promise<Initiative>;
   /** Move um card no roadmap (quarter e posição), com atualização imediata da tela. */
   moveInitiative: (id: string, target: RoadmapTarget) => Promise<void>;
   savePlatform: (id: string | null, data: unknown) => Promise<Platform>;

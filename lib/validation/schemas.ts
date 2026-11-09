@@ -21,6 +21,7 @@ import {
   QUARTERS,
   SOURCE_KINDS,
 } from "@/lib/domain/constants";
+import { parseGithubBranch, parseGithubRepo, sameGithubRepo } from "@/lib/domain/github";
 import { DOCUMENT_EXTENSIONS, PROTOTYPE_EXTENSIONS, isHttpUrl, isSafeRepoPath } from "@/lib/validation/paths";
 
 // Mensagens padrão de validação em português.
@@ -150,6 +151,29 @@ export const customImageSchema = z.object({
   y: z.number().min(-2).max(2).default(0),
 });
 
+/**
+ * Repositório do GitHub vinculado à iniciativa: link do repositório e, opcionalmente,
+ * o link da branch do projeto (https://github.com/<org>/<repo>/tree/<branch>).
+ */
+export const repositoryLinkSchema = z
+  .object({
+    id: localId,
+    url: required("O link do repositório", 300),
+    branchUrl: text(500).default(""),
+    note: text(200).default(""),
+  })
+  .superRefine((v, ctx) => {
+    const repo = parseGithubRepo(v.url);
+    if (!repo) {
+      ctx.addIssue({ code: "custom", path: ["url"], message: "Informe o link de um repositório do GitHub (https://github.com/organização/repositório)." });
+      return;
+    }
+    if (!v.branchUrl) return;
+    const branch = parseGithubBranch(v.branchUrl);
+    if (!branch) ctx.addIssue({ code: "custom", path: ["branchUrl"], message: "Informe o link da branch (https://github.com/organização/repositório/tree/branch)." });
+    else if (!sameGithubRepo(repo, branch)) ctx.addIssue({ code: "custom", path: ["branchUrl"], message: `A branch precisa ser do repositório ${repo.owner}/${repo.repo}.` });
+  });
+
 export const historyEntrySchema = z.object({
   id: localId,
   at: z.string(),
@@ -219,6 +243,8 @@ export const initiativeSchema = initiativeInputSchema.extend({
   createdAt: z.string(),
   updatedAt: z.string(),
   history: z.array(historyEntrySchema).default([]),
+  /** Repositórios do GitHub (editados na aba Repositório do drawer, não no formulário). */
+  repositories: z.array(repositoryLinkSchema).max(10).default([]),
   /** Posição na coluna do roadmap (quarter); alterada ao arrastar os cards. Não faz parte do formulário. */
   roadmapOrder: z.number().int().min(0).default(0),
 });
@@ -231,6 +257,16 @@ export const planningPatchSchema = z
     status: z.enum(INITIATIVE_STATUSES),
     planningValidated: z.boolean(),
     phases: z.array(phaseSchema).max(12),
+    repositories: z
+      .array(repositoryLinkSchema)
+      .max(10, "Vincule no máximo 10 repositórios.")
+      .superRefine((list, ctx) => {
+        const repos = list.map((r) => parseGithubRepo(r.url));
+        repos.forEach((repo, idx) => {
+          if (repo && repos.slice(0, idx).some((other) => other && sameGithubRepo(other, repo)))
+            ctx.addIssue({ code: "custom", path: [idx, "url"], message: `O repositório ${repo.owner}/${repo.repo} já está vinculado.` });
+        });
+      }),
   })
   .partial();
 

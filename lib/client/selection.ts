@@ -3,7 +3,7 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback } from "react";
 
-export const DRAWER_TABS = ["visao-geral", "prd", "prototipo", "roadmap", "dependencias"] as const;
+export const DRAWER_TABS = ["visao-geral", "prd", "prototipo", "repositorio", "roadmap", "dependencias"] as const;
 export type DrawerTab = (typeof DRAWER_TABS)[number];
 
 /**

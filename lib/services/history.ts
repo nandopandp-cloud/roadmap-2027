@@ -1,6 +1,7 @@
 import { PRIORITY_LABEL, QUARTER_LABEL, STATUS_LABEL } from "@/lib/domain/labels";
 import { progressOf } from "@/lib/domain/progress";
-import type { HistoryEntry, Initiative, InitiativeInput } from "@/lib/domain/types";
+import { parseGithubBranch, parseGithubRepo } from "@/lib/domain/github";
+import type { HistoryEntry, Initiative, InitiativeInput, RepositoryLink } from "@/lib/domain/types";
 
 const quarter = (q: Initiative["quarter"]) => (q ? QUARTER_LABEL[q] : "sem quarter");
 const priority = (p: Initiative["priority"]) => (p ? PRIORITY_LABEL[p] : "a definir");
@@ -53,6 +54,27 @@ export function describeChanges(before: Initiative, after: InitiativeInput): str
   if (before.customImage?.imageId !== after.customImage?.imageId)
     changes.push(after.customImage ? "Imagem da iniciativa atualizada." : "Imagem própria removida.");
   if (JSON.stringify(before.objectives) !== JSON.stringify(after.objectives)) changes.push("Objetivos principais atualizados.");
+  return changes;
+}
+
+const repoName = (r: RepositoryLink) => {
+  const parsed = parseGithubRepo(r.url);
+  return parsed ? `${parsed.owner}/${parsed.repo}` : r.url;
+};
+const branchName = (r: RepositoryLink) => (r.branchUrl ? (parseGithubBranch(r.branchUrl)?.branch ?? r.branchUrl) : "");
+
+/** Mudanças nos repositórios do GitHub vinculados (aba Repositório). */
+export function describeRepositoryChanges(before: RepositoryLink[], after: RepositoryLink[]): string[] {
+  const changes: string[] = [];
+  for (const r of after) {
+    const prev = before.find((x) => x.id === r.id);
+    const branch = branchName(r);
+    if (!prev) changes.push(`Repositório vinculado: ${repoName(r)}${branch ? ` (branch ${branch})` : ""}.`);
+    else if (prev.url !== r.url) changes.push(`Repositório ${repoName(prev)} substituído por ${repoName(r)}.`);
+    else if (prev.branchUrl !== r.branchUrl)
+      changes.push(branch ? `Branch de ${repoName(r)} definida como ${branch}.` : `Branch de ${repoName(r)} removida.`);
+  }
+  before.filter((r) => !after.some((x) => x.id === r.id)).forEach((r) => changes.push(`Repositório desvinculado: ${repoName(r)}.`));
   return changes;
 }
 

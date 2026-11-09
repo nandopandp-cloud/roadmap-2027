@@ -5,7 +5,7 @@ import { QUARTER_LABEL } from "@/lib/domain/labels";
 import { nextRoadmapOrder, placeInColumn, roadmapColumn } from "@/lib/domain/roadmap-order";
 import { getRepository, storageKind, type StorageKind } from "@/lib/repositories";
 import { DomainError, notFound } from "@/lib/services/errors";
-import { describeChanges, historyEntry } from "@/lib/services/history";
+import { describeChanges, describeRepositoryChanges, historyEntry } from "@/lib/services/history";
 import { extractFromPrd, prdVersion, type PrdImportResult } from "@/lib/services/prd-import";
 import { initiativeFolder, slugify } from "@/lib/validation/paths";
 import {
@@ -160,6 +160,7 @@ async function insertInitiative(db: Database, input: InitiativeInput, files: Doc
     updatedAt: now,
     history: [...notes.map((n) => historyEntry(n, now)), historyEntry(note, now)],
     roadmapOrder: nextRoadmapOrder(db.initiatives, input.quarter),
+    repositories: [],
   };
   db.initiatives.push(initiative);
   return initiative;
@@ -235,7 +236,7 @@ export async function updateInitiative(id: string, data: unknown, files: Documen
   });
 }
 
-/** Alteração rápida de quarter, prioridade, status ou validação do planejamento. */
+/** Alteração rápida de quarter, prioridade, status, validação do planejamento, etapas ou repositórios. */
 export async function patchPlanning(id: string, data: unknown): Promise<Initiative> {
   const patch = parse(planningPatchSchema, data);
   return getRepository().transaction((db) => {
@@ -243,7 +244,7 @@ export async function patchPlanning(id: string, data: unknown): Promise<Initiati
     if (index < 0) throw notFound("Iniciativa");
     const before = db.initiatives[index];
     const next = { ...before, ...patch };
-    const changes = describeChanges(before, next);
+    const changes = [...describeChanges(before, next), ...describeRepositoryChanges(before.repositories, next.repositories)];
     if (!changes.length) return before;
     const now = new Date().toISOString();
     const updated: Initiative = {

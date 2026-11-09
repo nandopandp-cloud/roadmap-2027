@@ -41,6 +41,7 @@ const base = {
   deliverables: [],
   customImage: null,
   roadmapOrder: 0,
+  repositories: [],
 } satisfies Partial<Initiative>;
 
 /** Etapas padrão, com a primeira no estado indicado (nenhuma etapa está concluída nos dados iniciais). */
