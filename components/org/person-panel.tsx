@@ -14,7 +14,7 @@ import { useRoadmap } from "@/lib/client/store";
 import { ACCENT_TONE, STATUS_TONE } from "@/lib/client/tones";
 import { directReports, isLeader, relatedInitiatives, relatedSquads, squadsLedBy } from "@/lib/domain/org";
 import { EFFORT_TRACK_LABEL } from "@/lib/domain/effort";
-import { effortTracksByRole } from "@/lib/domain/effort-access";
+import { effortTracksByRole, evidenceTracksByRole } from "@/lib/domain/effort-access";
 import { STATUS_LABEL } from "@/lib/domain/labels";
 import type { Person } from "@/lib/domain/types";
 
@@ -49,19 +49,31 @@ function Section({ title, action, children }: { title: string; action?: ReactNod
   );
 }
 
-/** Tech lead ou coordenação de design: estima a sua frente de esforço no roadmap. */
+/**
+ * Tech lead ou coordenação de design: estima a sua frente de esforço no roadmap.
+ * Times de design e engenharia: anexam a justificativa da sua frente.
+ */
 function EffortAccessNote({ person }: { person: Person }) {
   const tracks = effortTracksByRole(person);
-  if (!tracks.length) return null;
-  const label = tracks.map((t) => EFFORT_TRACK_LABEL[t]).join(" e ");
+  const attach = evidenceTracksByRole(person);
+  if (!tracks.length && !attach.length) return null;
+  const label = (tracks.length ? tracks : attach).map((t) => EFFORT_TRACK_LABEL[t]).join(" e ");
   return (
     <div className="mb-4 flex gap-2.5 rounded-xl bg-[#f5f2fd] px-3 py-2.5 text-[13px] leading-relaxed text-[#3b4470]">
       <Timer size={16} className="mt-0.5 shrink-0 text-violet" aria-hidden />
       <p>
-        <span className="font-bold text-navy">Estima o esforço de {label} no roadmap</span>, pelo cargo de {person.role}.
+        {tracks.length ? (
+          <>
+            <span className="font-bold text-navy">Estima o esforço de {label} no roadmap</span> e anexa a justificativa, pelo cargo de {person.role}.
+          </>
+        ) : (
+          <>
+            <span className="font-bold text-navy">Anexa e remove a justificativa de {label}</span> no roadmap, pela função no organograma.
+          </>
+        )}
         {!person.email && (
           <span className="mt-0.5 block font-semibold text-[#8a4b00]">
-            Cadastre o e-mail da conta Google (jovensgenios.com) para liberar a estimativa.
+            Cadastre o e-mail da conta Google (jovensgenios.com) para liberar o acesso.
           </span>
         )}
       </p>

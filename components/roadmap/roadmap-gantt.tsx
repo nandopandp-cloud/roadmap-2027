@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Code2, GitFork, PenTool, Plus } from "lucide-react";
+import { AlertTriangle, Code2, GitFork, Paperclip, PenTool, Plus } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Skeleton } from "@/components/ui/feedback";
 import { cn, plural } from "@/lib/client/cn";
@@ -48,17 +48,22 @@ const LANE_TOP: Record<EffortTrack, number> = { design: 48, engineering: 76 };
 function EffortLanes({
   initiative: i,
   effortTracks,
+  attachTracks,
   onEdit,
   timelineWidth,
 }: {
   initiative: Initiative;
   /** Frentes que a pessoa conectada pode estimar (vazio = só consulta). */
   effortTracks: EffortTrack[];
+  /** Frentes cuja justificativa (anexos) a pessoa pode alterar. */
+  attachTracks: EffortTrack[];
   onEdit: () => void;
   /** Largura da linha do tempo em px, para decidir se o rótulo cabe dentro da barra. */
   timelineWidth: number;
 }) {
-  const canEdit = effortTracks.length > 0;
+  const canEstimate = effortTracks.length > 0;
+  // Quem só anexa a justificativa também abre a janela de esforço.
+  const canEdit = canEstimate || attachTracks.length > 0;
   const plan = planEffort(i.effort, i.quarter);
   const qEnd = i.quarter ? clampedPosition(quarterEndDate(i.quarter)) : 100;
   const qStart = i.quarter ? quarterStart(i.quarter) : null;
@@ -69,11 +74,11 @@ function EffortLanes({
       <button
         type="button"
         onClick={onEdit}
-        aria-label={`Estimar esforço de design e engenharia de ${i.title}`}
+        aria-label={canEstimate ? `Estimar esforço de design e engenharia de ${i.title}` : `Anexar justificativa do esforço de ${i.title}`}
         className="pointer-events-auto absolute flex h-[24px] items-center gap-1.5 whitespace-nowrap rounded-md border border-dashed border-[#c5cfe4] bg-surface/80 px-2.5 text-[11.5px] font-bold text-muted transition-colors hover:border-violet hover:bg-brand-soft hover:text-brand"
         style={{ top: LANE_TOP.design, left: `calc(${qStart}% + 4px)` }}
       >
-        <Plus size={13} aria-hidden /> Estimar esforço
+        {canEstimate ? <Plus size={13} aria-hidden /> : <Paperclip size={13} aria-hidden />} {canEstimate ? "Estimar esforço" : "Anexar justificativa"}
       </button>
     );
   }
@@ -124,8 +129,8 @@ function EffortLanes({
           <Tag
             key={track}
             {...(canEdit ? { type: "button" as const, onClick: onEdit } : {})}
-            title={`${EFFORT_TRACK_LABEL[track]}: ${formatWeeks(placed.estimate.weeks)} (${formatDate(placed.start)} a ${formatDate(lastDay(placed.end))})${canEdit ? " — clique para editar" : ""}`}
-            aria-label={canEdit ? `Editar esforço de ${EFFORT_TRACK_LABEL[track]} de ${i.title}: ${formatWeeks(placed.estimate.weeks)}` : undefined}
+            title={`${EFFORT_TRACK_LABEL[track]}: ${formatWeeks(placed.estimate.weeks)} (${formatDate(placed.start)} a ${formatDate(lastDay(placed.end))})${canEdit ? (canEstimate ? " — clique para editar" : " — clique para ver e anexar a justificativa") : ""}`}
+            aria-label={canEdit ? `${canEstimate ? "Editar esforço" : "Esforço e justificativa"} de ${EFFORT_TRACK_LABEL[track]} de ${i.title}: ${formatWeeks(placed.estimate.weeks)}` : undefined}
             className={cn(
               "absolute flex h-[22px] items-center rounded-md text-[11.5px] font-extrabold text-white shadow-[0_2px_6px_rgba(23,27,77,0.16)]",
               canEdit && "pointer-events-auto transition-[filter,box-shadow] hover:brightness-110 hover:shadow-[0_4px_12px_rgba(23,27,77,0.22)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet",
@@ -189,6 +194,7 @@ function GanttRow({
   showMilestones,
   showEffort,
   effortTracks,
+  attachTracks,
   selected,
   onOpen,
   onEditEffort,
@@ -199,12 +205,13 @@ function GanttRow({
   showEffort: boolean;
   timelineWidth: number;
   effortTracks: EffortTrack[];
+  attachTracks: EffortTrack[];
   selected: boolean;
   onOpen: () => void;
   onEditEffort: () => void;
 }) {
   const plan = planEffort(i.effort, i.quarter);
-  const canEdit = effortTracks.length > 0;
+  const canEdit = effortTracks.length > 0 || attachTracks.length > 0;
   // Com esforço visível, a linha ganha as faixas de Design e Engenharia; os marcos descem.
   const lanes = showEffort && (plan.tracks.length > 0 || (canEdit && !!i.quarter));
   const markTop = lanes ? 116 : 52;
@@ -309,7 +316,7 @@ function GanttRow({
         <div aria-hidden={!canEdit} className={cn(ROW, "pointer-events-none absolute inset-0")}>
           <span />
           <span className="relative block">
-            <EffortLanes initiative={i} effortTracks={effortTracks} onEdit={onEditEffort} timelineWidth={timelineWidth} />
+            <EffortLanes initiative={i} effortTracks={effortTracks} attachTracks={attachTracks} onEdit={onEditEffort} timelineWidth={timelineWidth} />
           </span>
         </div>
       )}
@@ -322,6 +329,7 @@ export function RoadmapGantt({
   showMilestones,
   showEffort,
   effortTracks,
+  attachTracks,
   loading,
   selectedId,
   onOpen,
@@ -333,6 +341,8 @@ export function RoadmapGantt({
   fill?: boolean;
   /** Frentes de esforço que a pessoa conectada pode estimar. */
   effortTracks: EffortTrack[];
+  /** Frentes cuja justificativa (anexos) a pessoa conectada pode alterar. */
+  attachTracks: EffortTrack[];
   onEditEffort: (id: string) => void;
   /** Iniciativas após o filtro de plataforma, na ordem do roadmap. */
   visible: Initiative[];
@@ -361,6 +371,7 @@ export function RoadmapGantt({
       showMilestones={showMilestones}
       showEffort={showEffort}
       effortTracks={effortTracks}
+      attachTracks={attachTracks}
       selected={selectedId === i.id}
       onOpen={() => onOpen(i.id)}
       onEditEffort={() => onEditEffort(i.id)}

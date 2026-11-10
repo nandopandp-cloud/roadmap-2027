@@ -6,7 +6,7 @@ import { emptyContext } from "@/lib/domain/context";
 import { applyMove } from "@/lib/domain/org";
 import { placeInColumn, type RoadmapTarget } from "@/lib/domain/roadmap-order";
 import { EFFORT_TRACKS, type EffortTrack } from "@/lib/domain/effort";
-import { effortTracksFor } from "@/lib/domain/effort-access";
+import { effortTracksFor, evidenceTracksFor } from "@/lib/domain/effort-access";
 import { ATTACHMENT_CHUNK_BYTES, ATTACHMENT_MAX_BYTES, attachmentTypeOf } from "@/lib/domain/effort-attachments";
 import type { Initiative, InitiativeEffort, InitiativeInput, Person, PersonMove, Platform, Squad, StrategyContext } from "@/lib/domain/types";
 
@@ -347,6 +347,14 @@ export function useEffortTracks(): EffortTrack[] {
   if (!data.viewer || data.readOnlyReason === "armazenamento") return [];
   if (data.writable) return [...EFFORT_TRACKS];
   return effortTracksFor(data.viewer, data.people);
+}
+
+/** Frentes cuja justificativa (anexos) a pessoa conectada pode alterar: a do seu time; editores, as duas. */
+export function useEvidenceTracks(): EffortTrack[] {
+  const { data } = useRoadmap();
+  if (!data.viewer || data.readOnlyReason === "armazenamento") return [];
+  if (data.writable) return [...EFFORT_TRACKS];
+  return evidenceTracksFor(data.viewer, data.people);
 }
 
 export function useRoadmap(): RoadmapStore {

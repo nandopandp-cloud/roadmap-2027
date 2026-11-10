@@ -39,3 +39,23 @@ export function effortTracksFor(viewer: { email: string; role: "editor" | "leito
   const matches = people.filter((p) => p.email && p.email.trim().toLowerCase() === email);
   return EFFORT_TRACKS.filter((track) => matches.some((p) => effortTracksByRole(p).includes(track)));
 }
+
+/**
+ * Justificativa do esforço (anexos): cada time cuida da sua frente. Quem tem a função
+ * Design no organograma anexa e remove os documentos de Design; a função Engenharia, os
+ * de Engenharia. Tech leads e a coordenação de design também, pelo cargo. Todos veem tudo.
+ */
+export function evidenceTracksByRole(person: Pick<Person, "role" | "discipline">): EffortTrack[] {
+  const byRole = effortTracksByRole(person);
+  return EFFORT_TRACKS.filter(
+    (track) => byRole.includes(track) || (track === "design" ? person.discipline === "design" : person.discipline === "engenharia"),
+  );
+}
+
+/** Frentes cuja justificativa a pessoa conectada pode alterar: as duas para editores; pelo time para os demais. */
+export function evidenceTracksFor(viewer: { email: string; role: "editor" | "leitor" }, people: Person[]): EffortTrack[] {
+  if (viewer.role === "editor") return [...EFFORT_TRACKS];
+  const email = viewer.email.trim().toLowerCase();
+  const matches = people.filter((p) => p.email && p.email.trim().toLowerCase() === email);
+  return EFFORT_TRACKS.filter((track) => matches.some((p) => evidenceTracksByRole(p).includes(track)));
+}

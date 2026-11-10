@@ -8,7 +8,7 @@ import { Modal, useConfirm } from "@/components/ui/dialog";
 import { Field, SelectField } from "@/components/ui/fields";
 import { useToast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/client/api";
-import { useEffortTracks, useRoadmap } from "@/lib/client/store";
+import { useEffortTracks, useEvidenceTracks, useRoadmap } from "@/lib/client/store";
 import { EFFORT_TONE } from "@/lib/client/tones";
 import {
   EFFORT_TRACK_DISCIPLINE,
@@ -114,7 +114,7 @@ function WeeksInput({ value, onChange, label, error }: { value: string; onChange
   );
 }
 
-function TrackCard({ track, children, weeks, hint }: { track: EffortTrack; children: ReactNode; weeks: number | null; hint?: string }) {
+function TrackCard({ track, children, weeks, subtitle }: { track: EffortTrack; children: ReactNode; weeks: number | null; subtitle?: string }) {
   const tone = EFFORT_TONE[track];
   const Icon = EFFORT_TRACK_ICON[track];
   return (
@@ -129,7 +129,7 @@ function TrackCard({ track, children, weeks, hint }: { track: EffortTrack; child
             {EFFORT_TRACK_LABEL[track]}
           </span>
           <span className="block text-[12px] font-semibold opacity-80" style={{ color: tone.fg }}>
-            {hint ? "Somente leitura para o seu perfil" : `Preenchido pelo responsável de ${EFFORT_TRACK_LABEL[track].toLowerCase()}`}
+            {subtitle ?? `Preenchido pelo responsável de ${EFFORT_TRACK_LABEL[track].toLowerCase()}`}
           </span>
         </span>
         <span className="shrink-0 text-[13px] font-extrabold" style={{ color: tone.fg }}>
@@ -271,6 +271,8 @@ function ReadOnlyTrack({ track, estimate, ownerName }: { track: EffortTrack; est
 export function EffortDialog({ initiative, onClose }: { initiative: Initiative; onClose: () => void }) {
   const { data, saveEffort } = useRoadmap();
   const allowed = useEffortTracks();
+  /** Frentes cuja justificativa (anexos) a pessoa altera: a do seu time. */
+  const evidence = useEvidenceTracks();
   const confirm = useConfirm();
   const notify = useToast();
   const [initial] = useState(() => toDraft(initiative.effort));
@@ -345,9 +347,13 @@ export function EffortDialog({ initiative, onClose }: { initiative: Initiative; 
   const track = (t: EffortTrack) => {
     if (!allowed.includes(t)) {
       return (
-        <TrackCard track={t} weeks={initiative.effort[t]?.weeks ?? null} hint={TRACK_FILLED_BY[t]}>
+        <TrackCard
+          track={t}
+          weeks={initiative.effort[t]?.weeks ?? null}
+          subtitle={evidence.includes(t) ? "Você anexa a justificativa desta frente" : "Somente leitura para o seu perfil"}
+        >
           <ReadOnlyTrack track={t} estimate={initiative.effort[t]} ownerName={personName(initiative.effort[t]?.ownerId ?? null)} />
-          <EffortJustification initiative={initiative} track={t} readOnly />
+          <EffortJustification initiative={initiative} track={t} readOnly={!evidence.includes(t)} />
         </TrackCard>
       );
     }
@@ -423,9 +429,16 @@ export function EffortDialog({ initiative, onClose }: { initiative: Initiative; 
       description={
         canAll
           ? `${initiative.id} · ${initiative.title}${planned}. Cada responsável informa quantas semanas sua frente deve levar.`
-          : `${initiative.id} · ${initiative.title}${planned}. Você estima a frente de ${ownLabel}.`
+          : allowed.length
+            ? `${initiative.id} · ${initiative.title}${planned}. Você estima a frente de ${ownLabel}.`
+            : `${initiative.id} · ${initiative.title}${planned}. Você anexa os documentos de justificativa de ${evidence.map((t) => EFFORT_TRACK_LABEL[t]).join(" e ")}.`
       }
       footer={
+        !allowed.length ? (
+          <Button variant="primary" onClick={onClose}>
+            Fechar
+          </Button>
+        ) : (
         <>
           {ownHasValue && (
             <Button variant="ghost" className="sm:mr-auto" onClick={clear} disabled={saving}>
@@ -445,6 +458,7 @@ export function EffortDialog({ initiative, onClose }: { initiative: Initiative; 
             Salvar estimativa
           </Button>
         </>
+        )
       }
     >
       <div className="flex flex-col gap-4">

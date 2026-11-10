@@ -1,12 +1,12 @@
 "use client";
 
-import { AlertTriangle, CheckCircle2, Pencil, Timer } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Paperclip, Pencil, Timer } from "lucide-react";
 import { useState } from "react";
 import { DrawerSection, Prose } from "@/components/initiatives/drawer/parts";
 import { EFFORT_TRACK_ICON, EffortDialog } from "@/components/roadmap/effort-dialog";
 import { JustificationChips } from "@/components/roadmap/effort-justification";
 import { Button } from "@/components/ui/button";
-import { useEffortTracks, useRoadmap } from "@/lib/client/store";
+import { useEffortTracks, useEvidenceTracks, useRoadmap } from "@/lib/client/store";
 import { EFFORT_TONE } from "@/lib/client/tones";
 import { describeEffortStart, EFFORT_TRACK_LABEL, EFFORT_TRACKS, formatWeeks, hasEffort, lastDay, planEffort } from "@/lib/domain/effort";
 import { QUARTER_LABEL } from "@/lib/domain/labels";
@@ -17,7 +17,10 @@ const fmt = (iso: string) => iso.split("-").reverse().join("/");
 /** Aba Roadmap: semanas de Design e Engenharia, com responsáveis e se cabem no quarter. */
 export function EffortSection({ initiative: i }: { initiative: Initiative }) {
   const { data } = useRoadmap();
-  const canEdit = useEffortTracks().length > 0;
+  const canEstimate = useEffortTracks().length > 0;
+  // Os times de design e engenharia anexam a justificativa da sua frente, mesmo sem estimar.
+  const canAttach = useEvidenceTracks().length > 0;
+  const canEdit = canEstimate || canAttach;
   const [editing, setEditing] = useState(false);
   const plan = planEffort(i.effort, i.quarter);
   const any = hasEffort(i.effort) || EFFORT_TRACKS.some((t) => i.effortEvidence[t].length > 0);
@@ -30,8 +33,8 @@ export function EffortSection({ initiative: i }: { initiative: Initiative }) {
       title="Esforço estimado"
       action={
         canEdit && (
-          <Button size="sm" variant="ghost" icon={<Pencil size={14} />} onClick={() => setEditing(true)}>
-            {any ? "Editar" : "Estimar"}
+          <Button size="sm" variant="ghost" icon={canEstimate ? <Pencil size={14} /> : <Paperclip size={14} />} onClick={() => setEditing(true)}>
+            {canEstimate ? (any ? "Editar" : "Estimar") : "Anexar justificativa"}
           </Button>
         )
       }
@@ -39,9 +42,11 @@ export function EffortSection({ initiative: i }: { initiative: Initiative }) {
       {!any ? (
         <Prose
           empty={
-            canEdit
+            canEstimate
               ? "Ainda sem estimativa. Os responsáveis de design e de engenharia informam aqui (ou no Gantt) quantas semanas cada frente deve levar."
-              : "Ainda sem estimativa de design e engenharia."
+              : canAttach
+                ? "Ainda sem estimativa. Você pode anexar os documentos de justificativa do seu time."
+                : "Ainda sem estimativa de design e engenharia."
           }
         />
       ) : (

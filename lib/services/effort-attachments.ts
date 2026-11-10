@@ -2,7 +2,7 @@ import "server-only";
 import type { z } from "zod";
 import type { Viewer } from "@/lib/auth/session";
 import { EFFORT_TRACK_LABEL, EFFORT_TRACKS, type EffortTrack } from "@/lib/domain/effort";
-import { effortTracksFor } from "@/lib/domain/effort-access";
+import { evidenceTracksFor } from "@/lib/domain/effort-access";
 import {
   ATTACHMENT_CHUNK_BYTES,
   ATTACHMENT_MAX_PARTS,
@@ -19,9 +19,10 @@ import { historyEntry } from "@/lib/services/history";
 import { effortAttachmentInputSchema, fieldErrors } from "@/lib/validation/schemas";
 
 /**
- * Justificativa do esforço: arquivos e links de cada frente. Quem estima uma frente
- * (editores; tech leads em Engenharia; coordenação de design em Design) anexa e remove
- * os arquivos dela. Todos que consultam o roadmap veem e baixam.
+ * Justificativa do esforço: arquivos e links de cada frente. Cada time cuida da sua:
+ * quem tem a função Design no organograma anexa e remove os de Design; a função
+ * Engenharia, os de Engenharia; editores, os dois (lib/domain/effort-access.ts).
+ * Todos que consultam o roadmap veem e baixam tudo.
  */
 
 const UUID = /^[a-f0-9-]{36}$/;
@@ -42,14 +43,14 @@ async function guardStorage<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-const NO_TRACK = "Só editores, tech leads e a coordenação de design anexam a justificativa do esforço.";
+const NO_TRACK = "Só os times de design e de engenharia (e os editores) anexam a justificativa do esforço. Confira sua função e seu e-mail em Times & Squads.";
 
-function assertTrack(viewer: Viewer, people: Parameters<typeof effortTracksFor>[1], track: EffortTrack) {
-  const allowed = effortTracksFor(viewer, people);
+function assertTrack(viewer: Viewer, people: Parameters<typeof evidenceTracksFor>[1], track: EffortTrack) {
+  const allowed = evidenceTracksFor(viewer, people);
   if (!allowed.length) throw new DomainError(403, NO_TRACK);
   if (!allowed.includes(track)) {
     const own = allowed.map((t) => EFFORT_TRACK_LABEL[t]).join(" e ");
-    throw new DomainError(403, `Seu perfil anexa apenas a justificativa de ${own}.`);
+    throw new DomainError(403, `Seu time anexa e remove apenas a justificativa de ${own}.`);
   }
 }
 
@@ -64,7 +65,7 @@ export async function uploadAttachmentPart(uploadId: string, part: number, data:
   if (data.length === 0) throw new DomainError(400, "Parte vazia.");
   if (data.length > ATTACHMENT_CHUNK_BYTES) throw new DomainError(413, "Parte grande demais.");
   const db = await getRepository().read();
-  if (!effortTracksFor(viewer, db.people).length) throw new DomainError(403, NO_TRACK);
+  if (!evidenceTracksFor(viewer, db.people).length) throw new DomainError(403, NO_TRACK);
   await guardStorage(() => getAttachmentStore().savePart(uploadId, part, data));
 }
 
