@@ -1,5 +1,5 @@
 import type { RoadmapTarget } from "@/lib/domain/roadmap-order";
-import type { Initiative, InitiativeEffort, Person, PersonMove, Platform, Roadmap2026, Squad, StrategyContext } from "@/lib/domain/types";
+import type { Initiative, InitiativeEffort, Person, PersonMove, Platform, Roadmap2026, Roadmap2026Item, Squad, StrategyContext } from "@/lib/domain/types";
 import type { Viewer } from "@/lib/auth/session";
 import type { GithubBranchList } from "@/lib/services/github-service";
 import type { PrdImportResult } from "@/lib/services/prd-import";
@@ -61,8 +61,12 @@ const json = (data: unknown) => JSON.stringify(data);
 
 export const api = {
   snapshot: () => request<Snapshot>("/api/snapshot"),
-  /** Roadmap 2026: projeção importada da planilha do time (somente leitura). */
+  /** Roadmap 2026: iniciativas importadas da planilha do time e planejadas no app. */
   roadmap2026: () => request<Roadmap2026>("/api/roadmap/2026"),
+  /** Head de Produto, Head de Engenharia, tech leads e coordenação de design (checado no servidor). */
+  patchRoadmap2026Item: (id: string, data: Partial<Roadmap2026Item>) =>
+    request<Roadmap2026Item>(`/api/roadmap/2026/${id}`, { method: "PATCH", body: json(data) }),
+  removeRoadmap2026Item: (id: string) => request<{ ok: true }>(`/api/roadmap/2026/${id}`, { method: "DELETE" }),
   githubBranches: (repositoryUrl: string) =>
     request<GithubBranchList>(`/api/github/branches?repositorio=${encodeURIComponent(repositoryUrl)}`),
   fetchRemoteImage: (url: string) => request<{ dataUrl: string }>("/api/images/remote", { method: "POST", body: json({ url }) }),

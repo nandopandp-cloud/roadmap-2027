@@ -4,7 +4,7 @@ import { getRoadmap2026 } from "@/lib/services/roadmap-2026";
 
 export const dynamic = "force-dynamic";
 
-/** Roadmap 2026 (projeção importada da planilha, somente leitura). */
+/** Roadmap 2026: iniciativas (todas as pessoas consultam) e a planilha de origem. */
 export function GET() {
   return handle(async () => {
     await requireViewer();

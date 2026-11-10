@@ -5,7 +5,7 @@ import { readSession } from "@/lib/auth/session";
 /**
  * Porta de entrada: toda página, API e protótipo exige sessão Google do domínio.
  * Alterações (qualquer método além de GET/HEAD) exigem perfil de edição — exceto o
- * esforço estimado e sua justificativa (LEAD_ROUTES), checados na própria rota.
+ * esforço estimado e sua justificativa e o Roadmap 2026 (LEAD_ROUTES), checados na própria rota.
  * As rotas de API repetem a checagem de edição (lib/http/handle.ts → handleEdit).
  */
 
@@ -26,6 +26,9 @@ const LEAD_ROUTES: { method: string; path: RegExp }[] = [
   { method: "POST", path: /^\/api\/initiatives\/JG-2027-\d{3}\/esforco\/anexos$/ },
   { method: "DELETE", path: new RegExp(`^/api/initiatives/JG-2027-\\d{3}/esforco/anexos/${UUID}$`) },
   { method: "PUT", path: new RegExp(`^/api/esforco/partes/${UUID}/\\d$`) },
+  // Roadmap 2026: Head de Produto, Head de Engenharia, tech leads e coordenação de design (checado no serviço).
+  { method: "PATCH", path: /^\/api\/roadmap\/2026\/R26-\d{3}$/ },
+  { method: "DELETE", path: /^\/api\/roadmap\/2026\/R26-\d{3}$/ },
 ];
 
 function jsonError(status: number, error: string) {

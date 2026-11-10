@@ -2,8 +2,8 @@
  * Regras de leitura do Roadmap 2026 (projeção importada da planilha do time): calendário de
  * semanas S1–S4 de julho/2026 a abril/2027, períodos, situação e trimestre de entrega.
  */
-import { ROADMAP_2026_WEEK_COUNT } from "@/lib/domain/constants";
-import type { Roadmap2026Item, Roadmap2026Phase, Roadmap2026Segment, Roadmap2026Wave } from "@/lib/domain/types";
+import { ROADMAP_2026_STATUSES, ROADMAP_2026_WEEK_COUNT, ROADMAP_2026_WORK } from "@/lib/domain/constants";
+import type { Roadmap2026ImportItem, Roadmap2026Item, Roadmap2026Phase, Roadmap2026Segment, Roadmap2026Wave, Roadmap2026Work } from "@/lib/domain/types";
 
 /** Meses da planilha, na ordem das colunas (quatro semanas cada). */
 export const CYCLE_2026_MONTHS = [
@@ -86,11 +86,11 @@ export function cycle2026DatePosition(date: Date): number | null {
 }
 
 /** Última semana projetada (exclusiva); null quando a linha não tem semanas coloridas. */
-export const projectedEnd = (item: Roadmap2026Item) =>
+export const projectedEnd = (item: Roadmap2026ImportItem) =>
   item.segments.length ? Math.max(...item.segments.map((s) => s.start + s.weeks)) : null;
 
 /** Trimestre em que termina a última semana projetada (coluna do card). */
-export function deliveryQuarter(item: Roadmap2026Item): Cycle2026QuarterKey | null {
+export function deliveryQuarter(item: Roadmap2026ImportItem): Cycle2026QuarterKey | null {
   const end = projectedEnd(item);
   if (end === null) return null;
   const last = end - 1;
@@ -108,7 +108,7 @@ export const SITUATION_2026_LABEL: Record<Situation2026, string> = {
 };
 
 /** Situação lida das cores da linha: tudo verde = concluído; vermelho = revisão; azul = em progresso. */
-export function situationOf(item: Roadmap2026Item): Situation2026 {
+export function situationOf(item: Roadmap2026ImportItem): Situation2026 {
   const phases = item.segments.map((s) => s.phase);
   if (!phases.length) return "sem_semanas";
   if (phases.every((p) => p === "concluido")) return "concluido";
@@ -119,4 +119,91 @@ export function situationOf(item: Roadmap2026Item): Situation2026 {
 
 /** Filtro de plataforma: id da plataforma ou "transversais" (linhas sem plataforma). */
 export const TRANSVERSAL_2026 = "transversais";
-export const platformKey2026 = (item: Roadmap2026Item) => item.platformId ?? TRANSVERSAL_2026;
+export const platformKey2026 = (item: Pick<Roadmap2026Item, "platformId">) => item.platformId ?? TRANSVERSAL_2026;
+
+/* ------------------------- Edição (status, fases e prazos) ------------------------- */
+
+
+export type Status2026 = (typeof ROADMAP_2026_STATUSES)[number];
+export type Work2026 = (typeof ROADMAP_2026_WORK)[number];
+
+export const STATUS_2026_LABEL: Record<Status2026, string> = {
+  planejada: "Planejada",
+  andamento: "Em andamento",
+  qa: "Em QA",
+  atrasada: "Atrasada",
+  concluida: "Concluída",
+};
+
+export const WORK_2026_LABEL: Record<Work2026, string> = {
+  design: "Design",
+  engenharia: "Engenharia",
+  qa: "QA",
+  indefinido: "Fase não informada",
+};
+
+/**
+ * Status inicial lido das cores da planilha: tudo verde = Concluída; vermelho (ou "Atrasado"
+ * escrito na linha) = Atrasada; azul = Em andamento; o resto = Planejada.
+ */
+export function initialStatus(item: Roadmap2026ImportItem): Status2026 {
+  if ([item.design, item.engineering, item.qa].some((v) => /^atrasad/i.test(v))) return "atrasada";
+  const situation = situationOf(item);
+  return situation === "concluido" ? "concluida" : situation === "revisao" ? "atrasada" : situation === "andamento" ? "andamento" : "planejada";
+}
+
+/**
+ * Linha importada da planilha → iniciativa editável. Cores de Design e "Projetado & Engenharia"
+ * viram o tipo de trabalho; verde, azul, vermelho e cinza diziam a situação (agora no status),
+ * não o tipo — ficam como "Fase não informada".
+ */
+export function importedItem(item: Roadmap2026ImportItem): Roadmap2026Item {
+  return {
+    id: item.id,
+    title: item.title,
+    subtitle: "",
+    squad: item.squad,
+    platformId: item.platformId,
+    wave: item.wave,
+    weeks: item.weeks,
+    design: item.design,
+    engineering: item.engineering,
+    qa: item.qa,
+    backlog: item.backlog,
+    pricing: item.pricing,
+    status: initialStatus(item),
+    segments: item.segments.map((s, idx) => ({
+      id: `${item.id}-${idx + 1}`,
+      work: s.phase === "design" ? "design" : s.phase === "engenharia" ? "engenharia" : "indefinido",
+      start: s.start,
+      weeks: s.weeks,
+    })),
+    history: [],
+  };
+}
+
+/** Semana da projeção (0–39) em que está uma data; S1 = dias 1–7, S4 = dia 22 em diante. */
+export function weekIndexOf(date: Date): number | null {
+  const idx = CYCLE_2026_MONTHS.findIndex((m) => m.year === date.getFullYear() && m.month === date.getMonth() + 1);
+  if (idx < 0) return date < new Date(2026, 6, 1) ? -1 : null;
+  return idx * WEEKS_PER_MONTH + Math.min(3, Math.floor((date.getDate() - 1) / 7));
+}
+
+export const editableEnd = (item: Pick<Roadmap2026Item, "segments">) => (item.segments.length ? Math.max(...item.segments.map((s) => s.start + s.weeks)) : null);
+
+/** Fim projetado já passou (semanas inteiras antes da atual) e o item não está concluído nem marcado como atrasado. */
+export function overdueWeeks(item: Pick<Roadmap2026Item, "segments" | "status">, today = new Date()): number {
+  const end = editableEnd(item);
+  const now = weekIndexOf(today);
+  if (end === null || now === null || item.status === "concluida") return 0;
+  return Math.max(0, now - end + 1);
+}
+
+export function editableQuarter(item: Pick<Roadmap2026Item, "segments">): Cycle2026QuarterKey | null {
+  const end = editableEnd(item);
+  if (end === null) return null;
+  return CYCLE_2026_QUARTERS.find((q) => end - 1 >= q.firstWeek && end - 1 < q.firstWeek + q.weeks)?.key ?? null;
+}
+
+/** "S3 de ago/26 a S1 de set/26 (3 semanas)" para uma fase editável. */
+export const workPeriod = (s: Pick<Roadmap2026Work, "start" | "weeks">) => segmentPeriod({ phase: "indefinido", start: s.start, weeks: s.weeks });

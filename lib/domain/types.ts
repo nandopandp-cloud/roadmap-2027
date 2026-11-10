@@ -34,9 +34,12 @@ import type {
   prototypeRefSchema,
   repositoryBranchSchema,
   repositoryLinkSchema,
+  roadmap2026ImportItemSchema,
+  roadmap2026ImportSchema,
   roadmap2026ItemSchema,
-  roadmap2026Schema,
   roadmap2026SegmentSchema,
+  roadmap2026SourceSchema,
+  roadmap2026WorkSchema,
   squadInputSchema,
   squadSchema,
   strategyContextSchema,
@@ -122,8 +125,17 @@ export type RoadmapYear = (typeof ROADMAP_YEARS)[number];
 export type Roadmap2026Phase = (typeof ROADMAP_2026_PHASES)[number];
 export type Roadmap2026Wave = (typeof ROADMAP_2026_WAVES)[number];
 export type Roadmap2026Segment = z.infer<typeof roadmap2026SegmentSchema>;
+export type Roadmap2026ImportItem = z.infer<typeof roadmap2026ImportItemSchema>;
+export type Roadmap2026Import = z.infer<typeof roadmap2026ImportSchema>;
+export type Roadmap2026Source = z.infer<typeof roadmap2026SourceSchema>;
+export type Roadmap2026Work = z.infer<typeof roadmap2026WorkSchema>;
+/** Iniciativa do Roadmap 2026 (editável, gravada no banco). */
 export type Roadmap2026Item = z.infer<typeof roadmap2026ItemSchema>;
-export type Roadmap2026 = z.infer<typeof roadmap2026Schema>;
+/** Resposta de GET /api/roadmap/2026. */
+export interface Roadmap2026 {
+  source: Roadmap2026Source;
+  items: Roadmap2026Item[];
+}
 
 export interface Database {
   schemaVersion: number;
@@ -132,4 +144,6 @@ export interface Database {
   context: StrategyContext;
   people: Person[];
   squads: Squad[];
+  /** Roadmap 2026: iniciativas importadas da planilha do time e editadas no app. */
+  roadmap2026: Roadmap2026Item[];
 }

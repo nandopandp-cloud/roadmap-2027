@@ -8,20 +8,23 @@ import { PageContainer, PageHero } from "@/components/layout/page-header";
 import { RoadmapBoard } from "@/components/roadmap/roadmap-board";
 import { EffortDialog } from "@/components/roadmap/effort-dialog";
 import { RoadmapGantt } from "@/components/roadmap/roadmap-gantt";
-import { Roadmap2026Board, Roadmap2026Gantt, Roadmap2026Legend, Roadmap2026Source } from "@/components/roadmap/roadmap-2026";
+import { Delayed2026, Roadmap2026Board, Roadmap2026Gantt, Roadmap2026Legend, Roadmap2026Source } from "@/components/roadmap/roadmap-2026";
+import { Item2026Dialog } from "@/components/roadmap/roadmap-2026-dialog";
 import { EFFORT_TONE } from "@/lib/client/tones";
 import { Button } from "@/components/ui/button";
 import { useFocusTrap } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/fields";
 import { EmptyState, ErrorBanner } from "@/components/ui/feedback";
 import { cn } from "@/lib/client/cn";
-import { useRoadmap2026 } from "@/lib/client/roadmap-2026";
+import { useCanPlan2026, useRoadmap2026 } from "@/lib/client/roadmap-2026";
+import { useToast } from "@/components/ui/toast";
+import { ApiError } from "@/lib/client/api";
 import { useInitiativeSelection } from "@/lib/client/selection";
 import { useCanEdit, useEffortTracks, useEvidenceTracks, useRoadmap } from "@/lib/client/store";
 import { ROADMAP_YEARS } from "@/lib/domain/constants";
 import { platformKey2026, TRANSVERSAL_2026 } from "@/lib/domain/roadmap-2026";
 import { compareRoadmapOrder } from "@/lib/domain/roadmap-order";
-import type { RoadmapYear } from "@/lib/domain/types";
+import type { Roadmap2026Item, RoadmapYear } from "@/lib/domain/types";
 
 const VIEWS = [
   { key: "cards", label: "Cards", icon: LayoutGrid },
@@ -58,8 +61,27 @@ export function RoadmapView() {
   const { selectedId, open } = useInitiativeSelection();
   const { view, setView, year, setYear } = useRoadmapView();
   const is2026 = year === 2026;
-  const { load: load2026, retry: retry2026 } = useRoadmap2026(is2026);
+  const { load: load2026, retry: retry2026, update: update2026, remove: remove2026 } = useRoadmap2026(is2026);
   const roadmap2026 = load2026.status === "ready" ? load2026.data : null;
+  const items2026 = roadmap2026?.items ?? null;
+  // Roadmap 2026: Head de Produto, Head de Engenharia, tech leads e coordenação de design.
+  const canPlan2026 = useCanPlan2026();
+  const notify = useToast();
+  const [editing2026, setEditing2026] = useState<string | null>(null);
+  const editingItem2026 = editing2026 ? items2026?.find((i) => i.id === editing2026) : undefined;
+
+  /** Salva no servidor; em caso de erro a tela volta ao estado anterior e avisa. */
+  const save2026 = async (id: string, patch: Partial<Roadmap2026Item>, success?: string) => {
+    try {
+      await update2026(id, patch);
+      if (success) notify("success", success);
+      return true;
+    } catch (error) {
+      notify("error", error instanceof ApiError ? error.message : "Não foi possível salvar a alteração.");
+      return false;
+    }
+  };
+  const change2026 = (item: Roadmap2026Item) => void save2026(item.id, { segments: item.segments });
   const [platform, setPlatform] = useState("todas");
   const [showMilestones, setShowMilestones] = useState(true);
   const [showEffort, setShowEffort] = useState(true);
@@ -90,19 +112,19 @@ export function RoadmapView() {
   // Roadmap 2026: filtro pelas plataformas presentes na planilha e "Transversais" (sem plataforma).
   const platformOptions = useMemo(() => {
     if (!is2026) return data.platforms.map((p) => ({ value: p.id, label: p.name }));
-    const keys = new Set((roadmap2026?.items ?? []).map(platformKey2026));
+    const keys = new Set((items2026 ?? []).map(platformKey2026));
     return [
       ...data.platforms.filter((p) => keys.has(p.id)).map((p) => ({ value: p.id, label: p.name })),
       ...(keys.has(TRANSVERSAL_2026) ? [{ value: TRANSVERSAL_2026, label: "Transversais" }] : []),
     ];
-  }, [is2026, data.platforms, roadmap2026]);
+  }, [is2026, data.platforms, items2026]);
   // Plataforma escolhida em um ano que não existe no outro volta para "Todas".
   const platformFilter = platformOptions.some((o) => o.value === platform) ? platform : "todas";
   const visible2026 = useMemo(
-    () => (roadmap2026?.items ?? []).filter((i) => platformFilter === "todas" || platformKey2026(i) === platformFilter),
-    [roadmap2026, platformFilter],
+    () => (items2026 ?? []).filter((i) => platformFilter === "todas" || platformKey2026(i) === platformFilter),
+    [items2026, platformFilter],
   );
-  const loading2026 = load2026.status === "idle" || load2026.status === "loading";
+  const loading2026 = !items2026;
   const ready = is2026 ? !!roadmap2026 && roadmap2026.items.length > 0 : load.status === "ready" && data.initiatives.length > 0;
   const title = `Roadmap ${year}`;
   const visible = useMemo(
@@ -198,10 +220,10 @@ export function RoadmapView() {
         {view === "cards" ? (
           <span>Cada card fica no trimestre em que termina a última semana projetada na planilha.</span>
         ) : (
-          <Roadmap2026Legend />
+          <Roadmap2026Legend canEdit={canPlan2026} />
         )}
       </p>
-      {roadmap2026 && !fullscreen && <Roadmap2026Source source={roadmap2026.source} />}
+      {roadmap2026 && !fullscreen && <Roadmap2026Source source={roadmap2026.source} editable={canPlan2026} />}
     </div>
   ) : view === "cards" ? (
       <p className={cn("flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] text-muted", fullscreen && "text-[12px]")}>
@@ -261,9 +283,17 @@ export function RoadmapView() {
     >
       {is2026 ? (
         view === "cards" ? (
-          <Roadmap2026Board items={visible2026} platforms={data.platforms} loading={loading2026} />
+          <Roadmap2026Board items={visible2026} platforms={data.platforms} loading={loading2026} canEdit={canPlan2026} onEdit={setEditing2026} />
         ) : (
-          <Roadmap2026Gantt items={visible2026} platforms={data.platforms} loading={loading2026} fill={fullscreen} />
+          <Roadmap2026Gantt
+            items={visible2026}
+            platforms={data.platforms}
+            loading={loading2026}
+            canEdit={canPlan2026}
+            onEdit={setEditing2026}
+            onChange={change2026}
+            fill={fullscreen}
+          />
         )
       ) : view === "cards" ? (
         <RoadmapBoard visible={visible} showMilestones={showMilestones} loading={loading} selectedId={selectedId} onOpen={openInitiative} />
@@ -291,7 +321,7 @@ export function RoadmapView() {
         title={title}
         subtitle={
           is2026
-            ? "Projeção de julho de 2026 a abril de 2027, como está na planilha do time: semanas de design e engenharia de cada squad."
+            ? "Julho de 2026 a abril de 2027: status e semanas de design e engenharia de cada iniciativa, por squad."
             : "Como as iniciativas se distribuem ao longo do ano. Quarters e prioridades são propostas até serem validados."
         }
       >
@@ -337,6 +367,7 @@ export function RoadmapView() {
           </div>
         )}
 
+          {is2026 && items2026 && <Delayed2026 items={visible2026} platforms={data.platforms} canEdit={canPlan2026} onEdit={setEditing2026} />}
           {panel}
         </>
       )}
@@ -366,12 +397,38 @@ export function RoadmapView() {
         </div>
       )}
 
+      {editingItem2026 && (
+        <Item2026Dialog
+          key={editingItem2026.id}
+          item={editingItem2026}
+          platforms={data.platforms}
+          onClose={() => setEditing2026(null)}
+          onSave={async (item) => {
+            const { title, subtitle, platformId, wave, design, engineering, qa, backlog, status, segments } = item;
+            const ok = await save2026(item.id, { title, subtitle, platformId, wave, design, engineering, qa, backlog, status, segments }, "Alterações salvas.");
+            if (ok) setEditing2026(null);
+            return ok;
+          }}
+          onRemove={async (id) => {
+            try {
+              await remove2026(id);
+              setEditing2026(null);
+              notify("success", "Iniciativa removida do Roadmap 2026.");
+              return true;
+            } catch (error) {
+              notify("error", error instanceof ApiError ? error.message : "Não foi possível remover a iniciativa.");
+              return false;
+            }
+          }}
+        />
+      )}
+
       {effortInitiative && (
         <EffortDialog key={effortInitiative.id} initiative={effortInitiative} onClose={() => setEditingEffort(null)} />
       )}
 
       {is2026 && roadmap2026 && roadmap2026.items.length === 0 && (
-        <EmptyState className="mt-8" title="Roadmap 2026 vazio" description="A planilha importada não tem linhas de iniciativas." />
+        <EmptyState className="mt-8" title="Roadmap 2026 vazio" description="Não há iniciativas no Roadmap 2026." />
       )}
 
       {!is2026 && load.status === "ready" && data.initiatives.length === 0 && (

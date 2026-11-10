@@ -1,10 +1,12 @@
 import { seedContext } from "@/data/seed/context";
+import { seedRoadmap2026 } from "@/data/seed/roadmap-2026";
 import { ILLUSTRATIONS } from "@/lib/domain/constants";
 import { inferDiscipline } from "@/lib/domain/org";
+import { importedItem } from "@/lib/domain/roadmap-2026";
 import { defaultRoadmapOrder } from "@/lib/domain/roadmap-order";
-import type { Database, IllustrationKey, Person, PlatformStrategy, ProposalSection, RepositoryLink, Squad, StrategyContext } from "@/lib/domain/types";
+import type { Database, IllustrationKey, Person, PlatformStrategy, ProposalSection, RepositoryLink, Roadmap2026Item, Squad, StrategyContext } from "@/lib/domain/types";
 
-export const SCHEMA_VERSION = 14;
+export const SCHEMA_VERSION = 15;
 
 /** Ilustrações removidas da biblioteca → equivalentes atuais. */
 const RENAMED_ILLUSTRATIONS: Record<string, IllustrationKey | null> = { cometa: null, lua: null };
@@ -29,6 +31,9 @@ const RENAMED_ILLUSTRATIONS: Record<string, IllustrationKey | null> = { cometa: 
  * v11 → v12: iniciativas "em breve" (upcoming), sinalizadas só com nome e descrição.
  * v12 → v13: esforço estimado de Design e Engenharia (effort), vazio até os responsáveis estimarem.
  * v13 → v14: justificativa do esforço (effortEvidence): anexos de cada frente, vazios até serem enviados.
+ * v14 → v15: Roadmap 2026 editável (roadmap2026), importado da planilha do time (data/seed/roadmap-2026.ts)
+ *            com status inicial lido das cores. No Postgres a importação é feita uma vez na tabela
+ *            roadmap_2026 (ver postgres-repository.ts).
  */
 export function migrateDatabase(db: Database): { db: Database; changed: boolean } {
   if ((db.schemaVersion ?? 1) >= SCHEMA_VERSION) return { db, changed: false };
@@ -60,9 +65,15 @@ export function migrateDatabase(db: Database): { db: Database; changed: boolean 
       context: migrateContext(db.context),
       people: (db.people ?? []).map(migratePerson),
       squads: (db.squads ?? []).map(migrateSquad),
+      roadmap2026: db.roadmap2026 ?? importedRoadmap2026(),
     },
     changed: true,
   };
+}
+
+/** Iniciativas do Roadmap 2026 como importadas da planilha. */
+export function importedRoadmap2026(): Roadmap2026Item[] {
+  return seedRoadmap2026.items.map(importedItem);
 }
 
 type LegacyRepository = Omit<RepositoryLink, "branches"> & { branches?: RepositoryLink["branches"]; branchUrl?: string };

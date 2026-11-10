@@ -22,8 +22,10 @@ import {
   PROTOTYPE_STATUSES,
   QUARTERS,
   ROADMAP_2026_PHASES,
+  ROADMAP_2026_STATUSES,
   ROADMAP_2026_WAVES,
   ROADMAP_2026_WEEK_COUNT,
+  ROADMAP_2026_WORK,
   SOURCE_KINDS,
 } from "@/lib/domain/constants";
 import { parseGithubBranch, parseGithubRepo, sameGithubRepo } from "@/lib/domain/github";
@@ -609,9 +611,12 @@ export const prdAnalysisSchema = z.object({ content: prdText });
 /** Criação de iniciativa a partir de um PRD: campos revisados + texto original do PRD. */
 export const initiativeFromPrdSchema = z.object({ initiative: z.unknown(), prd: prdText });
 
-/* ---------- Roadmap 2026 (projeção importada da planilha, somente leitura) ---------- */
+/* ---------- Roadmap 2026 ---------- */
 
-/** Sequência de semanas seguidas na mesma fase (cor da planilha). `start` é o índice da semana (0 = S1 de julho/2026). */
+/**
+ * Importação da planilha (data/seed/roadmap-2026.ts): semanas seguidas na mesma cor.
+ * `start` é o índice da semana (0 = S1 de julho/2026).
+ */
 export const roadmap2026SegmentSchema = z
   .object({
     phase: z.enum(ROADMAP_2026_PHASES),
@@ -620,8 +625,8 @@ export const roadmap2026SegmentSchema = z
   })
   .refine((s) => s.start + s.weeks <= ROADMAP_2026_WEEK_COUNT, "A fase passa de abril/2027.");
 
-/** Linha da planilha: os textos de Design, Engenheiro e QA são mantidos como escritos pelo time. */
-export const roadmap2026ItemSchema = z.object({
+/** Linha da planilha como importada: textos de Design, Engenheiro e QA mantidos como escritos. */
+export const roadmap2026ImportItemSchema = z.object({
   id: z.string().regex(/^R26-\d{3}$/),
   title: required("O nome", 200),
   /** Squad como escrito na planilha (Exploradores, Educadores, Geniex, Famílias, Transversais, LMS). */
@@ -641,10 +646,55 @@ export const roadmap2026ItemSchema = z.object({
   segments: z.array(roadmap2026SegmentSchema).max(ROADMAP_2026_WEEK_COUNT),
 });
 
-export const roadmap2026Schema = z.object({
-  source: z.object({ title: text(200), sheet: text(120), url: z.string().refine(isHttpUrl), importedAt: isoDate }),
-  items: z.array(roadmap2026ItemSchema).max(500),
+export const roadmap2026SourceSchema = z.object({ title: text(200), sheet: text(120), url: z.string().refine(isHttpUrl), importedAt: isoDate });
+
+export const roadmap2026ImportSchema = z.object({
+  source: roadmap2026SourceSchema,
+  items: z.array(roadmap2026ImportItemSchema).max(500),
 });
+
+/** Sequência de semanas de um tipo de trabalho (Design, Engenharia, QA ou não informado). */
+export const roadmap2026WorkSchema = z
+  .object({
+    id: localId,
+    work: z.enum(ROADMAP_2026_WORK),
+    start: z.number().int().min(0, "O início fica antes de julho/2026.").max(ROADMAP_2026_WEEK_COUNT - 1),
+    weeks: z.number().int().min(1, "Use ao menos uma semana.").max(ROADMAP_2026_WEEK_COUNT),
+  })
+  .refine((s) => s.start + s.weeks <= ROADMAP_2026_WEEK_COUNT, { message: "A fase passa de abril/2027, o fim do Roadmap 2026.", path: ["weeks"] });
+
+/**
+ * Campos que a interface altera em uma iniciativa do Roadmap 2026. Sem `.default()`: no Zod 4 o
+ * padrão vale também para campos ausentes de um `.partial()`, e a alteração parcial apagaria
+ * o que não foi enviado.
+ */
+const roadmap2026EditableFields = {
+  title: required("O nome", 200),
+  subtitle: text(200),
+  platformId: localId.nullable(),
+  wave: z.enum(ROADMAP_2026_WAVES).nullable(),
+  design: text(120),
+  engineering: text(120),
+  qa: text(120),
+  backlog: z.boolean(),
+  status: z.enum(ROADMAP_2026_STATUSES),
+  segments: z.array(roadmap2026WorkSchema).max(ROADMAP_2026_WEEK_COUNT),
+};
+
+/** Iniciativa do Roadmap 2026 gravada no banco (nasce da importação da planilha). */
+export const roadmap2026ItemSchema = z.object({
+  id: z.string().regex(/^R26-\d{3}$/),
+  ...roadmap2026EditableFields,
+  /** Squad exibido: nome da plataforma ou "Transversais" (texto da planilha na importação). */
+  squad: required("O squad", 80),
+  /** "Qtd Semana" e "ENG. PRECIFICAR" da planilha, mantidos como referência. */
+  weeks: z.number().positive().max(52).nullable(),
+  pricing: z.boolean(),
+  history: z.array(historyEntrySchema).max(500),
+});
+
+/** Alteração de uma iniciativa do Roadmap 2026: só os campos enviados mudam (o Gantt envia só as semanas). */
+export const roadmap2026PatchSchema = z.object(roadmap2026EditableFields).partial();
 
 /** Converte erros do Zod em um mapa campo → mensagem, usado pelos formulários. */
 export function fieldErrors(error: z.ZodError): Record<string, string> {

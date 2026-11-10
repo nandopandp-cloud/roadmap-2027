@@ -1,4 +1,4 @@
-import type { Situation2026 } from "@/lib/domain/roadmap-2026";
+import type { Situation2026, Status2026, Work2026 } from "@/lib/domain/roadmap-2026";
 import type { Discipline, InitiativeStatus, PlatformAccent, Priority, ProblemValidation, Roadmap2026Phase } from "@/lib/domain/types";
 
 /** Tons discretos (fundo suave, texto com contraste AA, ponto de cor). */
@@ -110,4 +110,20 @@ export const SITUATION_2026_TONE: Record<Situation2026, Tone> = {
   andamento: STATUS_TONE.andamento,
   projetado: STATUS_TONE.planejada,
   sem_semanas: { bg: "#F4F6FA", fg: "#5F6C8F", dot: "#B4BCD3" },
+};
+
+export const STATUS_2026_TONE: Record<Status2026, Tone> = {
+  planejada: STATUS_TONE.planejada,
+  andamento: STATUS_TONE.andamento,
+  qa: { bg: "#E3F6F3", fg: "#00665E", dot: "#00A99D" },
+  atrasada: { bg: "#FDECEC", fg: "#A1262B", dot: "#E25858" },
+  concluida: STATUS_TONE.concluida,
+};
+
+/** Tipo de trabalho das barras do Roadmap 2026 (sólidos com texto branco, contraste AA). */
+export const WORK_2026_TONE: Record<Work2026, { soft: string; fg: string; solid: string }> = {
+  design: PHASE_2026_TONE.design,
+  engenharia: PHASE_2026_TONE.engenharia,
+  qa: { soft: "#E3F6F3", fg: "#00665E", solid: "#0B776F" },
+  indefinido: PHASE_2026_TONE.indefinido,
 };

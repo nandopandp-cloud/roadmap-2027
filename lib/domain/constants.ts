@@ -75,3 +75,7 @@ export const ROADMAP_2026_PHASES = ["design", "engenharia", "andamento", "conclu
 export const ROADMAP_2026_WEEK_COUNT = 40;
 /** Ondas de priorização da planilha do Roadmap 2026. */
 export const ROADMAP_2026_WAVES = ["primeira", "segunda", "terceira"] as const;
+/** Status editável de cada item do Roadmap 2026. */
+export const ROADMAP_2026_STATUSES = ["planejada", "andamento", "qa", "atrasada", "concluida"] as const;
+/** Tipo de trabalho de cada sequência de semanas do Roadmap 2026 (editável). */
+export const ROADMAP_2026_WORK = ["design", "engenharia", "qa", "indefinido"] as const;

@@ -3,9 +3,9 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { Pool, PoolClient } from "pg";
 import { emptyContext } from "@/lib/domain/context";
-import type { Database, Initiative, Person, Platform, Squad } from "@/lib/domain/types";
+import type { Database, Initiative, Person, Platform, Roadmap2026Item, Squad } from "@/lib/domain/types";
 import { buildSeedDatabase } from "@/lib/repositories/json-file-repository";
-import { migrateDatabase, SCHEMA_VERSION } from "@/lib/repositories/migrations";
+import { importedRoadmap2026, migrateDatabase, SCHEMA_VERSION } from "@/lib/repositories/migrations";
 import { ensureSchema, ROADMAP_LOCK_KEY } from "@/lib/repositories/postgres";
 import type { RoadmapRepository } from "@/lib/repositories/types";
 
@@ -89,6 +89,7 @@ export class PostgresRepository implements RoadmapRepository {
           context: emptyContext(),
           people: [],
           squads: [],
+          roadmap2026: [],
         };
         await this.persistChanges(client, empty, source);
         await this.importDocuments(client);
@@ -96,7 +97,9 @@ export class PostgresRepository implements RoadmapRepository {
           "INSERT INTO roadmap_meta (key, value) VALUES ('schema_version', $1), ('imported_at', $2)",
           [JSON.stringify(SCHEMA_VERSION), JSON.stringify(new Date().toISOString())],
         );
+        await client.query("INSERT INTO roadmap_meta (key, value) VALUES ('roadmap_2026_imported', 'true') ON CONFLICT (key) DO NOTHING");
       }
+      await this.importRoadmap2026(client);
       await client.query("COMMIT");
     } catch (error) {
       await client.query("ROLLBACK").catch(() => undefined);
@@ -104,6 +107,18 @@ export class PostgresRepository implements RoadmapRepository {
     } finally {
       client.release();
     }
+  }
+
+  /**
+   * Roadmap 2026: na primeira carga após a v15, a planilha importada vira as linhas da tabela
+   * roadmap_2026. Depois disso a tabela é a fonte (itens removidos não voltam).
+   */
+  private async importRoadmap2026(client: PoolClient): Promise<void> {
+    const { rows } = await client.query("SELECT 1 FROM roadmap_meta WHERE key = 'roadmap_2026_imported'");
+    if (rows.length) return;
+    const { rows: existing } = await client.query("SELECT 1 FROM roadmap_2026 LIMIT 1");
+    if (!existing.length) await persistCollection(client, "roadmap_2026", [], importedRoadmap2026(), true);
+    await client.query("INSERT INTO roadmap_meta (key, value) VALUES ('roadmap_2026_imported', 'true')");
   }
 
   private async initialData(): Promise<Database> {
@@ -126,12 +141,13 @@ export class PostgresRepository implements RoadmapRepository {
   }
 
   private async load(q: Queryable): Promise<Database> {
-    const [initiatives, platforms, context, people, squads] = await Promise.all([
+    const [initiatives, platforms, context, people, squads, roadmap2026] = await Promise.all([
       q.query<{ data: Initiative }>("SELECT data FROM initiatives ORDER BY id"),
       q.query<{ data: Platform }>("SELECT data FROM platforms ORDER BY position, id"),
       q.query<{ data: Database["context"] }>("SELECT data FROM strategy_context WHERE id = 1"),
       q.query<{ data: Person }>("SELECT data FROM people ORDER BY id"),
       q.query<{ data: Squad }>("SELECT data FROM squads ORDER BY position, id"),
+      q.query<{ data: Roadmap2026Item }>("SELECT data FROM roadmap_2026 ORDER BY position, id"),
     ]);
     const db: Database = {
       schemaVersion: SCHEMA_VERSION,
@@ -140,6 +156,7 @@ export class PostgresRepository implements RoadmapRepository {
       context: context.rows[0]?.data ?? emptyContext(),
       people: people.rows.map((r) => r.data),
       squads: squads.rows.map((r) => r.data),
+      roadmap2026: roadmap2026.rows.map((r) => r.data),
     };
     // Registros gravados em versões anteriores do esquema são normalizados em memória.
     return migrateDatabase({ ...db, schemaVersion: 1 }).db;
@@ -151,6 +168,7 @@ export class PostgresRepository implements RoadmapRepository {
     await persistCollection(client, "platforms", before.platforms, after.platforms, true);
     await persistCollection(client, "people", before.people, after.people, false);
     await persistCollection(client, "squads", before.squads, after.squads, true);
+    await persistCollection(client, "roadmap_2026", before.roadmap2026, after.roadmap2026, true);
 
     if (JSON.stringify(before.context) !== JSON.stringify(after.context)) {
       await client.query(
@@ -168,7 +186,7 @@ export class PostgresRepository implements RoadmapRepository {
  */
 async function persistCollection<T extends { id: string }>(
   client: PoolClient,
-  table: "initiatives" | "platforms" | "people" | "squads",
+  table: "initiatives" | "platforms" | "people" | "squads" | "roadmap_2026",
   before: T[],
   after: T[],
   ordered: boolean,

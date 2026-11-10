@@ -59,3 +59,30 @@ export function evidenceTracksFor(viewer: { email: string; role: "editor" | "lei
   const matches = people.filter((p) => p.email && p.email.trim().toLowerCase() === email);
   return EFFORT_TRACKS.filter((track) => matches.some((p) => evidenceTracksByRole(p).includes(track)));
 }
+
+/* ------------------------------ Roadmap 2026 ------------------------------ */
+
+/** Head de Produto: "Head de Produto", "Head of Product", "Head Produto". */
+export function isProductHead(person: Pick<Person, "role">): boolean {
+  return /\bhead\s+(?:de\s+|of\s+)?(?:produto|product)\b/.test(normalize(person.role));
+}
+
+/** Head de Engenharia: "Head de Engenharia", "Head of Engineering". */
+export function isEngineeringHead(person: Pick<Person, "role">): boolean {
+  return /\bhead\s+(?:de\s+|of\s+)?(?:engenharia|engineering)\b/.test(normalize(person.role));
+}
+
+/**
+ * Quem planeja o Roadmap 2026 (status, semanas, dados e remoção): Head de Produto, Head de
+ * Engenharia, tech leads e a coordenação de design — pelo cargo no organograma. O perfil de
+ * editor sozinho não basta: a pessoa precisa ter um desses cargos em Times & Squads.
+ */
+export function canPlanRoadmap2026(person: Pick<Person, "role" | "discipline">): boolean {
+  return isProductHead(person) || isEngineeringHead(person) || isTechLead(person) || isDesignCoordinator(person);
+}
+
+/** A pessoa conectada pode editar o Roadmap 2026 (cargo do colaborador com o mesmo e-mail). */
+export function canPlanRoadmap2026For(viewer: { email: string }, people: Person[]): boolean {
+  const email = viewer.email.trim().toLowerCase();
+  return people.some((p) => p.email && p.email.trim().toLowerCase() === email && canPlanRoadmap2026(p));
+}

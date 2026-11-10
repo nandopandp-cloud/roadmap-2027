@@ -1,29 +1,32 @@
 "use client";
 
-import { CircleDashed, ExternalLink, Layers } from "lucide-react";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { AlertTriangle, Check, ChevronDown, CircleDashed, ExternalLink, GripVertical, Layers, Pencil } from "lucide-react";
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
 import { PLATFORM_GLYPHS } from "@/components/platforms/platform-icon";
 import { Badge } from "@/components/ui/badges";
 import { Skeleton } from "@/components/ui/feedback";
 import { cn, plural } from "@/lib/client/cn";
-import { ACCENT_TONE, PHASE_2026_TONE, SITUATION_2026_TONE, TRANSVERSAL_TONE } from "@/lib/client/tones";
-import { ROADMAP_2026_PHASES } from "@/lib/domain/constants";
+import { ACCENT_TONE, STATUS_2026_TONE, TRANSVERSAL_TONE, WORK_2026_TONE } from "@/lib/client/tones";
+import { ROADMAP_2026_WEEK_COUNT, ROADMAP_2026_WORK } from "@/lib/domain/constants";
 import {
   CYCLE_2026_MONTHS,
   CYCLE_2026_QUARTERS,
-  PHASE_2026_LABEL,
-  PHASE_2026_SHORT,
-  SITUATION_2026_LABEL,
+  STATUS_2026_LABEL,
   WAVE_2026_LABEL,
+  WORK_2026_LABEL,
   cycle2026DatePosition,
-  deliveryQuarter,
-  segmentPeriod,
-  situationOf,
+  editableEnd,
+  editableQuarter,
+  overdueWeeks,
+  weekLabel,
   weekPosition,
+  workPeriod,
 } from "@/lib/domain/roadmap-2026";
-import type { Platform, Roadmap2026, Roadmap2026Item } from "@/lib/domain/types";
+import type { Platform, Roadmap2026Item, Roadmap2026Source, Roadmap2026Work } from "@/lib/domain/types";
 
 const formatDate = (iso: string) => iso.split("-").reverse().join("/");
+const WEEKS = ROADMAP_2026_WEEK_COUNT;
+const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
 
 /** Pessoas e situação das frentes, como escritas na planilha. */
 function people(item: Roadmap2026Item) {
@@ -35,7 +38,7 @@ function people(item: Roadmap2026Item) {
 }
 
 /** Squad da planilha com o ícone e a cor da plataforma correspondente. */
-function SquadPill({ item, platforms }: { item: Roadmap2026Item; platforms: Platform[] }) {
+export function SquadPill({ item, platforms }: { item: Pick<Roadmap2026Item, "platformId" | "squad">; platforms: Platform[] }) {
   const platform = item.platformId ? platforms.find((p) => p.id === item.platformId) : undefined;
   if (!platform) {
     return (
@@ -55,111 +58,225 @@ function SquadPill({ item, platforms }: { item: Roadmap2026Item; platforms: Plat
   );
 }
 
-function ItemBadges({ item }: { item: Roadmap2026Item }) {
-  const situation = situationOf(item);
+export function StatusBadge2026({ status, size = "sm" }: { status: Roadmap2026Item["status"]; size?: "sm" | "md" }) {
   return (
-    <span className="flex flex-wrap gap-1.5">
-      <Badge tone={SITUATION_2026_TONE[situation]} dot size="sm">
-        {SITUATION_2026_LABEL[situation]}
-      </Badge>
-      {item.backlog && (
-        <Badge tone={{ bg: "#F3F1EE", fg: "#665947", dot: "#A8987F" }} size="sm">
-          Backlog
-        </Badge>
-      )}
-      {item.pricing && (
-        <Badge tone={{ bg: "#FFF8DB", fg: "#735600", dot: "#E0A800" }} size="sm">
-          Engenharia a precificar
-        </Badge>
-      )}
-    </span>
+    <Badge tone={STATUS_2026_TONE[status]} dot size={size}>
+      {STATUS_2026_LABEL[status]}
+    </Badge>
   );
 }
 
 /** Fonte dos dados: planilha do time (link real) e data da importação. */
-export function Roadmap2026Source({ source }: { source: Roadmap2026["source"] }) {
+export function Roadmap2026Source({ source, editable }: { source: Roadmap2026Source; editable: boolean }) {
   return (
     <span className="flex flex-wrap items-center gap-x-1.5">
-      Fonte:
+      Importado da
       <a href={source.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-bold text-brand underline-offset-2 hover:underline">
         planilha “{source.title}”, aba {source.sheet}
         <ExternalLink size={12} aria-hidden />
       </a>
-      <span>· importada em {formatDate(source.importedAt)} · somente consulta</span>
+      <span>em {formatDate(source.importedAt)}{editable ? " · as alterações feitas aqui valem a partir de agora" : ""}</span>
     </span>
   );
 }
 
-export function Roadmap2026Legend() {
+export function Roadmap2026Legend({ canEdit }: { canEdit: boolean }) {
   return (
     <>
-      {ROADMAP_2026_PHASES.map((phase) => (
-        <span key={phase} className="flex items-center gap-1.5">
-          <span aria-hidden className="h-2.5 w-5 rounded-[3px]" style={{ background: PHASE_2026_TONE[phase].solid }} />
-          {phase === "indefinido" ? "Sem legenda (cinza na planilha)" : PHASE_2026_LABEL[phase]}
+      {ROADMAP_2026_WORK.map((work) => (
+        <span key={work} className="flex items-center gap-1.5">
+          <span aria-hidden className="h-2.5 w-5 rounded-[3px]" style={{ background: WORK_2026_TONE[work].solid }} />
+          {WORK_2026_LABEL[work]}
         </span>
       ))}
+      <span className="flex items-center gap-1.5">
+        <span aria-hidden className="h-2.5 w-5 rounded-[3px] bg-[#64708A] ring-2 ring-[#E25858] ring-offset-1" /> Atrasada
+      </span>
+      <span className="flex items-center gap-1.5">
+        <span aria-hidden className="h-2.5 w-5 rounded-[3px] bg-[#64708A] opacity-45" /> Concluída
+      </span>
+      {canEdit && (
+        <span className="flex items-center gap-1.5">
+          <GripVertical size={13} aria-hidden /> Arraste a barra para mover e a borda direita para mudar a duração
+        </span>
+      )}
     </>
+  );
+}
+
+/* ------------------------------ Atrasadas ------------------------------ */
+
+/** Destaque das iniciativas atrasadas e das que passaram do fim projetado sem conclusão. */
+export function Delayed2026({
+  items,
+  platforms,
+  canEdit,
+  onEdit,
+}: {
+  items: Roadmap2026Item[];
+  platforms: Platform[];
+  canEdit: boolean;
+  onEdit: (id: string) => void;
+}) {
+  const [showOverdue, setShowOverdue] = useState(false);
+  const late = items.filter((i) => i.status === "atrasada");
+  const overdue = items.filter((i) => i.status !== "atrasada" && overdueWeeks(i) > 0);
+  if (!late.length && !overdue.length) return null;
+
+  const row = (i: Roadmap2026Item) => {
+    const end = editableEnd(i);
+    const past = overdueWeeks(i);
+    const Tag = canEdit ? "button" : "div";
+    return (
+      <li key={i.id}>
+        <Tag
+          {...(canEdit ? { type: "button" as const, onClick: () => onEdit(i.id) } : {})}
+          className={cn(
+            "flex h-full w-full items-start gap-3 rounded-xl border border-[#f3c9c9] bg-surface px-3 py-2.5 text-left",
+            canEdit && "transition-colors hover:border-[#e25858]",
+          )}
+        >
+          <span className="flex min-w-0 flex-1 flex-col gap-1">
+            <span className="line-clamp-2 text-[13.5px] font-extrabold leading-snug text-navy">{i.title}</span>
+            <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <SquadPill item={i} platforms={platforms} />
+              {i.status !== "atrasada" && <StatusBadge2026 status={i.status} />}
+              <span className="text-[12px] font-semibold text-muted">
+                {end === null ? "Sem semanas projetadas" : `Fim projetado: ${weekLabel(end - 1)}`}
+                {past > 0 && <span className="font-bold text-[#a1262b]"> · há {plural(past, "semana", "semanas")}</span>}
+              </span>
+            </span>
+          </span>
+          {canEdit && <Pencil size={14} className="mt-1 shrink-0 text-subtle" aria-hidden />}
+        </Tag>
+      </li>
+    );
+  };
+
+  return (
+    <section aria-labelledby="atrasadas-2026" className="mt-6 rounded-[24px] border border-[#f3c9c9] bg-[#fff6f6] p-4">
+      <header className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#fdecec] text-[#c9363b]" aria-hidden>
+          <AlertTriangle size={17} />
+        </span>
+        <h2 id="atrasadas-2026" className="text-[17px] font-black text-navy">
+          Atrasadas <span className="text-[#c9363b]">· {late.length}</span>
+        </h2>
+        <p className="text-[13px] text-muted">Iniciativas com o status Atrasada.{canEdit ? " Clique para ajustar status e prazos." : ""}</p>
+      </header>
+      {late.length > 0 ? (
+        <ul className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">{late.map(row)}</ul>
+      ) : (
+        <p className="mt-3 text-[13px] text-muted">Nenhuma iniciativa com o status Atrasada.</p>
+      )}
+      {overdue.length > 0 && (
+        <div className="mt-3 border-t border-[#f3d6d6] pt-3">
+          <button
+            type="button"
+            aria-expanded={showOverdue}
+            onClick={() => setShowOverdue((v) => !v)}
+            className="flex items-center gap-1.5 text-[13px] font-bold text-[#8a4b00] hover:underline"
+          >
+            <ChevronDown size={15} className={cn("transition-transform", showOverdue && "rotate-180")} aria-hidden />
+            {plural(overdue.length, "iniciativa passou", "iniciativas passaram")} do fim projetado sem estar concluída
+          </button>
+          {showOverdue && <ul className="mt-2 grid gap-2 md:grid-cols-2 xl:grid-cols-3">{overdue.map(row)}</ul>}
+        </div>
+      )}
+    </section>
   );
 }
 
 /* ---------------------------------- Cards ---------------------------------- */
 
-function Card2026({ item, platforms }: { item: Roadmap2026Item; platforms: Platform[] }) {
+function Card2026({ item, platforms, onEdit }: { item: Roadmap2026Item; platforms: Platform[]; onEdit?: () => void }) {
   const who = people(item);
+  const Tag = onEdit ? "button" : "article";
   return (
-    <article className="flex w-full flex-col gap-2.5 rounded-2xl border border-line bg-surface p-4 shadow-[var(--shadow-card)]">
+    <Tag
+      {...(onEdit ? { type: "button" as const, onClick: onEdit } : {})}
+      className={cn(
+        "flex w-full flex-col gap-2.5 rounded-2xl border bg-surface p-4 text-left shadow-[var(--shadow-card)]",
+        item.status === "atrasada" ? "border-[#f0b4b4]" : "border-line",
+        onEdit && "transition-all hover:-translate-y-px hover:border-line-strong",
+      )}
+    >
       <span className="flex flex-wrap items-center justify-between gap-2">
         <SquadPill item={item} platforms={platforms} />
-        {item.wave && <span className="text-[11.5px] font-extrabold text-subtle">{WAVE_2026_LABEL[item.wave]}</span>}
+        <span className="flex items-center gap-2">
+          {item.wave && <span className="text-[11.5px] font-extrabold text-subtle">{WAVE_2026_LABEL[item.wave]}</span>}
+          {onEdit && <Pencil size={13} className="text-subtle" aria-hidden />}
+        </span>
       </span>
-      <h3 className="text-[15.5px] font-extrabold leading-snug text-navy">{item.title}</h3>
-      <ItemBadges item={item} />
+      <span>
+        <span className="block text-[15.5px] font-extrabold leading-snug text-navy">{item.title}</span>
+        {item.subtitle && <span className="mt-0.5 block text-[12.5px] leading-snug text-muted">{item.subtitle}</span>}
+      </span>
+      <span className="flex flex-wrap gap-1.5">
+        <StatusBadge2026 status={item.status} />
+        {item.backlog && (
+          <Badge tone={{ bg: "#F3F1EE", fg: "#665947", dot: "#A8987F" }} size="sm">
+            Backlog
+          </Badge>
+        )}
+      </span>
       {who.length > 0 && (
-        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-0.5 text-[12.5px]">
+        <span className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-0.5 text-[12.5px]">
           {who.map(([label, value]) => (
-            <div key={label} className="contents">
-              <dt className="font-bold text-muted">{label}</dt>
-              <dd className="truncate text-ink" title={value}>
+            <span key={label} className="contents">
+              <span className="font-bold text-muted">{label}</span>
+              <span className="truncate text-ink" title={value}>
                 {value}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      )}
-      {item.segments.length > 0 && (
-        <ul className="flex flex-col gap-1 border-t border-line pt-2">
-          {item.segments.map((s) => (
-            <li key={s.start} className="flex items-start gap-1.5 text-[12.5px] text-muted">
-              <span aria-hidden className="mt-[5px] h-2 w-2 shrink-0 rounded-[2px]" style={{ background: PHASE_2026_TONE[s.phase].solid }} />
-              <span>
-                <span className="font-bold" style={{ color: PHASE_2026_TONE[s.phase].fg }}>
-                  {PHASE_2026_SHORT[s.phase]}
-                </span>{" "}
-                · {segmentPeriod(s)}
               </span>
-            </li>
+            </span>
           ))}
-        </ul>
-      )}
-      {item.weeks !== null && (
-        <span className="text-[12px] font-semibold text-subtle">
-          Estimativa na planilha: {String(item.weeks).replace(".", ",")} {item.weeks === 1 ? "semana" : "semanas"}
         </span>
       )}
-    </article>
+      {item.segments.length > 0 && (
+        <span className="flex flex-col gap-1 border-t border-line pt-2">
+          {item.segments.map((s) => (
+            <span key={s.id} className="flex items-start gap-1.5 text-[12.5px] text-muted">
+              <span aria-hidden className="mt-[5px] h-2 w-2 shrink-0 rounded-[2px]" style={{ background: WORK_2026_TONE[s.work].solid }} />
+              <span>
+                <span className="font-bold" style={{ color: WORK_2026_TONE[s.work].fg }}>
+                  {WORK_2026_LABEL[s.work]}
+                </span>{" "}
+                · {workPeriod(s)}
+              </span>
+            </span>
+          ))}
+        </span>
+      )}
+    </Tag>
   );
 }
 
 /** Cards por trimestre de entrega (onde termina a última semana projetada). */
-export function Roadmap2026Board({ items, platforms, loading }: { items: Roadmap2026Item[]; platforms: Platform[]; loading: boolean }) {
-  const unscheduled = items.filter((i) => deliveryQuarter(i) === null);
+export function Roadmap2026Board({
+  items,
+  platforms,
+  loading,
+  canEdit,
+  onEdit,
+}: {
+  items: Roadmap2026Item[];
+  platforms: Platform[];
+  loading: boolean;
+  canEdit: boolean;
+  onEdit: (id: string) => void;
+}) {
+  const unscheduled = items.filter((i) => editableQuarter(i) === null);
+  const card = (item: Roadmap2026Item) => (
+    <li key={item.id}>
+      <Card2026 item={item} platforms={platforms} onEdit={canEdit ? () => onEdit(item.id) : undefined} />
+    </li>
+  );
   return (
     <>
       <div className="@container mt-6">
         <div className="grid grid-cols-1 gap-4 @2xl:grid-cols-2 @5xl:grid-cols-4">
           {CYCLE_2026_QUARTERS.map((q) => {
-            const cards = items.filter((i) => deliveryQuarter(i) === q.key);
+            const cards = items.filter((i) => editableQuarter(i) === q.key);
             return (
               <section
                 key={q.key}
@@ -179,11 +296,7 @@ export function Roadmap2026Board({ items, platforms, loading }: { items: Roadmap
                   <Skeleton className="h-40" />
                 ) : (
                   <ul className="flex flex-col gap-3">
-                    {cards.map((item) => (
-                      <li key={item.id}>
-                        <Card2026 item={item} platforms={platforms} />
-                      </li>
-                    ))}
+                    {cards.map(card)}
                     {cards.length === 0 && (
                       <li className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-line-strong px-4 py-8 text-center text-[13px] text-muted">
                         <CircleDashed size={20} aria-hidden />
@@ -203,14 +316,8 @@ export function Roadmap2026Board({ items, platforms, loading }: { items: Roadmap
           <h2 id="sem-semanas-2026" className="px-1 text-[18px] font-black text-navy">
             Sem semanas projetadas
           </h2>
-          <p className="px-1 text-[13px] text-muted">Linhas da planilha ainda sem semanas coloridas na linha do tempo.</p>
-          <ul className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {unscheduled.map((item) => (
-              <li key={item.id}>
-                <Card2026 item={item} platforms={platforms} />
-              </li>
-            ))}
-          </ul>
+          <p className="px-1 text-[13px] text-muted">Iniciativas ainda sem semanas na linha do tempo.</p>
+          <ul className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">{unscheduled.map(card)}</ul>
         </section>
       )}
     </>
@@ -234,22 +341,84 @@ function TodayLine() {
   return <span aria-hidden className="absolute inset-y-0 w-0.5 bg-action/70" style={{ left: `${left}%` }} />;
 }
 
-function GanttRow2026({ item, timelineWidth }: { item: Roadmap2026Item; timelineWidth: number }) {
+interface DragState {
+  segId: string;
+  mode: "move" | "resize";
+  startX: number;
+  delta: number;
+}
+
+/** Aplica o arraste a uma fase: mover mantém a duração; redimensionar mantém o início. */
+function applyDelta(s: Roadmap2026Work, mode: DragState["mode"], delta: number): Roadmap2026Work {
+  return mode === "move" ? { ...s, start: clamp(s.start + delta, 0, WEEKS - s.weeks) } : { ...s, weeks: clamp(s.weeks + delta, 1, WEEKS - s.start) };
+}
+
+function GanttRow2026({
+  item,
+  timelineWidth,
+  canEdit,
+  onEdit,
+  onChange,
+}: {
+  item: Roadmap2026Item;
+  timelineWidth: number;
+  canEdit: boolean;
+  onEdit: () => void;
+  onChange: (item: Roadmap2026Item) => void;
+}) {
   const who = people(item);
-  const situation = situationOf(item);
+  const [drag, setDrag] = useState<DragState | null>(null);
+  const active = drag;
+  const weekPx = timelineWidth / WEEKS || 1;
+  const late = item.status === "atrasada";
+  const done = item.status === "concluida";
+
+  const commit = (segId: string, mode: DragState["mode"], delta: number) => {
+    if (!delta) return;
+    onChange({ ...item, segments: item.segments.map((s) => (s.id === segId ? applyDelta(s, mode, delta) : s)) });
+  };
+
+  const onPointerDown = (e: PointerEvent<HTMLElement>, segId: string, mode: DragState["mode"]) => {
+    if (!canEdit || e.button !== 0) return;
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setDrag({ segId, mode, startX: e.clientX, delta: 0 });
+  };
+  const onPointerMove = (e: PointerEvent<HTMLElement>) => {
+    if (!drag) return;
+    const delta = Math.round((e.clientX - drag.startX) / weekPx);
+    if (delta !== drag.delta) setDrag({ ...drag, delta });
+  };
+  const onPointerUp = () => {
+    if (!drag) return;
+    commit(drag.segId, drag.mode, drag.delta);
+    setDrag(null);
+  };
+
+  /** Teclado: ←/→ movem uma semana; Shift + ←/→ diminuem/aumentam a duração; Enter abre a edição. */
+  const onKey = (e: KeyboardEvent<HTMLButtonElement>, segId: string) => {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault();
+    commit(segId, e.shiftKey ? "resize" : "move", e.key === "ArrowLeft" ? -1 : 1);
+  };
+
   return (
-    <li className={cn(ROW, "border-t border-line")}>
-      <div className="sticky left-0 z-10 flex flex-col justify-center gap-0.5 border-r border-line bg-surface px-4 py-2.5">
+    <li className={cn(ROW, "border-t border-line", late && "bg-[#fff8f8]")}>
+      <div className={cn("sticky left-0 z-10 flex flex-col justify-center gap-1 border-r border-line px-4 py-2.5", late ? "bg-[#fff8f8] shadow-[inset_3px_0_0_#e25858]" : "bg-surface")}>
         <span className="line-clamp-2 text-[13.5px] font-extrabold leading-snug text-navy" title={item.title}>
           {item.title}
         </span>
-        <span className="flex flex-wrap items-center gap-x-1.5 text-[11.5px] font-semibold text-muted">
-          <span className="flex items-center gap-1" style={{ color: SITUATION_2026_TONE[situation].fg }}>
-            <span aria-hidden className="h-1.5 w-1.5 rounded-full" style={{ background: SITUATION_2026_TONE[situation].dot }} />
-            {SITUATION_2026_LABEL[situation]}
-          </span>
-          {item.wave && <span>· {WAVE_2026_LABEL[item.wave]}</span>}
-          {item.backlog && <span>· Backlog</span>}
+        {item.subtitle && <span className="line-clamp-1 text-[12px] text-muted">{item.subtitle}</span>}
+        <span className="flex flex-wrap items-center gap-1.5">
+          {canEdit ? (
+            <button type="button" onClick={onEdit} className="rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet" title="Editar status, nome e prazos">
+              <StatusBadge2026 status={item.status} />
+            </button>
+          ) : (
+            <StatusBadge2026 status={item.status} />
+          )}
+          {item.wave && <span className="text-[11.5px] font-semibold text-muted">{WAVE_2026_LABEL[item.wave]}</span>}
+          {item.backlog && <span className="text-[11.5px] font-semibold text-muted">· Backlog</span>}
         </span>
         {who.length > 0 && (
           <span className="truncate text-[11.5px] text-subtle" title={who.map(([l, v]) => `${l}: ${v}`).join(" · ")}>
@@ -257,31 +426,76 @@ function GanttRow2026({ item, timelineWidth }: { item: Roadmap2026Item; timeline
           </span>
         )}
       </div>
-      <div className="relative min-h-[64px]" style={TIMELINE_BG}>
+      <div className="relative min-h-[72px]" style={TIMELINE_BG}>
         <TodayLine />
         {item.segments.length === 0 ? (
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[12.5px] font-semibold italic text-subtle">Sem semanas projetadas na planilha</span>
+          <span className="absolute left-3 top-1/2 flex -translate-y-1/2 items-center gap-2 text-[12.5px] font-semibold italic text-subtle">
+            Sem semanas projetadas
+            {canEdit && (
+              <button type="button" onClick={onEdit} className="rounded-md border border-dashed border-[#c5cfe4] bg-surface px-2 py-0.5 text-[11.5px] font-bold not-italic text-muted hover:border-violet hover:text-brand">
+                Planejar semanas
+              </button>
+            )}
+          </span>
         ) : (
-          <>
-            <span className="sr-only">{item.segments.map((s) => `${PHASE_2026_LABEL[s.phase]}: ${segmentPeriod(s)}`).join(". ")}</span>
-            {item.segments.map((s) => {
-              const tone = PHASE_2026_TONE[s.phase];
-              const width = weekPosition(s.weeks);
-              const label = PHASE_2026_SHORT[s.phase];
-              const fits = (width / 100) * timelineWidth >= label.length * 7 + 16;
-              return (
-                <span
-                  key={s.start}
-                  aria-hidden
-                  title={`${PHASE_2026_LABEL[s.phase]}: ${segmentPeriod(s)}`}
-                  className="absolute top-1/2 flex h-[24px] -translate-y-1/2 items-center overflow-hidden rounded-md text-[11.5px] font-extrabold text-white shadow-[0_2px_6px_rgba(23,27,77,0.14)]"
-                  style={{ left: `calc(${weekPosition(s.start)}% + 1px)`, width: `calc(${width}% - 2px)`, background: tone.solid }}
-                >
-                  {fits && <span className="truncate px-2">{label}</span>}
-                </span>
-              );
-            })}
-          </>
+          item.segments.map((original) => {
+            const dragging = active?.segId === original.id;
+            const s = dragging ? applyDelta(original, active.mode, active.delta) : original;
+            const tone = WORK_2026_TONE[s.work];
+            const width = weekPosition(s.weeks);
+            const label = WORK_2026_LABEL[s.work];
+            const fits = (width / 100) * timelineWidth >= label.length * 7 + 22;
+            const Tag = canEdit ? "button" : "span";
+            return (
+              <Tag
+                key={s.id}
+                {...(canEdit
+                  ? {
+                      type: "button" as const,
+                      onPointerDown: (e: PointerEvent<HTMLElement>) => onPointerDown(e, s.id, "move"),
+                      onPointerMove,
+                      onPointerUp,
+                      onPointerCancel: () => setDrag(null),
+                      onKeyDown: (e: KeyboardEvent<HTMLButtonElement>) => onKey(e, s.id),
+                      onDoubleClick: onEdit,
+                      "aria-label": `${label} de ${item.title}: ${workPeriod(s)}. Setas movem uma semana; Shift com setas muda a duração; clique duplo edita.`,
+                    }
+                  : { "aria-hidden": true })}
+                title={`${label}: ${workPeriod(s)}`}
+                className={cn(
+                  "absolute top-1/2 flex h-[26px] -translate-y-1/2 touch-none items-center overflow-visible rounded-md text-[11.5px] font-extrabold text-white shadow-[0_2px_6px_rgba(23,27,77,0.14)]",
+                  canEdit && "cursor-grab select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet active:cursor-grabbing",
+                  late && "ring-2 ring-[#E25858] ring-offset-1",
+                  done && "opacity-50",
+                  dragging && "z-10 cursor-grabbing shadow-[0_8px_20px_rgba(23,27,77,0.28)] ring-2 ring-white",
+                )}
+                style={{ left: `calc(${weekPosition(s.start)}% + 1px)`, width: `calc(${width}% - 2px)`, background: tone.solid }}
+              >
+                {fits && (
+                  <span className="flex min-w-0 items-center gap-1 truncate px-2">
+                    {done && <Check size={12} className="shrink-0" aria-hidden />}
+                    <span className="truncate">{label}</span>
+                  </span>
+                )}
+                {canEdit && (
+                  <span
+                    aria-hidden
+                    onPointerDown={(e) => onPointerDown(e, s.id, "resize")}
+                    onPointerMove={onPointerMove}
+                    onPointerUp={onPointerUp}
+                    className="absolute inset-y-0 right-0 flex w-2.5 cursor-ew-resize items-center justify-center rounded-r-md bg-black/15"
+                  >
+                    <span className="h-3 w-0.5 rounded-full bg-white/80" />
+                  </span>
+                )}
+                {dragging && (
+                  <span className="pointer-events-none absolute bottom-full left-0 mb-1.5 whitespace-nowrap rounded-lg bg-navy px-2 py-1 text-[11.5px] font-bold text-white shadow-lg">
+                    {workPeriod(s)}
+                  </span>
+                )}
+              </Tag>
+            );
+          })
         )}
       </div>
     </li>
@@ -293,11 +507,17 @@ export function Roadmap2026Gantt({
   items,
   platforms,
   loading,
+  canEdit,
+  onEdit,
+  onChange,
   fill = false,
 }: {
   items: Roadmap2026Item[];
   platforms: Platform[];
   loading: boolean;
+  canEdit: boolean;
+  onEdit: (id: string) => void;
+  onChange: (item: Roadmap2026Item) => void;
   /** Tela cheia: rola por dentro e fixa o cabeçalho dos meses. */
   fill?: boolean;
 }) {
@@ -318,8 +538,7 @@ export function Roadmap2026Gantt({
     if (group) group.items.push(item);
     else groups.push({ squad: item.squad, items: [item] });
   }
-  const groupName = (squad: string, sample: Roadmap2026Item) =>
-    (sample.platformId && platforms.find((p) => p.id === sample.platformId)?.name) || squad;
+  const groupName = (squad: string, sample: Roadmap2026Item) => (sample.platformId && platforms.find((p) => p.id === sample.platformId)?.name) || squad;
 
   return (
     <div
@@ -330,7 +549,7 @@ export function Roadmap2026Gantt({
     >
       <div className="min-w-[960px]">
         <div className={cn(ROW, "bg-[#fbfcff]", fill && "sticky top-0 z-20 shadow-[0_1px_0_#e3e9f4]")}>
-          <div className="sticky left-0 z-10 flex items-end border-r border-line bg-[#fbfcff] px-4 pb-2 text-[12.5px] font-extrabold text-muted">Item da planilha</div>
+          <div className="sticky left-0 z-10 flex items-end border-r border-line bg-[#fbfcff] px-4 pb-2 text-[12.5px] font-extrabold text-muted">Iniciativa</div>
           <div ref={timelineRef}>
             <div className="grid grid-cols-[3fr_3fr_3fr_1fr]">
               {CYCLE_2026_QUARTERS.map((q) => (
@@ -357,16 +576,23 @@ export function Roadmap2026Gantt({
             <Skeleton className="h-12" />
           </div>
         ) : items.length === 0 ? (
-          <p className="border-t border-line px-4 py-10 text-center text-[13.5px] text-muted">Nenhum item para exibir com o filtro atual.</p>
+          <p className="border-t border-line px-4 py-10 text-center text-[13.5px] text-muted">Nenhuma iniciativa para exibir com o filtro atual.</p>
         ) : (
           groups.map((g) => (
             <section key={g.squad} aria-label={groupName(g.squad, g.items[0])}>
               <h3 className="sticky left-0 border-t border-line bg-[#fbfcff] px-4 py-2 text-[12.5px] font-extrabold text-muted">
-                {groupName(g.squad, g.items[0])} · {plural(g.items.length, "item", "itens")}
+                {groupName(g.squad, g.items[0])} · {plural(g.items.length, "iniciativa", "iniciativas")}
               </h3>
               <ul>
                 {g.items.map((item) => (
-                  <GanttRow2026 key={item.id} item={item} timelineWidth={timelineWidth} />
+                  <GanttRow2026
+                    key={item.id}
+                    item={item}
+                    timelineWidth={timelineWidth}
+                    canEdit={canEdit}
+                    onEdit={() => onEdit(item.id)}
+                    onChange={onChange}
+                  />
                 ))}
               </ul>
             </section>
@@ -376,3 +602,4 @@ export function Roadmap2026Gantt({
     </div>
   );
 }
+

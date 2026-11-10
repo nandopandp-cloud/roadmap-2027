@@ -33,7 +33,7 @@ export function getPool(url: string): Pool {
 }
 
 /**
- * Esquema: um registro JSONB por entidade (iniciativas, plataformas, colaboradores, squads), um registro
+ * Esquema: um registro JSONB por entidade (iniciativas, plataformas, colaboradores, squads, Roadmap 2026), um registro
  * para o contexto estratégico e o conteúdo dos documentos Markdown. O formato de cada
  * JSON é validado pelos schemas Zod da aplicação.
  */
@@ -60,6 +60,12 @@ CREATE TABLE IF NOT EXISTS people (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS squads (
+  id TEXT PRIMARY KEY,
+  position INTEGER NOT NULL DEFAULT 0,
+  data JSONB NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS roadmap_2026 (
   id TEXT PRIMARY KEY,
   position INTEGER NOT NULL DEFAULT 0,
   data JSONB NOT NULL,

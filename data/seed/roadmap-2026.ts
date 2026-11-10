@@ -1,17 +1,19 @@
-import type { Roadmap2026 } from "@/lib/domain/types";
+import type { Roadmap2026Import } from "@/lib/domain/types";
 
 /**
  * Roadmap 2026 — projeção de julho/2026 a abril/2027, importada da planilha do time
- * ("Roadmap - 2026/02", aba "Cenário atual") em 10/11/2026. Somente leitura no app.
+ * ("Roadmap - 2026/02", aba "Cenário atual") em 10/11/2026. É o ponto de partida: na primeira
+ * carga, cada linha vira uma iniciativa no banco (lib/domain/roadmap-2026.ts → importedItem) e
+ * daí em diante é editada pelo app.
  *
  * Cada linha da planilha vira um item; as semanas coloridas viram `segments` pela legenda:
  * roxo = Design, vinho = Projetado & Engenharia, azul = Em progresso, verde = Concluído,
  * vermelho = Revisão de prazo e cinza = sem legenda na planilha (`indefinido`).
  * Textos de Design, Engenheiro e QA são mantidos como escritos (nome, "Concluído",
  * "Andamento - Renan", "Sem Designer"…). A linha repetida "Assistente AI - Tópicos" (LMS)
- * entrou uma vez. Para atualizar, reimporte a planilha e substitua este arquivo.
+ * entrou uma vez.
  */
-export const seedRoadmap2026: Roadmap2026 = {
+export const seedRoadmap2026: Roadmap2026Import = {
   source: {
     title: "Roadmap - 2026/02",
     sheet: "Cenário atual",
