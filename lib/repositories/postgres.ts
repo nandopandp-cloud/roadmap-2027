@@ -75,6 +75,20 @@ CREATE TABLE IF NOT EXISTS images (
   data BYTEA NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+CREATE TABLE IF NOT EXISTS effort_attachments (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  content_type TEXT NOT NULL,
+  data BYTEA NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS effort_attachment_parts (
+  upload_id TEXT NOT NULL,
+  part INTEGER NOT NULL,
+  data BYTEA NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (upload_id, part)
+);
 CREATE TABLE IF NOT EXISTS documents (
   path TEXT PRIMARY KEY,
   content TEXT NOT NULL,

@@ -7,6 +7,7 @@ import { applyMove } from "@/lib/domain/org";
 import { placeInColumn, type RoadmapTarget } from "@/lib/domain/roadmap-order";
 import { EFFORT_TRACKS, type EffortTrack } from "@/lib/domain/effort";
 import { effortTracksFor } from "@/lib/domain/effort-access";
+import { ATTACHMENT_CHUNK_BYTES, ATTACHMENT_MAX_BYTES, attachmentTypeOf } from "@/lib/domain/effort-attachments";
 import type { Initiative, InitiativeEffort, InitiativeInput, Person, PersonMove, Platform, Squad, StrategyContext } from "@/lib/domain/types";
 
 type LoadState = { status: "loading" } | { status: "error"; message: string } | { status: "ready" };
@@ -40,6 +41,10 @@ interface RoadmapStore {
   /** Move um card no roadmap (quarter e posição), com atualização imediata da tela. */
   /** Salva o esforço estimado (rota própria: também aceita tech leads e coordenação de design). */
   saveEffort: (id: string, effort: InitiativeEffort) => Promise<Initiative>;
+  /** Envia um arquivo da justificativa do esforço (em partes) e o anexa à frente. */
+  uploadEffortFile: (id: string, track: EffortTrack, file: File, onProgress?: (fraction: number) => void) => Promise<Initiative>;
+  addEffortLink: (id: string, track: EffortTrack, url: string) => Promise<Initiative>;
+  removeEffortAttachment: (id: string, attachmentId: string) => Promise<Initiative>;
   moveInitiative: (id: string, target: RoadmapTarget) => Promise<void>;
   savePlatform: (id: string | null, data: unknown) => Promise<Platform>;
   removePlatform: (id: string) => Promise<void>;
@@ -133,6 +138,45 @@ export function RoadmapProvider({ children }: { children: ReactNode }) {
   const saveEffort = useCallback<RoadmapStore["saveEffort"]>(
     async (id, effort) => {
       const updated = await api.patchEffort(id, effort);
+      upsertInitiative(updated);
+      return updated;
+    },
+    [upsertInitiative],
+  );
+
+  const uploadEffortFile = useCallback<RoadmapStore["uploadEffortFile"]>(
+    async (id, track, file, onProgress) => {
+      if (!attachmentTypeOf(file.name)) {
+        throw new ApiError("Tipo de arquivo não aceito. Envie imagem, PDF, documento, planilha, apresentação ou arquivo do Figma.", 415);
+      }
+      if (file.size === 0) throw new ApiError("O arquivo está vazio.", 400);
+      if (file.size > ATTACHMENT_MAX_BYTES) throw new ApiError(`"${file.name}" passa de 10 MB.`, 413);
+      const uploadId = crypto.randomUUID();
+      const parts = Math.ceil(file.size / ATTACHMENT_CHUNK_BYTES);
+      for (let part = 0; part < parts; part++) {
+        await api.uploadEffortPart(uploadId, part, file.slice(part * ATTACHMENT_CHUNK_BYTES, (part + 1) * ATTACHMENT_CHUNK_BYTES));
+        onProgress?.((part + 1) / (parts + 1));
+      }
+      const updated = await api.addEffortAttachment(id, { kind: "file", track, name: file.name, size: file.size, uploadId, parts });
+      onProgress?.(1);
+      upsertInitiative(updated);
+      return updated;
+    },
+    [upsertInitiative],
+  );
+
+  const addEffortLink = useCallback<RoadmapStore["addEffortLink"]>(
+    async (id, track, url) => {
+      const updated = await api.addEffortAttachment(id, { kind: "link", track, url });
+      upsertInitiative(updated);
+      return updated;
+    },
+    [upsertInitiative],
+  );
+
+  const removeEffortAttachment = useCallback<RoadmapStore["removeEffortAttachment"]>(
+    async (id, attachmentId) => {
+      const updated = await api.removeEffortAttachment(id, attachmentId);
       upsertInitiative(updated);
       return updated;
     },
@@ -259,6 +303,9 @@ export function RoadmapProvider({ children }: { children: ReactNode }) {
       removeInitiative,
       patchPlanning,
       saveEffort,
+      uploadEffortFile,
+      addEffortLink,
+      removeEffortAttachment,
       moveInitiative,
       savePlatform,
       removePlatform,
@@ -276,7 +323,7 @@ export function RoadmapProvider({ children }: { children: ReactNode }) {
       openPrdImport: () => setPrdImportOpen(true),
       closePrdImport: () => setPrdImportOpen(false),
     }),
-    [load, data, reload, upsertInitiative, removeInitiative, patchPlanning, saveEffort, moveInitiative, savePlatform, removePlatform, saveContext, savePerson, removePerson, replacePerson, movePerson, saveSquad, removeSquad, form, prdImportOpen],
+    [load, data, reload, upsertInitiative, removeInitiative, patchPlanning, saveEffort, uploadEffortFile, addEffortLink, removeEffortAttachment, moveInitiative, savePlatform, removePlatform, saveContext, savePerson, removePerson, replacePerson, movePerson, saveSquad, removeSquad, form, prdImportOpen],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

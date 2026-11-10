@@ -3,6 +3,7 @@
 import { AlertTriangle, CheckCircle2, Code2, Lock, Minus, PenTool, Plus } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { EffortJustification } from "@/components/roadmap/effort-justification";
 import { Modal, useConfirm } from "@/components/ui/dialog";
 import { Field, SelectField } from "@/components/ui/fields";
 import { useToast } from "@/components/ui/toast";
@@ -117,7 +118,7 @@ function TrackCard({ track, children, weeks, hint }: { track: EffortTrack; child
   const tone = EFFORT_TONE[track];
   const Icon = EFFORT_TRACK_ICON[track];
   return (
-    <fieldset className="min-w-0 overflow-hidden rounded-2xl border border-line bg-surface">
+    <fieldset className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-line bg-surface">
       <legend className="sr-only">Esforço de {EFFORT_TRACK_LABEL[track]}</legend>
       <div className="flex items-center gap-3 border-b border-line px-4 py-3" style={{ background: tone.soft }}>
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white" style={{ background: tone.solid }} aria-hidden>
@@ -135,7 +136,7 @@ function TrackCard({ track, children, weeks, hint }: { track: EffortTrack; child
           {weeks ? formatWeeks(weeks) : "Não estimado"}
         </span>
       </div>
-      <div className="flex flex-col gap-4 p-4">{children}</div>
+      <div className="flex flex-1 flex-col gap-4 p-4">{children}</div>
     </fieldset>
   );
 }
@@ -346,6 +347,7 @@ export function EffortDialog({ initiative, onClose }: { initiative: Initiative; 
       return (
         <TrackCard track={t} weeks={initiative.effort[t]?.weeks ?? null} hint={TRACK_FILLED_BY[t]}>
           <ReadOnlyTrack track={t} estimate={initiative.effort[t]} ownerName={personName(initiative.effort[t]?.ownerId ?? null)} />
+          <EffortJustification initiative={initiative} track={t} readOnly />
         </TrackCard>
       );
     }
@@ -404,6 +406,7 @@ export function EffortDialog({ initiative, onClose }: { initiative: Initiative; 
             )}
           </Field>
         )}
+        <EffortJustification initiative={initiative} track={t} />
       </TrackCard>
     );
   };

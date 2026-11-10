@@ -1,5 +1,6 @@
 import "server-only";
 import path from "node:path";
+import { FileAttachmentStore, PostgresAttachmentStore, type AttachmentStore } from "@/lib/repositories/attachments";
 import { FileDocumentStore, PostgresDocumentStore, type DocumentStore } from "@/lib/repositories/documents";
 import { FileImageStore, PostgresImageStore, type ImageStore } from "@/lib/repositories/images";
 import { JsonFileRepository } from "@/lib/repositories/json-file-repository";
@@ -55,4 +56,15 @@ export function getImageStore(): ImageStore {
     images = url ? new PostgresImageStore(getPool(url)) : new FileImageStore(path.join(PROJECT_ROOT, "data", "local", "images"));
   }
   return images;
+}
+
+let attachments: AttachmentStore | null = null;
+
+/** Arquivos da justificativa do esforço (Postgres em produção; data/local/attachments no desenvolvimento). */
+export function getAttachmentStore(): AttachmentStore {
+  if (!attachments) {
+    const url = resolveDatabaseUrl();
+    attachments = url ? new PostgresAttachmentStore(getPool(url)) : new FileAttachmentStore(path.join(PROJECT_ROOT, "data", "local", "attachments"));
+  }
+  return attachments;
 }

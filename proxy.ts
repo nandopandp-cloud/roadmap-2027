@@ -5,7 +5,7 @@ import { readSession } from "@/lib/auth/session";
 /**
  * Porta de entrada: toda página, API e protótipo exige sessão Google do domínio.
  * Alterações (qualquer método além de GET/HEAD) exigem perfil de edição — exceto o
- * esforço estimado (EFFORT_ROUTE), checado na própria rota.
+ * esforço estimado e sua justificativa (LEAD_ROUTES), checados na própria rota.
  * As rotas de API repetem a checagem de edição (lib/http/handle.ts → handleEdit).
  */
 
@@ -16,10 +16,17 @@ function isPublic(pathname: string): boolean {
 }
 
 /**
- * Alteração liberada para perfis de consulta: o esforço estimado, que tech leads e a
- * coordenação de design também preenchem. A rota confere, frente a frente, quem pode.
+ * Alterações liberadas para perfis de consulta: o esforço estimado e os anexos da
+ * justificativa, que tech leads e a coordenação de design também preenchem. As rotas
+ * conferem, frente a frente, quem pode.
  */
-const EFFORT_ROUTE = /^\/api\/initiatives\/JG-2027-\d{3}\/esforco$/;
+const UUID = "[a-f0-9-]{36}";
+const LEAD_ROUTES: { method: string; path: RegExp }[] = [
+  { method: "PATCH", path: /^\/api\/initiatives\/JG-2027-\d{3}\/esforco$/ },
+  { method: "POST", path: /^\/api\/initiatives\/JG-2027-\d{3}\/esforco\/anexos$/ },
+  { method: "DELETE", path: new RegExp(`^/api/initiatives/JG-2027-\\d{3}/esforco/anexos/${UUID}$`) },
+  { method: "PUT", path: new RegExp(`^/api/esforco/partes/${UUID}/\\d$`) },
+];
 
 function jsonError(status: number, error: string) {
   return NextResponse.json({ error }, { status, headers: { "Cache-Control": "no-store" } });
@@ -48,7 +55,7 @@ export async function proxy(request: NextRequest) {
     // Bloqueia envios de outros sites (o cookie SameSite=Lax já impede a maioria).
     const origin = request.headers.get("origin");
     if (origin && origin !== request.nextUrl.origin) return jsonError(403, "Origem da requisição não permitida.");
-    const effortByLead = request.method === "PATCH" && EFFORT_ROUTE.test(pathname);
+    const effortByLead = LEAD_ROUTES.some((r) => r.method === request.method && r.path.test(pathname));
     if (viewer.role !== "editor" && !effortByLead) return jsonError(403, "Seu perfil é somente de consulta. Peça acesso de edição ao time de Produto.");
   }
 

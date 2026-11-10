@@ -7,6 +7,7 @@ import {
   CONTEXT_ARTS,
   DISCIPLINES,
   EFFORT_START_MODES,
+  EFFORT_TRACKS,
   DOCUMENT_KINDS,
   DOCUMENT_STATUSES,
   ILLUSTRATIONS,
@@ -24,6 +25,7 @@ import {
 } from "@/lib/domain/constants";
 import { parseGithubBranch, parseGithubRepo, sameGithubRepo } from "@/lib/domain/github";
 import { DOCUMENT_EXTENSIONS, PROTOTYPE_EXTENSIONS, isHttpUrl, isSafeRepoPath } from "@/lib/validation/paths";
+import { ATTACHMENT_MAX_BYTES, ATTACHMENT_MAX_PARTS, ATTACHMENTS_PER_TRACK, attachmentTypeOf } from "@/lib/domain/effort-attachments";
 
 // Mensagens padrão de validação em português.
 z.config(z.locales.pt());
@@ -176,6 +178,53 @@ export const initiativeEffortSchema = z.object({
   engineering: effortEstimateSchema.nullable().default(null),
 });
 
+const attachmentId = z.string().regex(/^[a-f0-9-]{36}$/, "Identificador inválido.");
+const attachmentName = z.string().trim().min(1, "Informe o nome.").max(200, "Nome longo demais (máximo de 200 caracteres).");
+const attachmentUrl = z
+  .string()
+  .trim()
+  .max(2000, "Link longo demais.")
+  .refine((v) => isHttpUrl(v), "Informe um link começando com https://.");
+
+/** Anexo da justificativa de uma frente de esforço: arquivo enviado ou link (Figma, Google Docs…). */
+export const effortAttachmentSchema = z.discriminatedUnion("kind", [
+  z.object({
+    id: attachmentId,
+    kind: z.literal("file"),
+    name: attachmentName,
+    size: z.number().int().min(1).max(ATTACHMENT_MAX_BYTES),
+    addedBy: z.string().max(200).default(""),
+    addedAt: z.string(),
+  }),
+  z.object({
+    id: attachmentId,
+    kind: z.literal("link"),
+    name: attachmentName,
+    url: attachmentUrl,
+    addedBy: z.string().max(200).default(""),
+    addedAt: z.string(),
+  }),
+]);
+
+/** Justificativa do esforço: anexos de cada frente, separados. */
+export const effortEvidenceSchema = z.object({
+  design: z.array(effortAttachmentSchema).max(ATTACHMENTS_PER_TRACK).default([]),
+  engineering: z.array(effortAttachmentSchema).max(ATTACHMENTS_PER_TRACK).default([]),
+});
+
+/** Novo anexo: link, ou arquivo já enviado em partes (uploadId). */
+export const effortAttachmentInputSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("link"), track: z.enum(EFFORT_TRACKS), url: attachmentUrl }),
+  z.object({
+    kind: z.literal("file"),
+    track: z.enum(EFFORT_TRACKS),
+    name: attachmentName.refine((v) => !!attachmentTypeOf(v), "Tipo de arquivo não aceito. Envie imagem, PDF, documento, planilha ou apresentação."),
+    size: z.number().int().min(1, "O arquivo está vazio.").max(ATTACHMENT_MAX_BYTES, "O arquivo passa de 10 MB."),
+    uploadId: attachmentId,
+    parts: z.number().int().min(1).max(ATTACHMENT_MAX_PARTS),
+  }),
+]);
+
 /** Branch do projeto no GitHub (https://github.com/<org>/<repo>/tree/<branch>). */
 export const repositoryBranchSchema = z.object({
   id: localId,
@@ -313,6 +362,8 @@ export const initiativeSchema = initiativeFieldsSchema.extend({
   repositories: z.array(repositoryLinkSchema).max(10).default([]),
   /** Semanas de esforço de Design e Engenharia (editadas no Gantt e na aba Roadmap). */
   effort: initiativeEffortSchema.default({ design: null, engineering: null }),
+  /** Justificativa do esforço: arquivos e links de cada frente (anexados na janela de esforço). */
+  effortEvidence: effortEvidenceSchema.default({ design: [], engineering: [] }),
   /** Posição na coluna do roadmap (quarter); alterada ao arrastar os cards. Não faz parte do formulário. */
   roadmapOrder: z.number().int().min(0).default(0),
 });

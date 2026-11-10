@@ -9,7 +9,9 @@ import type {
   customImageSchema,
   documentDraftSchema,
   documentRefSchema,
+  effortAttachmentSchema,
   effortEstimateSchema,
+  effortEvidenceSchema,
   initiativeEffortSchema,
   historyEntrySchema,
   initiativeInputSchema,
@@ -85,6 +87,8 @@ export type HistoryEntry = z.infer<typeof historyEntrySchema>;
 export type RepositoryLink = z.infer<typeof repositoryLinkSchema>;
 export type EffortEstimate = z.infer<typeof effortEstimateSchema>;
 export type InitiativeEffort = z.infer<typeof initiativeEffortSchema>;
+export type EffortAttachment = z.infer<typeof effortAttachmentSchema>;
+export type EffortEvidence = z.infer<typeof effortEvidenceSchema>;
 export type RepositoryBranch = z.infer<typeof repositoryBranchSchema>;
 export type Initiative = z.infer<typeof initiativeSchema>;
 export type InitiativeInput = z.infer<typeof initiativeInputSchema>;

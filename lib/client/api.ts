@@ -75,6 +75,17 @@ export const api = {
   /** Esforço estimado: editores, tech leads (Engenharia) e coordenação de design (Design). */
   patchEffort: (id: string, effort: InitiativeEffort) =>
     request<Initiative>(`/api/initiatives/${id}/esforco`, { method: "PATCH", body: json(effort) }),
+  /** Justificativa do esforço: partes binárias de um arquivo, depois o anexo (arquivo ou link). */
+  uploadEffortPart: (uploadId: string, part: number, chunk: Blob) =>
+    request<{ ok: true }>(`/api/esforco/partes/${uploadId}/${part}`, {
+      method: "PUT",
+      body: chunk,
+      headers: { "Content-Type": "application/octet-stream" },
+    }),
+  addEffortAttachment: (id: string, input: unknown) =>
+    request<Initiative>(`/api/initiatives/${id}/esforco/anexos`, { method: "POST", body: json(input) }),
+  removeEffortAttachment: (id: string, attachmentId: string) =>
+    request<Initiative>(`/api/initiatives/${id}/esforco/anexos/${attachmentId}`, { method: "DELETE" }),
   moveInitiative: (id: string, target: RoadmapTarget) =>
     request<Initiative[]>(`/api/initiatives/${id}/move`, { method: "POST", body: json(target) }),
   deleteInitiative: (id: string) => request<{ ok: true }>(`/api/initiatives/${id}`, { method: "DELETE" }),

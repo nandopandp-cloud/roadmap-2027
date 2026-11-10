@@ -9,6 +9,7 @@ import { QUARTER_LABEL } from "@/lib/domain/labels";
 import { nextRoadmapOrder, placeInColumn, roadmapColumn } from "@/lib/domain/roadmap-order";
 import { getRepository, storageKind, type StorageKind } from "@/lib/repositories";
 import { DomainError, notFound } from "@/lib/services/errors";
+import { discardEvidenceFiles } from "@/lib/services/effort-attachments";
 import { describeChanges, describeEffortChanges, describeRepositoryChanges, historyEntry } from "@/lib/services/history";
 import { extractFromPrd, prdVersion, type PrdImportResult } from "@/lib/services/prd-import";
 import { initiativeFolder, slugify } from "@/lib/validation/paths";
@@ -168,6 +169,7 @@ async function insertInitiative(db: Database, input: InitiativeInput, files: Doc
     roadmapOrder: nextRoadmapOrder(db.initiatives, input.quarter),
     repositories: [],
     effort: { design: null, engineering: null },
+    effortEvidence: { design: [], engineering: [] },
   };
   db.initiatives.push(initiative);
   return initiative;
@@ -379,8 +381,9 @@ export async function moveInitiative(id: string, data: unknown): Promise<Initiat
 
 /** Exclui a iniciativa e remove referências a ela, preservando a integridade. */
 export async function deleteInitiative(id: string): Promise<void> {
-  await getRepository().transaction((db) => {
-    if (!db.initiatives.some((i) => i.id === id)) throw notFound("Iniciativa");
+  const removed = await getRepository().transaction((db) => {
+    const target = db.initiatives.find((i) => i.id === id);
+    if (!target) throw notFound("Iniciativa");
     const now = new Date().toISOString();
     db.initiatives = db.initiatives
       .filter((i) => i.id !== id)
@@ -398,7 +401,10 @@ export async function deleteInitiative(id: string): Promise<void> {
       ...p,
       relatedInitiativeIds: p.relatedInitiativeIds.filter((r) => r !== id),
     }));
+    return target;
   });
+  // Os arquivos da justificativa do esforço saem junto com a iniciativa.
+  await discardEvidenceFiles(removed);
 }
 
 export async function createPlatform(data: unknown): Promise<Platform> {

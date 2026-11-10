@@ -4,6 +4,7 @@ import { AlertTriangle, CheckCircle2, Pencil, Timer } from "lucide-react";
 import { useState } from "react";
 import { DrawerSection, Prose } from "@/components/initiatives/drawer/parts";
 import { EFFORT_TRACK_ICON, EffortDialog } from "@/components/roadmap/effort-dialog";
+import { JustificationChips } from "@/components/roadmap/effort-justification";
 import { Button } from "@/components/ui/button";
 import { useEffortTracks, useRoadmap } from "@/lib/client/store";
 import { EFFORT_TONE } from "@/lib/client/tones";
@@ -19,7 +20,7 @@ export function EffortSection({ initiative: i }: { initiative: Initiative }) {
   const canEdit = useEffortTracks().length > 0;
   const [editing, setEditing] = useState(false);
   const plan = planEffort(i.effort, i.quarter);
-  const any = hasEffort(i.effort);
+  const any = hasEffort(i.effort) || EFFORT_TRACKS.some((t) => i.effortEvidence[t].length > 0);
   const ownerName = (id: string | null) => (id ? data.people.find((p) => p.id === id)?.name : undefined);
 
   return (
@@ -75,6 +76,7 @@ export function EffortSection({ initiative: i }: { initiative: Initiative }) {
                         {placed ? `${fmt(placed.start)} a ${fmt(lastDay(placed.end))}` : `começa ${describeEffortStart(track, estimate)}`}
                       </span>
                     )}
+                    {(estimate || i.effortEvidence[track].length > 0) && <JustificationChips items={i.effortEvidence[track]} />}
                   </span>
                 </li>
               );

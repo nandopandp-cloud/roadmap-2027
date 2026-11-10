@@ -43,6 +43,7 @@ const base = {
   roadmapOrder: 0,
   repositories: [],
   effort: { design: null, engineering: null },
+  effortEvidence: { design: [], engineering: [] },
   upcoming: false,
 } satisfies Partial<Initiative>;
 
