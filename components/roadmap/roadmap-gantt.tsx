@@ -326,8 +326,11 @@ export function RoadmapGantt({
   selectedId,
   onOpen,
   onEditEffort,
+  fill = false,
 }: {
   showEffort: boolean;
+  /** Tela cheia: limita a altura à janela, rola por dentro e fixa o cabeçalho dos meses. */
+  fill?: boolean;
   /** Frentes de esforço que a pessoa conectada pode estimar. */
   effortTracks: EffortTrack[];
   onEditEffort: (id: string) => void;
@@ -366,9 +369,14 @@ export function RoadmapGantt({
   );
 
   return (
-    <div className="mt-6 overflow-x-auto rounded-[24px] border border-[#e3e9f4] bg-surface shadow-[0_2px_10px_rgba(23,27,77,0.04)]">
+    <div
+      className={cn(
+        "rounded-[24px] border border-[#e3e9f4] bg-surface shadow-[0_2px_10px_rgba(23,27,77,0.04)]",
+        fill ? "min-h-0 overflow-auto overscroll-contain [scrollbar-width:thin]" : "mt-6 overflow-x-auto",
+      )}
+    >
       <div className="min-w-[860px]">
-        <div className={cn(ROW, "bg-[#fbfcff]")}>
+        <div className={cn(ROW, "bg-[#fbfcff]", fill && "sticky top-0 z-20 shadow-[0_1px_0_#e3e9f4]")}>
           <div className="sticky left-0 z-10 flex items-end border-r border-line bg-[#fbfcff] px-4 pb-2 text-[12.5px] font-extrabold text-muted">
             Iniciativa
           </div>

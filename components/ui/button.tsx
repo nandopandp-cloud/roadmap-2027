@@ -30,7 +30,7 @@ export function buttonClass(variant: Variant = "secondary", size: Size = "md", e
   );
 }
 
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+interface ButtonProps extends ComponentProps<"button"> {
   variant?: Variant;
   size?: Size;
   icon?: ReactNode;
