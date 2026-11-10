@@ -5,7 +5,7 @@ import { useState } from "react";
 import { DrawerSection, Prose } from "@/components/initiatives/drawer/parts";
 import { EFFORT_TRACK_ICON, EffortDialog } from "@/components/roadmap/effort-dialog";
 import { Button } from "@/components/ui/button";
-import { useCanEdit, useRoadmap } from "@/lib/client/store";
+import { useEffortTracks, useRoadmap } from "@/lib/client/store";
 import { EFFORT_TONE } from "@/lib/client/tones";
 import { describeEffortStart, EFFORT_TRACK_LABEL, EFFORT_TRACKS, formatWeeks, hasEffort, lastDay, planEffort } from "@/lib/domain/effort";
 import { QUARTER_LABEL } from "@/lib/domain/labels";
@@ -16,7 +16,7 @@ const fmt = (iso: string) => iso.split("-").reverse().join("/");
 /** Aba Roadmap: semanas de Design e Engenharia, com responsáveis e se cabem no quarter. */
 export function EffortSection({ initiative: i }: { initiative: Initiative }) {
   const { data } = useRoadmap();
-  const canEdit = useCanEdit();
+  const canEdit = useEffortTracks().length > 0;
   const [editing, setEditing] = useState(false);
   const plan = planEffort(i.effort, i.quarter);
   const any = hasEffort(i.effort);

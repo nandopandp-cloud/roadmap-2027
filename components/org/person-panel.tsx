@@ -1,7 +1,7 @@
 "use client";
 
 import { DisciplineBadge } from "@/components/org/discipline";
-import { ArrowLeftRight, Crown, Mail, MapPin, Pencil, Repeat2, Trash2, UserX, X } from "lucide-react";
+import { ArrowLeftRight, Crown, Mail, MapPin, Pencil, Repeat2, Timer, Trash2, UserX, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Avatar } from "@/components/org/avatar";
 import { useOrgActions } from "@/components/org/org-actions";
@@ -13,6 +13,8 @@ import { useInitiativeSelection } from "@/lib/client/selection";
 import { useRoadmap } from "@/lib/client/store";
 import { ACCENT_TONE, STATUS_TONE } from "@/lib/client/tones";
 import { directReports, isLeader, relatedInitiatives, relatedSquads, squadsLedBy } from "@/lib/domain/org";
+import { EFFORT_TRACK_LABEL } from "@/lib/domain/effort";
+import { effortTracksByRole } from "@/lib/domain/effort-access";
 import { STATUS_LABEL } from "@/lib/domain/labels";
 import type { Person } from "@/lib/domain/types";
 
@@ -44,6 +46,26 @@ function Section({ title, action, children }: { title: string; action?: ReactNod
       </div>
       {children}
     </section>
+  );
+}
+
+/** Tech lead ou coordenação de design: estima a sua frente de esforço no roadmap. */
+function EffortAccessNote({ person }: { person: Person }) {
+  const tracks = effortTracksByRole(person);
+  if (!tracks.length) return null;
+  const label = tracks.map((t) => EFFORT_TRACK_LABEL[t]).join(" e ");
+  return (
+    <div className="mb-4 flex gap-2.5 rounded-xl bg-[#f5f2fd] px-3 py-2.5 text-[13px] leading-relaxed text-[#3b4470]">
+      <Timer size={16} className="mt-0.5 shrink-0 text-violet" aria-hidden />
+      <p>
+        <span className="font-bold text-navy">Estima o esforço de {label} no roadmap</span>, pelo cargo de {person.role}.
+        {!person.email && (
+          <span className="mt-0.5 block font-semibold text-[#8a4b00]">
+            Cadastre o e-mail da conta Google (jovensgenios.com) para liberar a estimativa.
+          </span>
+        )}
+      </p>
+    </div>
   );
 }
 
@@ -121,6 +143,8 @@ function PanelBody({ person }: { person: Person }) {
           {person.location || <span className={muted}>Localização não informada</span>}
         </p>
       </div>
+
+      <EffortAccessNote person={person} />
 
       <Section title="Liderança direta">
         {manager ? (

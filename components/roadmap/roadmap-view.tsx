@@ -14,7 +14,7 @@ import { Checkbox } from "@/components/ui/fields";
 import { EmptyState, ErrorBanner } from "@/components/ui/feedback";
 import { cn } from "@/lib/client/cn";
 import { useInitiativeSelection } from "@/lib/client/selection";
-import { useCanEdit, useRoadmap } from "@/lib/client/store";
+import { useCanEdit, useEffortTracks, useRoadmap } from "@/lib/client/store";
 import { compareRoadmapOrder } from "@/lib/domain/roadmap-order";
 
 const VIEWS = [
@@ -42,6 +42,7 @@ function useRoadmapView() {
 export function RoadmapView() {
   const { load, data, reload, openForm } = useRoadmap();
   const canEdit = useCanEdit();
+  const effortTracks = useEffortTracks();
   const { selectedId, open } = useInitiativeSelection();
   const { view, setView } = useRoadmapView();
   const [platform, setPlatform] = useState("todas");
@@ -191,7 +192,7 @@ export function RoadmapView() {
             visible={visible}
             showMilestones={showMilestones}
             showEffort={showEffort}
-            canEdit={canEdit}
+            effortTracks={effortTracks}
             loading={loading}
             selectedId={selectedId}
             onOpen={openInitiative}

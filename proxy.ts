@@ -4,7 +4,8 @@ import { readSession } from "@/lib/auth/session";
 
 /**
  * Porta de entrada: toda página, API e protótipo exige sessão Google do domínio.
- * Alterações (qualquer método além de GET/HEAD) exigem perfil de edição.
+ * Alterações (qualquer método além de GET/HEAD) exigem perfil de edição — exceto o
+ * esforço estimado (EFFORT_ROUTE), checado na própria rota.
  * As rotas de API repetem a checagem de edição (lib/http/handle.ts → handleEdit).
  */
 
@@ -13,6 +14,12 @@ const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 function isPublic(pathname: string): boolean {
   return pathname === "/login" || pathname.startsWith("/api/auth/");
 }
+
+/**
+ * Alteração liberada para perfis de consulta: o esforço estimado, que tech leads e a
+ * coordenação de design também preenchem. A rota confere, frente a frente, quem pode.
+ */
+const EFFORT_ROUTE = /^\/api\/initiatives\/JG-2027-\d{3}\/esforco$/;
 
 function jsonError(status: number, error: string) {
   return NextResponse.json({ error }, { status, headers: { "Cache-Control": "no-store" } });
@@ -41,7 +48,8 @@ export async function proxy(request: NextRequest) {
     // Bloqueia envios de outros sites (o cookie SameSite=Lax já impede a maioria).
     const origin = request.headers.get("origin");
     if (origin && origin !== request.nextUrl.origin) return jsonError(403, "Origem da requisição não permitida.");
-    if (viewer.role !== "editor") return jsonError(403, "Seu perfil é somente de consulta. Peça acesso de edição ao time de Produto.");
+    const effortByLead = request.method === "PATCH" && EFFORT_ROUTE.test(pathname);
+    if (viewer.role !== "editor" && !effortByLead) return jsonError(403, "Seu perfil é somente de consulta. Peça acesso de edição ao time de Produto.");
   }
 
   return NextResponse.next();

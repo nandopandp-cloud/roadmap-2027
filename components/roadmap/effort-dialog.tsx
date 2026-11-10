@@ -1,21 +1,21 @@
 "use client";
 
-import { AlertTriangle, CheckCircle2, Code2, Minus, PenTool, Plus } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Code2, Lock, Minus, PenTool, Plus } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Modal, useConfirm } from "@/components/ui/dialog";
 import { Field, SelectField } from "@/components/ui/fields";
 import { useToast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/client/api";
-import { useRoadmap } from "@/lib/client/store";
+import { useEffortTracks, useRoadmap } from "@/lib/client/store";
 import { EFFORT_TONE } from "@/lib/client/tones";
 import {
   EFFORT_TRACK_DISCIPLINE,
   EFFORT_TRACK_LABEL,
   EFFORT_TRACKS,
   EMPTY_EFFORT,
+  describeEffortStart,
   formatWeeks,
-  hasEffort,
   lastDay,
   planEffort,
   quarterEndDate,
@@ -24,7 +24,7 @@ import {
 } from "@/lib/domain/effort";
 import { QUARTER_LABEL } from "@/lib/domain/labels";
 import type { EffortEstimate, Initiative, InitiativeEffort } from "@/lib/domain/types";
-import { effortEstimateSchema, fieldErrors, planningPatchSchema } from "@/lib/validation/schemas";
+import { effortEstimateSchema, fieldErrors, initiativeEffortSchema } from "@/lib/validation/schemas";
 
 const MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 const DAY = 86_400_000;
@@ -113,7 +113,7 @@ function WeeksInput({ value, onChange, label, error }: { value: string; onChange
   );
 }
 
-function TrackCard({ track, children, weeks }: { track: EffortTrack; children: ReactNode; weeks: number | null }) {
+function TrackCard({ track, children, weeks, hint }: { track: EffortTrack; children: ReactNode; weeks: number | null; hint?: string }) {
   const tone = EFFORT_TONE[track];
   const Icon = EFFORT_TRACK_ICON[track];
   return (
@@ -128,7 +128,7 @@ function TrackCard({ track, children, weeks }: { track: EffortTrack; children: R
             {EFFORT_TRACK_LABEL[track]}
           </span>
           <span className="block text-[12px] font-semibold opacity-80" style={{ color: tone.fg }}>
-            Preenchido pelo responsável de {EFFORT_TRACK_LABEL[track].toLowerCase()}
+            {hint ? "Somente leitura para o seu perfil" : `Preenchido pelo responsável de ${EFFORT_TRACK_LABEL[track].toLowerCase()}`}
           </span>
         </span>
         <span className="shrink-0 text-[13px] font-extrabold" style={{ color: tone.fg }}>
@@ -236,12 +236,40 @@ function EffortPreview({ effort, initiative }: { effort: InitiativeEffort; initi
   );
 }
 
+/** Quem preenche cada frente, além dos editores. */
+const TRACK_FILLED_BY: Record<EffortTrack, string> = {
+  design: "Preenchido pela coordenação de design ou por editores.",
+  engineering: "Preenchido por tech leads ou por editores.",
+};
+
+/** Frente que a pessoa não pode estimar: valores atuais, sem edição. */
+function ReadOnlyTrack({ track, estimate, ownerName }: { track: EffortTrack; estimate: EffortEstimate | null; ownerName?: string }) {
+  if (!estimate) return <p className="text-[13.5px] italic text-subtle">Ainda não estimado. {TRACK_FILLED_BY[track]}</p>;
+  return (
+    <div className="flex flex-col gap-2 text-[13.5px] text-muted">
+      <p>
+        <span className="font-bold text-ink">Responsável: </span>
+        {ownerName ?? "a definir"}
+      </p>
+      <p>
+        <span className="font-bold text-ink">Início: </span>
+        {describeEffortStart(track, estimate)}
+      </p>
+      <p className="flex items-center gap-1.5 text-[12.5px] text-subtle">
+        <Lock size={13} aria-hidden /> {TRACK_FILLED_BY[track]}
+      </p>
+    </div>
+  );
+}
+
 /**
  * Estimativa de esforço (semanas de Design e de Engenharia) de uma iniciativa. Aberta pelo
- * Gantt e pela aba Roadmap do drawer; salva como alteração de planejamento (com histórico).
+ * Gantt e pela aba Roadmap do drawer. Editores preenchem as duas frentes; tech leads, a de
+ * Engenharia; a coordenação de design, a de Design (lib/domain/effort-access.ts).
  */
 export function EffortDialog({ initiative, onClose }: { initiative: Initiative; onClose: () => void }) {
-  const { data, patchPlanning } = useRoadmap();
+  const { data, saveEffort } = useRoadmap();
+  const allowed = useEffortTracks();
   const confirm = useConfirm();
   const notify = useToast();
   const [initial] = useState(() => toDraft(initiative.effort));
@@ -249,14 +277,17 @@ export function EffortDialog({ initiative, onClose }: { initiative: Initiative; 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const dirty = JSON.stringify(draft) !== JSON.stringify(initial);
+  const canAll = EFFORT_TRACKS.every((t) => allowed.includes(t));
+  const ownLabel = allowed.map((t) => EFFORT_TRACK_LABEL[t]).join(" e ");
 
   const preview = previewEffort(draft);
   const quarterStart = initiative.quarter ? quarterStartDate(initiative.quarter) : null;
   const designEnd = planEffort(preview, initiative.quarter).tracks.find((t) => t.track === "design")?.end;
+  const personName = (id: string | null) => (id ? data.people.find((p) => p.id === id)?.name : undefined);
 
   const set = (track: EffortTrack, patch: Partial<TrackDraft>) => {
     setDraft((d) => ({ ...d, [track]: { ...d[track], ...patch } }));
-    setErrors((e) => Object.fromEntries(Object.entries(e).filter(([k]) => !k.startsWith(`effort.${track}.`))));
+    setErrors((e) => Object.fromEntries(Object.entries(e).filter(([k]) => !k.startsWith(`${track}.`))));
   };
 
   async function requestClose() {
@@ -274,16 +305,18 @@ export function EffortDialog({ initiative, onClose }: { initiative: Initiative; 
     onClose();
   }
 
-  async function persist(effort: unknown, message: string) {
-    const parsed = planningPatchSchema.safeParse({ effort });
-    if (!parsed.success || !parsed.data.effort) {
-      if (!parsed.success) setErrors(fieldErrors(parsed.error));
+  async function persist(next: Record<EffortTrack, unknown>, message: string) {
+    // Frentes fora da permissão seguem exatamente como estão salvas.
+    const payload = Object.fromEntries(EFFORT_TRACKS.map((t) => [t, allowed.includes(t) ? next[t] : initiative.effort[t]]));
+    const parsed = initiativeEffortSchema.safeParse(payload);
+    if (!parsed.success) {
+      setErrors(fieldErrors(parsed.error));
       notify("error", "Revise os campos destacados.");
       return;
     }
     setSaving(true);
     try {
-      await patchPlanning(initiative.id, { effort: parsed.data.effort });
+      await saveEffort(initiative.id, parsed.data);
       notify("success", message);
       onClose();
     } catch (error) {
@@ -300,15 +333,22 @@ export function EffortDialog({ initiative, onClose }: { initiative: Initiative; 
 
   async function clear() {
     const ok = await confirm({
-      title: "Limpar estimativa?",
-      message: "As semanas de Design e de Engenharia desta iniciativa saem do roadmap. A mudança fica registrada no histórico.",
+      title: canAll ? "Limpar estimativa?" : `Limpar estimativa de ${ownLabel}?`,
+      message: `As semanas de ${canAll ? "Design e de Engenharia" : ownLabel} desta iniciativa saem do roadmap. A mudança fica registrada no histórico.`,
       confirmLabel: "Limpar estimativa",
       tone: "danger",
     });
-    if (ok) await persist(EMPTY_EFFORT, "Estimativa de esforço removida.");
+    if (ok) await persist({ design: null, engineering: null }, "Estimativa de esforço removida.");
   }
 
   const track = (t: EffortTrack) => {
+    if (!allowed.includes(t)) {
+      return (
+        <TrackCard track={t} weeks={initiative.effort[t]?.weeks ?? null} hint={TRACK_FILLED_BY[t]}>
+          <ReadOnlyTrack track={t} estimate={initiative.effort[t]} ownerName={personName(initiative.effort[t]?.ownerId ?? null)} />
+        </TrackCard>
+      );
+    }
     const discipline = EFFORT_TRACK_DISCIPLINE[t];
     const ownerId = draft[t].ownerId;
     const missingOwner = !!ownerId && !data.people.some((p) => p.id === ownerId);
@@ -319,7 +359,7 @@ export function EffortDialog({ initiative, onClose }: { initiative: Initiative; 
       t === "design"
         ? `No início do quarter${quarterStart ? ` (${fmt(quarterStart)})` : ""}`
         : `Logo após o design${designEnd ? ` (${fmt(designEnd)})` : ""}`;
-    const error = (field: string) => errors[`effort.${t}.${field}`];
+    const error = (field: string) => errors[`${t}.${field}`];
     return (
       <TrackCard track={t} weeks={preview[t]?.weeks ?? null}>
         <WeeksInput label={EFFORT_TRACK_LABEL[t]} value={draft[t].weeks} onChange={(weeks) => set(t, { weeks })} error={error("weeks")} />
@@ -368,18 +408,25 @@ export function EffortDialog({ initiative, onClose }: { initiative: Initiative; 
     );
   };
 
+  const planned = initiative.quarter ? ` — planejada para o ${QUARTER_LABEL[initiative.quarter]}` : "";
+  const ownHasValue = allowed.some((t) => initiative.effort[t]);
+
   return (
     <Modal
       open
       onClose={requestClose}
       size="lg"
       title="Esforço estimado"
-      description={`${initiative.id} · ${initiative.title}${initiative.quarter ? ` — planejada para o ${QUARTER_LABEL[initiative.quarter]}` : ""}. Cada responsável informa quantas semanas sua frente deve levar.`}
+      description={
+        canAll
+          ? `${initiative.id} · ${initiative.title}${planned}. Cada responsável informa quantas semanas sua frente deve levar.`
+          : `${initiative.id} · ${initiative.title}${planned}. Você estima a frente de ${ownLabel}.`
+      }
       footer={
         <>
-          {hasEffort(initiative.effort) && (
+          {ownHasValue && (
             <Button variant="ghost" className="sm:mr-auto" onClick={clear} disabled={saving}>
-              Limpar estimativa
+              {canAll ? "Limpar estimativa" : `Limpar ${ownLabel}`}
             </Button>
           )}
           <Button variant="ghost" onClick={requestClose} disabled={saving}>

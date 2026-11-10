@@ -1,7 +1,10 @@
 import "server-only";
 import type { z } from "zod";
+import type { Viewer } from "@/lib/auth/session";
 import { EFFORT_TRACKS } from "@/lib/domain/constants";
-import type { Database, DocumentDraft, DocumentRef, Initiative, InitiativeEffort, InitiativeInput, Platform, StrategyContext } from "@/lib/domain/types";
+import { EFFORT_TRACK_LABEL } from "@/lib/domain/effort";
+import { effortTracksFor } from "@/lib/domain/effort-access";
+import type { Database, DocumentDraft, DocumentRef, EffortEstimate, Initiative, InitiativeEffort, InitiativeInput, Platform, StrategyContext } from "@/lib/domain/types";
 import { QUARTER_LABEL } from "@/lib/domain/labels";
 import { nextRoadmapOrder, placeInColumn, roadmapColumn } from "@/lib/domain/roadmap-order";
 import { getRepository, storageKind, type StorageKind } from "@/lib/repositories";
@@ -12,6 +15,7 @@ import { initiativeFolder, slugify } from "@/lib/validation/paths";
 import {
   fieldErrors,
   initiativeFromPrdSchema,
+  initiativeEffortSchema,
   initiativeInputSchema,
   upcomingInitiativeSchema,
   planningPatchSchema,
@@ -257,13 +261,7 @@ export async function patchPlanning(id: string, data: unknown): Promise<Initiati
     if (index < 0) throw notFound("Iniciativa");
     const before = db.initiatives[index];
     const next = { ...before, ...patch };
-    if (patch.effort) assertEffortOwners(db, patch.effort);
-    const nameOf = (personId: string) => db.people.find((p) => p.id === personId)?.name ?? "colaborador removido";
-    const changes = [
-      ...describeChanges(before, next),
-      ...describeRepositoryChanges(before.repositories, next.repositories),
-      ...describeEffortChanges(before.effort, next.effort, nameOf),
-    ];
+    const changes = [...describeChanges(before, next), ...describeRepositoryChanges(before.repositories, next.repositories)];
     if (!changes.length) return before;
     const now = new Date().toISOString();
     const updated: Initiative = {
@@ -277,12 +275,54 @@ export async function patchPlanning(id: string, data: unknown): Promise<Initiati
   });
 }
 
+/**
+ * Salva o esforço estimado. Editores alteram as duas frentes; tech leads, só Engenharia;
+ * a coordenação de design, só Design (ver lib/domain/effort-access.ts).
+ */
+export async function patchEffort(id: string, data: unknown, viewer: Viewer): Promise<Initiative> {
+  const effort = parse(initiativeEffortSchema, data);
+  return getRepository().transaction((db) => {
+    const index = db.initiatives.findIndex((i) => i.id === id);
+    if (index < 0) throw notFound("Iniciativa");
+    const allowed = effortTracksFor(viewer, db.people);
+    if (!allowed.length) {
+      throw new DomainError(403, "Só editores, tech leads e a coordenação de design estimam o esforço das iniciativas.");
+    }
+    const before = db.initiatives[index];
+    const blocked = EFFORT_TRACKS.filter((t) => !allowed.includes(t) && !sameEstimate(before.effort[t], effort[t]));
+    if (blocked.length) {
+      const own = allowed.map((t) => EFFORT_TRACK_LABEL[t]).join(" e ");
+      throw new DomainError(403, `Seu perfil estima apenas o esforço de ${own}.`);
+    }
+    assertEffortOwners(db, effort);
+    const nameOf = (personId: string) => db.people.find((p) => p.id === personId)?.name ?? "colaborador removido";
+    const changes = describeEffortChanges(before.effort, effort, nameOf);
+    if (!changes.length) return before;
+    const now = new Date().toISOString();
+    // Quem não é editor fica identificado no histórico (a estimativa é da frente dele).
+    const by = viewer.role === "editor" ? "" : ` (por ${viewer.name})`;
+    const updated: Initiative = {
+      ...before,
+      effort,
+      updatedAt: now,
+      history: [...changes.map((c) => historyEntry(by ? c.replace(/\.$/, `${by}.`) : c, now)), ...before.history].slice(0, 200),
+    };
+    db.initiatives[index] = updated;
+    return updated;
+  });
+}
+
+function sameEstimate(a: EffortEstimate | null, b: EffortEstimate | null): boolean {
+  if (!a || !b) return a === b;
+  return a.weeks === b.weeks && a.startMode === b.startMode && a.startDate === b.startDate && a.ownerId === b.ownerId;
+}
+
 /** Os responsáveis pelo esforço precisam existir no organograma. */
 function assertEffortOwners(db: Database, effort: InitiativeEffort) {
   const fields: Record<string, string> = {};
   for (const track of EFFORT_TRACKS) {
     const ownerId = effort[track]?.ownerId;
-    if (ownerId && !db.people.some((p) => p.id === ownerId)) fields[`effort.${track}.ownerId`] = "O responsável escolhido não existe mais no organograma.";
+    if (ownerId && !db.people.some((p) => p.id === ownerId)) fields[`${track}.ownerId`] = "O responsável escolhido não existe mais no organograma.";
   }
   if (Object.keys(fields).length) throw new DomainError(400, "Revise o responsável pelo esforço.", fields);
 }

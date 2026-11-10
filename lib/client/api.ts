@@ -1,5 +1,5 @@
 import type { RoadmapTarget } from "@/lib/domain/roadmap-order";
-import type { Initiative, Person, PersonMove, Platform, Squad, StrategyContext } from "@/lib/domain/types";
+import type { Initiative, InitiativeEffort, Person, PersonMove, Platform, Squad, StrategyContext } from "@/lib/domain/types";
 import type { Viewer } from "@/lib/auth/session";
 import type { GithubBranchList } from "@/lib/services/github-service";
 import type { PrdImportResult } from "@/lib/services/prd-import";
@@ -72,6 +72,9 @@ export const api = {
     request<Initiative>(`/api/initiatives/${id}`, { method: "PUT", body: json(data) }),
   patchPlanning: (id: string, data: unknown) =>
     request<Initiative>(`/api/initiatives/${id}`, { method: "PATCH", body: json(data) }),
+  /** Esforço estimado: editores, tech leads (Engenharia) e coordenação de design (Design). */
+  patchEffort: (id: string, effort: InitiativeEffort) =>
+    request<Initiative>(`/api/initiatives/${id}/esforco`, { method: "PATCH", body: json(effort) }),
   moveInitiative: (id: string, target: RoadmapTarget) =>
     request<Initiative[]>(`/api/initiatives/${id}/move`, { method: "POST", body: json(target) }),
   deleteInitiative: (id: string) => request<{ ok: true }>(`/api/initiatives/${id}`, { method: "DELETE" }),

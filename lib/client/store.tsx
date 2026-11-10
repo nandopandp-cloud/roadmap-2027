@@ -5,7 +5,9 @@ import { api, ApiError, type Snapshot } from "@/lib/client/api";
 import { emptyContext } from "@/lib/domain/context";
 import { applyMove } from "@/lib/domain/org";
 import { placeInColumn, type RoadmapTarget } from "@/lib/domain/roadmap-order";
-import type { Initiative, InitiativeInput, Person, PersonMove, Platform, Squad, StrategyContext } from "@/lib/domain/types";
+import { EFFORT_TRACKS, type EffortTrack } from "@/lib/domain/effort";
+import { effortTracksFor } from "@/lib/domain/effort-access";
+import type { Initiative, InitiativeEffort, InitiativeInput, Person, PersonMove, Platform, Squad, StrategyContext } from "@/lib/domain/types";
 
 type LoadState = { status: "loading" } | { status: "error"; message: string } | { status: "ready" };
 
@@ -34,8 +36,10 @@ interface RoadmapStore {
   platformById: (id: string) => Platform | undefined;
   upsertInitiative: (initiative: Initiative) => void;
   removeInitiative: (id: string) => Promise<void>;
-  patchPlanning: (id: string, patch: Partial<Pick<Initiative, "quarter" | "priority" | "status" | "planningValidated" | "phases" | "repositories" | "effort">>) => Promise<Initiative>;
+  patchPlanning: (id: string, patch: Partial<Pick<Initiative, "quarter" | "priority" | "status" | "planningValidated" | "phases" | "repositories">>) => Promise<Initiative>;
   /** Move um card no roadmap (quarter e posição), com atualização imediata da tela. */
+  /** Salva o esforço estimado (rota própria: também aceita tech leads e coordenação de design). */
+  saveEffort: (id: string, effort: InitiativeEffort) => Promise<Initiative>;
   moveInitiative: (id: string, target: RoadmapTarget) => Promise<void>;
   savePlatform: (id: string | null, data: unknown) => Promise<Platform>;
   removePlatform: (id: string) => Promise<void>;
@@ -120,6 +124,15 @@ export function RoadmapProvider({ children }: { children: ReactNode }) {
   const patchPlanning = useCallback<RoadmapStore["patchPlanning"]>(
     async (id, patch) => {
       const updated = await api.patchPlanning(id, patch);
+      upsertInitiative(updated);
+      return updated;
+    },
+    [upsertInitiative],
+  );
+
+  const saveEffort = useCallback<RoadmapStore["saveEffort"]>(
+    async (id, effort) => {
+      const updated = await api.patchEffort(id, effort);
       upsertInitiative(updated);
       return updated;
     },
@@ -245,6 +258,7 @@ export function RoadmapProvider({ children }: { children: ReactNode }) {
       upsertInitiative,
       removeInitiative,
       patchPlanning,
+      saveEffort,
       moveInitiative,
       savePlatform,
       removePlatform,
@@ -262,7 +276,7 @@ export function RoadmapProvider({ children }: { children: ReactNode }) {
       openPrdImport: () => setPrdImportOpen(true),
       closePrdImport: () => setPrdImportOpen(false),
     }),
-    [load, data, reload, upsertInitiative, removeInitiative, patchPlanning, moveInitiative, savePlatform, removePlatform, saveContext, savePerson, removePerson, replacePerson, movePerson, saveSquad, removeSquad, form, prdImportOpen],
+    [load, data, reload, upsertInitiative, removeInitiative, patchPlanning, saveEffort, moveInitiative, savePlatform, removePlatform, saveContext, savePerson, removePerson, replacePerson, movePerson, saveSquad, removeSquad, form, prdImportOpen],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
@@ -275,6 +289,17 @@ export function RoadmapProvider({ children }: { children: ReactNode }) {
  */
 export function useCanEdit(): boolean {
   return useRoadmap().data.writable;
+}
+
+/**
+ * Frentes de esforço (Design/Engenharia) que a pessoa conectada pode estimar: as duas para
+ * editores; pelo cargo no organograma para tech leads e coordenação de design.
+ */
+export function useEffortTracks(): EffortTrack[] {
+  const { data } = useRoadmap();
+  if (!data.viewer || data.readOnlyReason === "armazenamento") return [];
+  if (data.writable) return [...EFFORT_TRACKS];
+  return effortTracksFor(data.viewer, data.people);
 }
 
 export function useRoadmap(): RoadmapStore {

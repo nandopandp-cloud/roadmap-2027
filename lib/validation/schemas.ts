@@ -325,7 +325,6 @@ export const planningPatchSchema = z
     status: z.enum(INITIATIVE_STATUSES),
     planningValidated: z.boolean(),
     phases: z.array(phaseSchema).max(12),
-    effort: initiativeEffortSchema,
     repositories: z
       .array(repositoryLinkSchema)
       .max(10, "Vincule no máximo 10 repositórios.")

@@ -47,16 +47,18 @@ const LANE_TOP: Record<EffortTrack, number> = { design: 48, engineering: 76 };
  */
 function EffortLanes({
   initiative: i,
-  canEdit,
+  effortTracks,
   onEdit,
   timelineWidth,
 }: {
   initiative: Initiative;
-  canEdit: boolean;
+  /** Frentes que a pessoa conectada pode estimar (vazio = só consulta). */
+  effortTracks: EffortTrack[];
   onEdit: () => void;
   /** Largura da linha do tempo em px, para decidir se o rótulo cabe dentro da barra. */
   timelineWidth: number;
 }) {
+  const canEdit = effortTracks.length > 0;
   const plan = planEffort(i.effort, i.quarter);
   const qEnd = i.quarter ? clampedPosition(quarterEndDate(i.quarter)) : 100;
   const qStart = i.quarter ? quarterStart(i.quarter) : null;
@@ -91,22 +93,25 @@ function EffortLanes({
         const Icon = TRACK_ICON[track];
         const Tag = canEdit ? "button" : "span";
         if (!placed) {
+          // Frente vazia: só vira atalho para quem pode estimá-la.
+          const editable = effortTracks.includes(track);
+          const Slot = editable ? "button" : "span";
           // Frente sem estimativa: espaço tracejado onde a barra apareceria.
           const designEnd = plan.tracks.find((t) => t.track === "design")?.end;
           const left = track === "engineering" && designEnd ? clampedPosition(designEnd) : (qStart ?? clampedPosition(plan.start!));
           return (
-            <Tag
+            <Slot
               key={track}
-              {...(canEdit ? { type: "button" as const, onClick: onEdit, "aria-label": `Estimar esforço de ${EFFORT_TRACK_LABEL[track]} de ${i.title}` } : {})}
+              {...(editable ? { type: "button" as const, onClick: onEdit, "aria-label": `Estimar esforço de ${EFFORT_TRACK_LABEL[track]} de ${i.title}` } : {})}
               className={cn(
                 "absolute flex h-[22px] items-center gap-1 whitespace-nowrap rounded-md border border-dashed bg-surface/80 px-2 text-[11px] font-bold",
-                canEdit && "pointer-events-auto transition-colors hover:bg-surface",
+                editable && "pointer-events-auto transition-colors hover:bg-surface",
               )}
               style={{ top: LANE_TOP[track], left: `calc(${left}% + 4px)`, borderColor: tone.line, color: tone.fg }}
             >
-              {canEdit && <Plus size={12} aria-hidden />}
+              {editable && <Plus size={12} aria-hidden />}
               {EFFORT_TRACK_LABEL[track]} não estimado
-            </Tag>
+            </Slot>
           );
         }
         const left = clampedPosition(placed.start);
@@ -183,7 +188,7 @@ function GanttRow({
   initiative: i,
   showMilestones,
   showEffort,
-  canEdit,
+  effortTracks,
   selected,
   onOpen,
   onEditEffort,
@@ -193,12 +198,13 @@ function GanttRow({
   showMilestones: boolean;
   showEffort: boolean;
   timelineWidth: number;
-  canEdit: boolean;
+  effortTracks: EffortTrack[];
   selected: boolean;
   onOpen: () => void;
   onEditEffort: () => void;
 }) {
   const plan = planEffort(i.effort, i.quarter);
+  const canEdit = effortTracks.length > 0;
   // Com esforço visível, a linha ganha as faixas de Design e Engenharia; os marcos descem.
   const lanes = showEffort && (plan.tracks.length > 0 || (canEdit && !!i.quarter));
   const markTop = lanes ? 116 : 52;
@@ -303,7 +309,7 @@ function GanttRow({
         <div aria-hidden={!canEdit} className={cn(ROW, "pointer-events-none absolute inset-0")}>
           <span />
           <span className="relative block">
-            <EffortLanes initiative={i} canEdit={canEdit} onEdit={onEditEffort} timelineWidth={timelineWidth} />
+            <EffortLanes initiative={i} effortTracks={effortTracks} onEdit={onEditEffort} timelineWidth={timelineWidth} />
           </span>
         </div>
       )}
@@ -315,14 +321,15 @@ export function RoadmapGantt({
   visible,
   showMilestones,
   showEffort,
-  canEdit,
+  effortTracks,
   loading,
   selectedId,
   onOpen,
   onEditEffort,
 }: {
   showEffort: boolean;
-  canEdit: boolean;
+  /** Frentes de esforço que a pessoa conectada pode estimar. */
+  effortTracks: EffortTrack[];
   onEditEffort: (id: string) => void;
   /** Iniciativas após o filtro de plataforma, na ordem do roadmap. */
   visible: Initiative[];
@@ -350,7 +357,7 @@ export function RoadmapGantt({
       initiative={i}
       showMilestones={showMilestones}
       showEffort={showEffort}
-      canEdit={canEdit}
+      effortTracks={effortTracks}
       selected={selectedId === i.id}
       onOpen={() => onOpen(i.id)}
       onEditEffort={() => onEditEffort(i.id)}

@@ -5,6 +5,8 @@ import { useState } from "react";
 import { ROLE_LABEL } from "@/lib/auth/config";
 import { cn } from "@/lib/client/cn";
 import { useRoadmap } from "@/lib/client/store";
+import { EFFORT_TRACK_LABEL } from "@/lib/domain/effort";
+import { effortTracksFor } from "@/lib/domain/effort-access";
 
 function initials(name: string): string {
   const parts = name.replace(/@.*/, "").split(/[\s._-]+/).filter(Boolean);
@@ -44,7 +46,11 @@ export function UserCard({ compact }: { compact: boolean }) {
   const { data } = useRoadmap();
   const viewer = data.viewer;
   if (!viewer) return null;
-  const role = ROLE_LABEL[viewer.role];
+  // Perfil de consulta que estima esforço (tech lead, coordenação de design) aparece como tal.
+  const leadTracks = viewer.role === "editor" ? [] : effortTracksFor(viewer, data.people);
+  const role = leadTracks.length
+    ? `Consulta · estima ${leadTracks.map((t) => EFFORT_TRACK_LABEL[t]).join(" e ")}`
+    : ROLE_LABEL[viewer.role];
 
   const logout = (
     <form action="/api/auth/logout" method="post">
