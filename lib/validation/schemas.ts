@@ -6,6 +6,7 @@ import { z } from "zod";
 import {
   CONTEXT_ARTS,
   DISCIPLINES,
+  EFFORT_START_MODES,
   DOCUMENT_KINDS,
   DOCUMENT_STATUSES,
   ILLUSTRATIONS,
@@ -151,6 +152,30 @@ export const customImageSchema = z.object({
   y: z.number().min(-2).max(2).default(0),
 });
 
+/** Esforço estimado de uma frente (Design ou Engenharia), informado pelo responsável. */
+export const effortEstimateSchema = z
+  .object({
+    weeks: z
+      .number({ error: "Informe as semanas de esforço." })
+      .min(0.5, "Informe ao menos meia semana.")
+      .max(52, "Use no máximo 52 semanas.")
+      .refine((v) => Number.isInteger(v * 2), "Use semanas inteiras ou meias (ex.: 2,5)."),
+    startMode: z.enum(EFFORT_START_MODES).default("auto"),
+    /** Só quando startMode = "date". */
+    startDate: isoDate,
+    /** Responsável (colaborador do organograma); null = a definir. */
+    ownerId: localId.nullable().default(null),
+  })
+  .superRefine((v, ctx) => {
+    if (v.startMode === "date" && !v.startDate) ctx.addIssue({ code: "custom", path: ["startDate"], message: "Informe a data de início." });
+  })
+  .transform((v) => ({ ...v, startDate: v.startMode === "date" ? v.startDate : "" }));
+
+export const initiativeEffortSchema = z.object({
+  design: effortEstimateSchema.nullable().default(null),
+  engineering: effortEstimateSchema.nullable().default(null),
+});
+
 /** Branch do projeto no GitHub (https://github.com/<org>/<repo>/tree/<branch>). */
 export const repositoryBranchSchema = z.object({
   id: localId,
@@ -286,6 +311,8 @@ export const initiativeSchema = initiativeFieldsSchema.extend({
   history: z.array(historyEntrySchema).default([]),
   /** Repositórios do GitHub (editados na aba Repositório do drawer, não no formulário). */
   repositories: z.array(repositoryLinkSchema).max(10).default([]),
+  /** Semanas de esforço de Design e Engenharia (editadas no Gantt e na aba Roadmap). */
+  effort: initiativeEffortSchema.default({ design: null, engineering: null }),
   /** Posição na coluna do roadmap (quarter); alterada ao arrastar os cards. Não faz parte do formulário. */
   roadmapOrder: z.number().int().min(0).default(0),
 });
@@ -298,6 +325,7 @@ export const planningPatchSchema = z
     status: z.enum(INITIATIVE_STATUSES),
     planningValidated: z.boolean(),
     phases: z.array(phaseSchema).max(12),
+    effort: initiativeEffortSchema,
     repositories: z
       .array(repositoryLinkSchema)
       .max(10, "Vincule no máximo 10 repositórios.")

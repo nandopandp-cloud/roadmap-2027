@@ -6,7 +6,9 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, type KeyboardEvent } from "react";
 import { PageContainer, PageHero } from "@/components/layout/page-header";
 import { RoadmapBoard } from "@/components/roadmap/roadmap-board";
+import { EffortDialog } from "@/components/roadmap/effort-dialog";
 import { RoadmapGantt } from "@/components/roadmap/roadmap-gantt";
+import { EFFORT_TONE } from "@/lib/client/tones";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/fields";
 import { EmptyState, ErrorBanner } from "@/components/ui/feedback";
@@ -44,6 +46,9 @@ export function RoadmapView() {
   const { view, setView } = useRoadmapView();
   const [platform, setPlatform] = useState("todas");
   const [showMilestones, setShowMilestones] = useState(true);
+  const [showEffort, setShowEffort] = useState(true);
+  const [editingEffort, setEditingEffort] = useState<string | null>(null);
+  const effortInitiative = editingEffort ? data.initiatives.find((i) => i.id === editingEffort) : undefined;
 
   const visible = useMemo(
     () => data.initiatives.filter((i) => platform === "todas" || i.platformIds.includes(platform)).sort(compareRoadmapOrder),
@@ -121,6 +126,7 @@ export function RoadmapView() {
           </Select>
         </div>
         <Checkbox label="Mostrar marcos" checked={showMilestones} onChange={setShowMilestones} />
+        {view === "gantt" && <Checkbox label="Mostrar esforço" checked={showEffort} onChange={setShowEffort} />}
         {view === "cards" ? (
           <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] text-muted">
             <span className="flex items-center gap-1.5">
@@ -140,6 +146,19 @@ export function RoadmapView() {
             <span className="flex items-center gap-1.5">
               <span aria-hidden className="h-2.5 w-5 rounded-[3px] border border-[#6045D8] bg-[#F1ECFB]" /> Quarter planejado
             </span>
+            {showEffort && (
+              <>
+                <span className="flex items-center gap-1.5">
+                  <span aria-hidden className="h-2.5 w-5 rounded-[3px]" style={{ background: EFFORT_TONE.design.solid }} /> Design (semanas)
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span aria-hidden className="h-2.5 w-5 rounded-[3px]" style={{ background: EFFORT_TONE.engineering.solid }} /> Engenharia (semanas)
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span aria-hidden className="h-3 w-0 border-l-2 border-dashed border-[#e08a1e]" /> Ultrapassa o quarter
+                </span>
+              </>
+            )}
             {showMilestones && (
               <>
                 <span className="flex items-center gap-1.5">
@@ -168,9 +187,22 @@ export function RoadmapView() {
         {view === "cards" ? (
           <RoadmapBoard visible={visible} showMilestones={showMilestones} loading={loading} selectedId={selectedId} onOpen={openInitiative} />
         ) : (
-          <RoadmapGantt visible={visible} showMilestones={showMilestones} loading={loading} selectedId={selectedId} onOpen={openInitiative} />
+          <RoadmapGantt
+            visible={visible}
+            showMilestones={showMilestones}
+            showEffort={showEffort}
+            canEdit={canEdit}
+            loading={loading}
+            selectedId={selectedId}
+            onOpen={openInitiative}
+            onEditEffort={setEditingEffort}
+          />
         )}
       </div>
+
+      {effortInitiative && (
+        <EffortDialog key={effortInitiative.id} initiative={effortInitiative} onClose={() => setEditingEffort(null)} />
+      )}
 
       {load.status === "ready" && data.initiatives.length === 0 && (
         <EmptyState

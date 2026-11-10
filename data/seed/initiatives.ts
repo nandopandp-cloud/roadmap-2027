@@ -42,6 +42,7 @@ const base = {
   customImage: null,
   roadmapOrder: 0,
   repositories: [],
+  effort: { design: null, engineering: null },
   upcoming: false,
 } satisfies Partial<Initiative>;
 

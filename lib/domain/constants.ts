@@ -55,4 +55,9 @@ export const INITIATIVES_DIR = "initiatives";
 /** Função do colaborador no squad (resumo de composição dos squads). */
 export const DISCIPLINES = ["produto", "design", "engenharia", "qa"] as const;
 
+/** Frentes de esforço estimadas no roadmap (cada uma pelo seu responsável). */
+export const EFFORT_TRACKS = ["design", "engineering"] as const;
+/** Início da frente: automático (design no início do quarter, engenharia após o design), em paralelo ao design ou em data informada. */
+export const EFFORT_START_MODES = ["auto", "parallel", "date"] as const;
+
 export const PLATFORM_ACCENTS = ["blue", "purple", "teal", "orange", "pink", "indigo", "green", "red", "yellow", "cyan", "brown", "slate"] as const;

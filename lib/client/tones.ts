@@ -80,3 +80,12 @@ export const DISCIPLINE_TONE: Record<Discipline, Tone> = {
   engenharia: { bg: "#E6EEFD", fg: "#1D4FB8", dot: "#2868E8" },
   qa: { bg: "#E3F6F3", fg: "#00665E", dot: "#00A99D" },
 };
+
+/**
+ * Esforço estimado no Gantt: mesmas cores de Design e Engenharia do organograma, em versão
+ * sólida (texto branco, contraste AA) para não se confundir com a barra suave do status.
+ */
+export const EFFORT_TONE = {
+  design: { soft: "#FCE9F3", fg: "#9B1F5F", solid: "#C2307F", line: "#E7A3C6" },
+  engineering: { soft: "#E6EEFD", fg: "#1D4FB8", solid: "#2160D9", line: "#A6C0F2" },
+} as const;

@@ -1,11 +1,12 @@
 import "server-only";
 import type { z } from "zod";
-import type { Database, DocumentDraft, DocumentRef, Initiative, InitiativeInput, Platform, StrategyContext } from "@/lib/domain/types";
+import { EFFORT_TRACKS } from "@/lib/domain/constants";
+import type { Database, DocumentDraft, DocumentRef, Initiative, InitiativeEffort, InitiativeInput, Platform, StrategyContext } from "@/lib/domain/types";
 import { QUARTER_LABEL } from "@/lib/domain/labels";
 import { nextRoadmapOrder, placeInColumn, roadmapColumn } from "@/lib/domain/roadmap-order";
 import { getRepository, storageKind, type StorageKind } from "@/lib/repositories";
 import { DomainError, notFound } from "@/lib/services/errors";
-import { describeChanges, describeRepositoryChanges, historyEntry } from "@/lib/services/history";
+import { describeChanges, describeEffortChanges, describeRepositoryChanges, historyEntry } from "@/lib/services/history";
 import { extractFromPrd, prdVersion, type PrdImportResult } from "@/lib/services/prd-import";
 import { initiativeFolder, slugify } from "@/lib/validation/paths";
 import {
@@ -162,6 +163,7 @@ async function insertInitiative(db: Database, input: InitiativeInput, files: Doc
     history: [...notes.map((n) => historyEntry(n, now)), historyEntry(note, now)],
     roadmapOrder: nextRoadmapOrder(db.initiatives, input.quarter),
     repositories: [],
+    effort: { design: null, engineering: null },
   };
   db.initiatives.push(initiative);
   return initiative;
@@ -255,7 +257,13 @@ export async function patchPlanning(id: string, data: unknown): Promise<Initiati
     if (index < 0) throw notFound("Iniciativa");
     const before = db.initiatives[index];
     const next = { ...before, ...patch };
-    const changes = [...describeChanges(before, next), ...describeRepositoryChanges(before.repositories, next.repositories)];
+    if (patch.effort) assertEffortOwners(db, patch.effort);
+    const nameOf = (personId: string) => db.people.find((p) => p.id === personId)?.name ?? "colaborador removido";
+    const changes = [
+      ...describeChanges(before, next),
+      ...describeRepositoryChanges(before.repositories, next.repositories),
+      ...describeEffortChanges(before.effort, next.effort, nameOf),
+    ];
     if (!changes.length) return before;
     const now = new Date().toISOString();
     const updated: Initiative = {
@@ -267,6 +275,16 @@ export async function patchPlanning(id: string, data: unknown): Promise<Initiati
     db.initiatives[index] = updated;
     return updated;
   });
+}
+
+/** Os responsáveis pelo esforço precisam existir no organograma. */
+function assertEffortOwners(db: Database, effort: InitiativeEffort) {
+  const fields: Record<string, string> = {};
+  for (const track of EFFORT_TRACKS) {
+    const ownerId = effort[track]?.ownerId;
+    if (ownerId && !db.people.some((p) => p.id === ownerId)) fields[`effort.${track}.ownerId`] = "O responsável escolhido não existe mais no organograma.";
+  }
+  if (Object.keys(fields).length) throw new DomainError(400, "Revise o responsável pelo esforço.", fields);
 }
 
 /** Ao mudar de quarter fora do roadmap (formulário, drawer), a iniciativa vai para o fim da nova coluna. */

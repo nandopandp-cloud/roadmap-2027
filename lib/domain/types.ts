@@ -9,6 +9,8 @@ import type {
   customImageSchema,
   documentDraftSchema,
   documentRefSchema,
+  effortEstimateSchema,
+  initiativeEffortSchema,
   historyEntrySchema,
   initiativeInputSchema,
   initiativeSchema,
@@ -81,6 +83,8 @@ export type PrototypeRef = z.infer<typeof prototypeRefSchema>;
 export type Metric = z.infer<typeof metricSchema>;
 export type HistoryEntry = z.infer<typeof historyEntrySchema>;
 export type RepositoryLink = z.infer<typeof repositoryLinkSchema>;
+export type EffortEstimate = z.infer<typeof effortEstimateSchema>;
+export type InitiativeEffort = z.infer<typeof initiativeEffortSchema>;
 export type RepositoryBranch = z.infer<typeof repositoryBranchSchema>;
 export type Initiative = z.infer<typeof initiativeSchema>;
 export type InitiativeInput = z.infer<typeof initiativeInputSchema>;

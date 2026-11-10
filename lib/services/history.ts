@@ -1,7 +1,8 @@
 import { PRIORITY_LABEL, QUARTER_LABEL, STATUS_LABEL } from "@/lib/domain/labels";
 import { progressOf } from "@/lib/domain/progress";
 import { parseGithubBranch, parseGithubRepo } from "@/lib/domain/github";
-import type { HistoryEntry, Initiative, InitiativeInput, RepositoryLink } from "@/lib/domain/types";
+import { describeEffortStart, EFFORT_TRACK_LABEL, EFFORT_TRACKS, formatWeeks } from "@/lib/domain/effort";
+import type { HistoryEntry, Initiative, InitiativeEffort, InitiativeInput, RepositoryLink } from "@/lib/domain/types";
 
 const quarter = (q: Initiative["quarter"]) => (q ? QUARTER_LABEL[q] : "sem quarter");
 const priority = (p: Initiative["priority"]) => (p ? PRIORITY_LABEL[p] : "a definir");
@@ -97,6 +98,33 @@ export function describeRepositoryChanges(before: RepositoryLink[], after: Repos
     if (removed.length) changes.push(`${removed.length > 1 ? "Branches removidas" : "Branch removida"} de ${repoName(r)}: ${branchList(removed)}.`);
   }
   before.filter((r) => !after.some((x) => x.id === r.id)).forEach((r) => changes.push(`Repositório desvinculado: ${repoName(r)}.`));
+  return changes;
+}
+
+/** Mudanças no esforço estimado de Design e Engenharia. `nameOf` resolve o responsável. */
+export function describeEffortChanges(before: InitiativeEffort, after: InitiativeEffort, nameOf: (id: string) => string): string[] {
+  const changes: string[] = [];
+  const owner = (id: string | null) => (id ? nameOf(id) : "a definir");
+  for (const track of EFFORT_TRACKS) {
+    const label = EFFORT_TRACK_LABEL[track];
+    const prev = before[track];
+    const next = after[track];
+    if (!prev && !next) continue;
+    if (!next) {
+      changes.push(`Estimativa de esforço de ${label} removida (era ${formatWeeks(prev!.weeks)}).`);
+      continue;
+    }
+    if (!prev) {
+      const who = next.ownerId ? `, responsável: ${owner(next.ownerId)}` : "";
+      changes.push(`Esforço de ${label} estimado em ${formatWeeks(next.weeks)}, começando ${describeEffortStart(track, next)}${who}.`);
+      continue;
+    }
+    if (prev.weeks !== next.weeks) changes.push(`Esforço de ${label} alterado de ${formatWeeks(prev.weeks)} para ${formatWeeks(next.weeks)}.`);
+    const prevStart = describeEffortStart(track, prev);
+    const nextStart = describeEffortStart(track, next);
+    if (prevStart !== nextStart) changes.push(`Início do esforço de ${label} alterado: ${nextStart} (antes: ${prevStart}).`);
+    if (prev.ownerId !== next.ownerId) changes.push(`Responsável pelo esforço de ${label}: ${owner(next.ownerId)} (antes: ${owner(prev.ownerId)}).`);
+  }
   return changes;
 }
 

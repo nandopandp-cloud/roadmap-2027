@@ -4,7 +4,7 @@ import { inferDiscipline } from "@/lib/domain/org";
 import { defaultRoadmapOrder } from "@/lib/domain/roadmap-order";
 import type { Database, IllustrationKey, Person, PlatformStrategy, ProposalSection, RepositoryLink, Squad, StrategyContext } from "@/lib/domain/types";
 
-export const SCHEMA_VERSION = 12;
+export const SCHEMA_VERSION = 13;
 
 /** Ilustrações removidas da biblioteca → equivalentes atuais. */
 const RENAMED_ILLUSTRATIONS: Record<string, IllustrationKey | null> = { cometa: null, lua: null };
@@ -27,6 +27,7 @@ const RENAMED_ILLUSTRATIONS: Record<string, IllustrationKey | null> = { cometa: 
  * v9 → v10: repositórios do GitHub vinculados à iniciativa (repositories), vazios até o time cadastrar.
  * v10 → v11: várias branches por repositório (branchUrl → branches).
  * v11 → v12: iniciativas "em breve" (upcoming), sinalizadas só com nome e descrição.
+ * v12 → v13: esforço estimado de Design e Engenharia (effort), vazio até os responsáveis estimarem.
  */
 export function migrateDatabase(db: Database): { db: Database; changed: boolean } {
   if ((db.schemaVersion ?? 1) >= SCHEMA_VERSION) return { db, changed: false };
@@ -46,6 +47,7 @@ export function migrateDatabase(db: Database): { db: Database; changed: boolean 
       roadmapOrder: raw.roadmapOrder ?? defaultRoadmapOrder(raw),
       repositories: (raw.repositories ?? []).map(migrateRepository),
       upcoming: raw.upcoming ?? false,
+      effort: raw.effort ?? { design: null, engineering: null },
     };
   });
   return {

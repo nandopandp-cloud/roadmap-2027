@@ -4,6 +4,7 @@ import { Select } from "@/components/ui/select";
 import { CalendarRange, CheckCircle2, Gauge, Circle, FileText, GitFork, History, Info, Layers, ListChecks, Scale, ShieldAlert, Wrench } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { EffortSection } from "@/components/initiatives/drawer/effort-section";
 import { PhaseIcon } from "@/components/initiatives/drawer/overview-tab";
 import { BulletList, DrawerSection, InitiativeRow, Prose, SubHeading } from "@/components/initiatives/drawer/parts";
 import { ProgressBar } from "@/components/ui/progress";
@@ -181,6 +182,8 @@ export function RoadmapTab({ initiative: i, onOpen }: { initiative: Initiative; 
           </p>
         )}
       </DrawerSection>
+
+      <EffortSection initiative={i} />
 
       <DrawerSection icon={Gauge} color="#2868E8" title="Etapas de progresso" action={progress !== null ? <span className="text-[14px] font-extrabold text-navy">{progress}%</span> : undefined}>
         {i.phases.length === 0 ? (

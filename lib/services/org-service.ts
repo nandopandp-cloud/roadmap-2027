@@ -1,5 +1,6 @@
 import "server-only";
 import type { z } from "zod";
+import { EFFORT_TRACKS } from "@/lib/domain/constants";
 import { applyMove, createsCycle, nextSquadOrder, orderIn } from "@/lib/domain/org";
 import type { Database, Person, PersonInput, Squad, SquadInput } from "@/lib/domain/types";
 import { getRepository } from "@/lib/repositories";
@@ -95,6 +96,23 @@ export async function updatePerson(id: string, data: unknown): Promise<Person> {
 function detach(db: Database, id: string) {
   db.people = db.people.filter((p) => p.id !== id).map((p) => (p.managerId === id ? { ...p, managerId: null } : p));
   db.squads = db.squads.map((s) => (s.leaderIds.includes(id) ? { ...s, leaderIds: s.leaderIds.filter((x) => x !== id) } : s));
+  reassignEffortOwner(db, id, null);
+}
+
+/** Responsável pelo esforço (Design/Engenharia) que sai do organograma: passa ao substituto ou fica "a definir". */
+function reassignEffortOwner(db: Database, from: string, to: string | null) {
+  db.initiatives = db.initiatives.map((i) => {
+    const effort = { ...i.effort };
+    let changed = false;
+    for (const track of EFFORT_TRACKS) {
+      const estimate = effort[track];
+      if (estimate?.ownerId === from) {
+        effort[track] = { ...estimate, ownerId: to };
+        changed = true;
+      }
+    }
+    return changed ? { ...i, effort } : i;
+  });
 }
 
 export async function deletePerson(id: string): Promise<void> {
@@ -170,6 +188,7 @@ export async function replacePerson(id: string, data: unknown): Promise<Person> 
     db.squads = db.squads.map((s) =>
       s.leaderIds.includes(id) ? { ...s, leaderIds: [...new Set(s.leaderIds.map((x) => (x === id ? subId : x)))] } : s,
     );
+    reassignEffortOwner(db, id, subId);
     if (options.outgoing === "remover") detach(db, id);
     return db.people.find((p) => p.id === subId)!;
   });
