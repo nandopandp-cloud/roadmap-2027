@@ -13,6 +13,7 @@ Instruções permanentes para trabalhar neste repositório. Leia o [README](READ
 - Progresso é sempre derivado das etapas (`lib/domain/progress.ts`); nunca aceitar percentual digitado.
 - Nunca inventar métricas, metas, valores de referência, evidências ou compromissos. Hipóteses devem ser apresentadas como hipóteses. Campos ausentes recebem estados vazios explícitos.
 - Não criar links fictícios nem mensagens de sucesso para arquivos inexistentes. Use `useArtifactStatus` para verificar arquivos.
+- O Roadmap tem seletor de ano (`?ano=2026`). O **Roadmap 2026** é uma projeção importada da planilha do time, **somente leitura**, em `data/seed/roadmap-2026.ts` (não vai para o banco, não gera iniciativas `JG-2027-NNN`). Preserve os textos da planilha (nomes, "Concluído", "Sem Designer"…) e não invente fases para células sem legenda.
 - Iniciativas transversais (2+ plataformas) são **um único registro**; marcos em outros quarters aparecem no roadmap ligados ao mesmo ID.
 
 ## Identidade visual

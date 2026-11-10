@@ -1,5 +1,5 @@
 import type { RoadmapTarget } from "@/lib/domain/roadmap-order";
-import type { Initiative, InitiativeEffort, Person, PersonMove, Platform, Squad, StrategyContext } from "@/lib/domain/types";
+import type { Initiative, InitiativeEffort, Person, PersonMove, Platform, Roadmap2026, Squad, StrategyContext } from "@/lib/domain/types";
 import type { Viewer } from "@/lib/auth/session";
 import type { GithubBranchList } from "@/lib/services/github-service";
 import type { PrdImportResult } from "@/lib/services/prd-import";
@@ -61,6 +61,8 @@ const json = (data: unknown) => JSON.stringify(data);
 
 export const api = {
   snapshot: () => request<Snapshot>("/api/snapshot"),
+  /** Roadmap 2026: projeção importada da planilha do time (somente leitura). */
+  roadmap2026: () => request<Roadmap2026>("/api/roadmap/2026"),
   githubBranches: (repositoryUrl: string) =>
     request<GithubBranchList>(`/api/github/branches?repositorio=${encodeURIComponent(repositoryUrl)}`),
   fetchRemoteImage: (url: string) => request<{ dataUrl: string }>("/api/images/remote", { method: "POST", body: json({ url }) }),

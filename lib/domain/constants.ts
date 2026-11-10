@@ -61,3 +61,17 @@ export const EFFORT_TRACKS = ["design", "engineering"] as const;
 export const EFFORT_START_MODES = ["auto", "parallel", "date"] as const;
 
 export const PLATFORM_ACCENTS = ["blue", "purple", "teal", "orange", "pink", "indigo", "green", "red", "yellow", "cyan", "brown", "slate"] as const;
+
+/** Anos do roadmap disponíveis na tela Roadmap (2026: projeção importada da planilha do time). */
+export const ROADMAP_YEARS = [2026, 2027] as const;
+
+/**
+ * Fases das semanas do Roadmap 2026, como a legenda de cores da planilha:
+ * Design, Projetado & Engenharia, Em progresso, Concluído, Revisão de prazo e
+ * células cinza (sem legenda na planilha).
+ */
+export const ROADMAP_2026_PHASES = ["design", "engenharia", "andamento", "concluido", "revisao", "indefinido"] as const;
+/** Semanas da projeção 2026: julho/2026 a abril/2027, quatro por mês (S1 a S4). */
+export const ROADMAP_2026_WEEK_COUNT = 40;
+/** Ondas de priorização da planilha do Roadmap 2026. */
+export const ROADMAP_2026_WAVES = ["primeira", "segunda", "terceira"] as const;

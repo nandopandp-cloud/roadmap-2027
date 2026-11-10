@@ -1,4 +1,5 @@
-import type { Discipline, InitiativeStatus, PlatformAccent, Priority, ProblemValidation } from "@/lib/domain/types";
+import type { Situation2026 } from "@/lib/domain/roadmap-2026";
+import type { Discipline, InitiativeStatus, PlatformAccent, Priority, ProblemValidation, Roadmap2026Phase } from "@/lib/domain/types";
 
 /** Tons discretos (fundo suave, texto com contraste AA, ponto de cor). */
 export interface Tone {
@@ -89,3 +90,24 @@ export const EFFORT_TONE = {
   design: { soft: "#FCE9F3", fg: "#9B1F5F", solid: "#C2307F", line: "#E7A3C6" },
   engineering: { soft: "#E6EEFD", fg: "#1D4FB8", solid: "#2160D9", line: "#A6C0F2" },
 } as const;
+
+/**
+ * Fases do Roadmap 2026 no Gantt: Design e Engenharia com as cores do esforço; as demais
+ * seguem os tons de status. Sólidos com texto branco (contraste AA).
+ */
+export const PHASE_2026_TONE: Record<Roadmap2026Phase, { soft: string; fg: string; solid: string }> = {
+  design: { soft: EFFORT_TONE.design.soft, fg: EFFORT_TONE.design.fg, solid: EFFORT_TONE.design.solid },
+  engenharia: { soft: EFFORT_TONE.engineering.soft, fg: EFFORT_TONE.engineering.fg, solid: EFFORT_TONE.engineering.solid },
+  andamento: { soft: "#FFF2E5", fg: "#934400", solid: "#B35C00" },
+  concluido: { soft: "#E6F6EC", fg: "#1B6B3A", solid: "#1E8A4C" },
+  revisao: { soft: "#FDECEC", fg: "#A1262B", solid: "#C9363B" },
+  indefinido: { soft: "#EEF0F4", fg: "#3E4757", solid: "#64708A" },
+};
+
+export const SITUATION_2026_TONE: Record<Situation2026, Tone> = {
+  concluido: STATUS_TONE.concluida,
+  revisao: { bg: "#FDECEC", fg: "#A1262B", dot: "#E25858" },
+  andamento: STATUS_TONE.andamento,
+  projetado: STATUS_TONE.planejada,
+  sem_semanas: { bg: "#F4F6FA", fg: "#5F6C8F", dot: "#B4BCD3" },
+};

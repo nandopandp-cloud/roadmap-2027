@@ -21,6 +21,9 @@ import {
   PROBLEM_VALIDATION,
   PROTOTYPE_STATUSES,
   QUARTERS,
+  ROADMAP_2026_PHASES,
+  ROADMAP_2026_WAVES,
+  ROADMAP_2026_WEEK_COUNT,
   SOURCE_KINDS,
 } from "@/lib/domain/constants";
 import { parseGithubBranch, parseGithubRepo, sameGithubRepo } from "@/lib/domain/github";
@@ -605,6 +608,43 @@ export const prdAnalysisSchema = z.object({ content: prdText });
 
 /** Criação de iniciativa a partir de um PRD: campos revisados + texto original do PRD. */
 export const initiativeFromPrdSchema = z.object({ initiative: z.unknown(), prd: prdText });
+
+/* ---------- Roadmap 2026 (projeção importada da planilha, somente leitura) ---------- */
+
+/** Sequência de semanas seguidas na mesma fase (cor da planilha). `start` é o índice da semana (0 = S1 de julho/2026). */
+export const roadmap2026SegmentSchema = z
+  .object({
+    phase: z.enum(ROADMAP_2026_PHASES),
+    start: z.number().int().min(0).max(ROADMAP_2026_WEEK_COUNT - 1),
+    weeks: z.number().int().min(1).max(ROADMAP_2026_WEEK_COUNT),
+  })
+  .refine((s) => s.start + s.weeks <= ROADMAP_2026_WEEK_COUNT, "A fase passa de abril/2027.");
+
+/** Linha da planilha: os textos de Design, Engenheiro e QA são mantidos como escritos pelo time. */
+export const roadmap2026ItemSchema = z.object({
+  id: z.string().regex(/^R26-\d{3}$/),
+  title: required("O nome", 200),
+  /** Squad como escrito na planilha (Exploradores, Educadores, Geniex, Famílias, Transversais, LMS). */
+  squad: required("O squad", 80),
+  /** Plataforma correspondente ao squad; null para "Transversais". */
+  platformId: localId.nullable(),
+  wave: z.enum(ROADMAP_2026_WAVES).nullable(),
+  /** "Qtd Semana" da planilha (preenchida só em parte das linhas). */
+  weeks: z.number().positive().max(52).nullable(),
+  design: text(120),
+  engineering: text(120),
+  qa: text(120),
+  /** Status "Backlog" na planilha. */
+  backlog: z.boolean(),
+  /** Etapa de engenharia "ENG. PRECIFICAR". */
+  pricing: z.boolean(),
+  segments: z.array(roadmap2026SegmentSchema).max(ROADMAP_2026_WEEK_COUNT),
+});
+
+export const roadmap2026Schema = z.object({
+  source: z.object({ title: text(200), sheet: text(120), url: z.string().refine(isHttpUrl), importedAt: isoDate }),
+  items: z.array(roadmap2026ItemSchema).max(500),
+});
 
 /** Converte erros do Zod em um mapa campo → mensagem, usado pelos formulários. */
 export function fieldErrors(error: z.ZodError): Record<string, string> {

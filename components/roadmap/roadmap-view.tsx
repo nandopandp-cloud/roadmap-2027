@@ -8,15 +8,20 @@ import { PageContainer, PageHero } from "@/components/layout/page-header";
 import { RoadmapBoard } from "@/components/roadmap/roadmap-board";
 import { EffortDialog } from "@/components/roadmap/effort-dialog";
 import { RoadmapGantt } from "@/components/roadmap/roadmap-gantt";
+import { Roadmap2026Board, Roadmap2026Gantt, Roadmap2026Legend, Roadmap2026Source } from "@/components/roadmap/roadmap-2026";
 import { EFFORT_TONE } from "@/lib/client/tones";
 import { Button } from "@/components/ui/button";
 import { useFocusTrap } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/fields";
 import { EmptyState, ErrorBanner } from "@/components/ui/feedback";
 import { cn } from "@/lib/client/cn";
+import { useRoadmap2026 } from "@/lib/client/roadmap-2026";
 import { useInitiativeSelection } from "@/lib/client/selection";
 import { useCanEdit, useEffortTracks, useEvidenceTracks, useRoadmap } from "@/lib/client/store";
+import { ROADMAP_YEARS } from "@/lib/domain/constants";
+import { platformKey2026, TRANSVERSAL_2026 } from "@/lib/domain/roadmap-2026";
 import { compareRoadmapOrder } from "@/lib/domain/roadmap-order";
+import type { RoadmapYear } from "@/lib/domain/types";
 
 const VIEWS = [
   { key: "cards", label: "Cards", icon: LayoutGrid },
@@ -24,20 +29,25 @@ const VIEWS = [
 ] as const;
 type View = (typeof VIEWS)[number]["key"];
 
-/** Visão escolhida fica na URL (?visao=gantt), preservando os parâmetros do drawer. */
+/**
+ * Visão (?visao=gantt) e ano (?ano=2026) ficam na URL, preservando os parâmetros do drawer.
+ * Sem parâmetro: Cards do Roadmap 2027.
+ */
 function useRoadmapView() {
   const params = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
   const view: View = params.get("visao") === "gantt" ? "gantt" : "cards";
-  const setView = (next: View) => {
+  const year: RoadmapYear = params.get("ano") === "2026" ? 2026 : 2027;
+  const replace = (mutate: (query: URLSearchParams) => void) => {
     const query = new URLSearchParams(params.toString());
-    if (next === "cards") query.delete("visao");
-    else query.set("visao", next);
+    mutate(query);
     const qs = query.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   };
-  return { view, setView };
+  const setView = (next: View) => replace((q) => (next === "cards" ? q.delete("visao") : q.set("visao", next)));
+  const setYear = (next: RoadmapYear) => replace((q) => (next === 2027 ? q.delete("ano") : q.set("ano", String(next))));
+  return { view, setView, year, setYear };
 }
 
 export function RoadmapView() {
@@ -46,7 +56,10 @@ export function RoadmapView() {
   const effortTracks = useEffortTracks();
   const attachTracks = useEvidenceTracks();
   const { selectedId, open } = useInitiativeSelection();
-  const { view, setView } = useRoadmapView();
+  const { view, setView, year, setYear } = useRoadmapView();
+  const is2026 = year === 2026;
+  const { load: load2026, retry: retry2026 } = useRoadmap2026(is2026);
+  const roadmap2026 = load2026.status === "ready" ? load2026.data : null;
   const [platform, setPlatform] = useState("todas");
   const [showMilestones, setShowMilestones] = useState(true);
   const [showEffort, setShowEffort] = useState(true);
@@ -72,11 +85,30 @@ export function RoadmapView() {
     };
   }, [fullscreen]);
 
-  const visible = useMemo(
-    () => data.initiatives.filter((i) => platform === "todas" || i.platformIds.includes(platform)).sort(compareRoadmapOrder),
-    [data.initiatives, platform],
-  );
   const loading = load.status === "loading";
+
+  // Roadmap 2026: filtro pelas plataformas presentes na planilha e "Transversais" (sem plataforma).
+  const platformOptions = useMemo(() => {
+    if (!is2026) return data.platforms.map((p) => ({ value: p.id, label: p.name }));
+    const keys = new Set((roadmap2026?.items ?? []).map(platformKey2026));
+    return [
+      ...data.platforms.filter((p) => keys.has(p.id)).map((p) => ({ value: p.id, label: p.name })),
+      ...(keys.has(TRANSVERSAL_2026) ? [{ value: TRANSVERSAL_2026, label: "Transversais" }] : []),
+    ];
+  }, [is2026, data.platforms, roadmap2026]);
+  // Plataforma escolhida em um ano que não existe no outro volta para "Todas".
+  const platformFilter = platformOptions.some((o) => o.value === platform) ? platform : "todas";
+  const visible2026 = useMemo(
+    () => (roadmap2026?.items ?? []).filter((i) => platformFilter === "todas" || platformKey2026(i) === platformFilter),
+    [roadmap2026, platformFilter],
+  );
+  const loading2026 = load2026.status === "idle" || load2026.status === "loading";
+  const ready = is2026 ? !!roadmap2026 && roadmap2026.items.length > 0 : load.status === "ready" && data.initiatives.length > 0;
+  const title = `Roadmap ${year}`;
+  const visible = useMemo(
+    () => data.initiatives.filter((i) => platformFilter === "todas" || i.platformIds.includes(platformFilter)).sort(compareRoadmapOrder),
+    [data.initiatives, platformFilter],
+  );
   const openInitiative = (id: string) => open(id, "roadmap");
 
   const onViewKey = (e: KeyboardEvent<HTMLButtonElement>) => {
@@ -87,8 +119,36 @@ export function RoadmapView() {
     document.getElementById(`roadmap-view-${next}`)?.focus();
   };
 
+  const onYearKey = (e: KeyboardEvent<HTMLButtonElement>) => {
+    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) return;
+    e.preventDefault();
+    const next = ROADMAP_YEARS[(ROADMAP_YEARS.indexOf(year) + 1) % ROADMAP_YEARS.length];
+    setYear(next);
+    document.getElementById(`roadmap-year-${next}`)?.focus();
+  };
+
   const controls = (
     <>
+      <div role="radiogroup" aria-label="Ano do roadmap" className="flex rounded-xl border border-line bg-surface p-1">
+        {ROADMAP_YEARS.map((y) => (
+          <button
+            key={y}
+            id={`roadmap-year-${y}`}
+            role="radio"
+            type="button"
+            aria-checked={year === y}
+            tabIndex={year === y ? 0 : -1}
+            onClick={() => setYear(y)}
+            onKeyDown={onYearKey}
+            className={cn(
+              "inline-flex h-8 items-center rounded-lg px-3 text-[13.5px] font-black transition-colors",
+              year === y ? "bg-navy text-white" : "text-muted hover:text-ink",
+            )}
+          >
+            {y}
+          </button>
+        ))}
+      </div>
       <div role="tablist" aria-label="Visualização do roadmap" className="flex rounded-xl border border-line bg-surface p-1">
         {VIEWS.map(({ key, label, icon: Icon }) => (
           <button
@@ -114,26 +174,36 @@ export function RoadmapView() {
       <div className="flex items-center gap-2 text-[14px] font-semibold text-muted">
         <span aria-hidden>Plataforma</span>
         <Select
-          value={platform}
+          value={platformFilter}
           onChange={setPlatform}
           aria-label="Plataforma"
           className="h-10 min-w-[180px] rounded-xl border border-line bg-surface px-3 text-[14px] font-semibold text-ink hover:border-line-strong focus:border-violet focus:outline-none focus:ring-4 focus:ring-[#6045d8]/12"
         >
           <option value="todas">Todas</option>
-          {data.platforms.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
+          {platformOptions.map((p) => (
+            <option key={p.value} value={p.value}>
+              {p.label}
             </option>
           ))}
         </Select>
       </div>
-      <Checkbox label="Mostrar marcos" checked={showMilestones} onChange={setShowMilestones} />
-      {view === "gantt" && <Checkbox label="Mostrar esforço" checked={showEffort} onChange={setShowEffort} />}
+      {!is2026 && <Checkbox label="Mostrar marcos" checked={showMilestones} onChange={setShowMilestones} />}
+      {!is2026 && view === "gantt" && <Checkbox label="Mostrar esforço" checked={showEffort} onChange={setShowEffort} />}
     </>
   );
 
-  const legend =
-    view === "cards" ? (
+  const legend = is2026 ? (
+    <div className={cn("flex flex-col gap-1 text-[12.5px] text-muted", fullscreen && "text-[12px]")}>
+      <p className="flex flex-wrap items-center gap-x-4 gap-y-1">
+        {view === "cards" ? (
+          <span>Cada card fica no trimestre em que termina a última semana projetada na planilha.</span>
+        ) : (
+          <Roadmap2026Legend />
+        )}
+      </p>
+      {roadmap2026 && !fullscreen && <Roadmap2026Source source={roadmap2026.source} />}
+    </div>
+  ) : view === "cards" ? (
       <p className={cn("flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] text-muted", fullscreen && "text-[12px]")}>
         <span className="flex items-center gap-1.5">
           <Flag size={13} className="text-teal" aria-hidden /> Marco
@@ -189,7 +259,13 @@ export function RoadmapView() {
       aria-labelledby={`roadmap-view-${view}`}
       className={cn(fullscreen && (view === "gantt" ? "flex min-h-0 flex-1 flex-col" : "min-h-0 flex-1 overflow-y-auto overscroll-contain pb-6 [scrollbar-width:thin]"))}
     >
-      {view === "cards" ? (
+      {is2026 ? (
+        view === "cards" ? (
+          <Roadmap2026Board items={visible2026} platforms={data.platforms} loading={loading2026} />
+        ) : (
+          <Roadmap2026Gantt items={visible2026} platforms={data.platforms} loading={loading2026} fill={fullscreen} />
+        )
+      ) : view === "cards" ? (
         <RoadmapBoard visible={visible} showMilestones={showMilestones} loading={loading} selectedId={selectedId} onOpen={openInitiative} />
       ) : (
         <RoadmapGantt
@@ -212,10 +288,14 @@ export function RoadmapView() {
     <>
       <PageHero
         crumbs={[{ label: "Roadmap" }]}
-        title="Roadmap 2027"
-        subtitle="Como as iniciativas se distribuem ao longo do ano. Quarters e prioridades são propostas até serem validados."
+        title={title}
+        subtitle={
+          is2026
+            ? "Projeção de julho de 2026 a abril de 2027, como está na planilha do time: semanas de design e engenharia de cada squad."
+            : "Como as iniciativas se distribuem ao longo do ano. Quarters e prioridades são propostas até serem validados."
+        }
       >
-        {canEdit && (
+        {canEdit && !is2026 && (
           <div className="mt-8">
             <Button
               variant="primary"
@@ -238,7 +318,7 @@ export function RoadmapView() {
               size="sm"
               className="ml-auto"
               icon={<Maximize2 size={15} />}
-              disabled={load.status !== "ready" || data.initiatives.length === 0}
+              disabled={!ready}
               title="Ver o roadmap ocupando a tela inteira"
               onClick={() => setFullscreen(true)}
             >
@@ -246,9 +326,14 @@ export function RoadmapView() {
             </Button>
           </div>
           <div className="mt-3">{legend}</div>
-        {load.status === "error" && (
+        {!is2026 && load.status === "error" && (
           <div className="mt-6">
             <ErrorBanner message={load.message} action={<Button size="sm" onClick={() => void reload()}>Tentar novamente</Button>} />
+          </div>
+        )}
+        {is2026 && load2026.status === "error" && (
+          <div className="mt-6">
+            <ErrorBanner message={load2026.message} action={<Button size="sm" onClick={() => void retry2026()}>Tentar novamente</Button>} />
           </div>
         )}
 
@@ -268,7 +353,7 @@ export function RoadmapView() {
           <header className="flex flex-col gap-2.5 rounded-[20px] border border-line bg-surface px-4 py-3 shadow-[0_2px_10px_rgba(23,27,77,0.04)]">
             <div className="flex items-start gap-3">
               <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-5 gap-y-2.5">
-                <h2 className="text-[16px] font-black text-navy">Roadmap 2027</h2>
+                <h2 className="text-[16px] font-black text-navy">{title}</h2>
                 {controls}
               </div>
               <Button size="sm" variant="primary" className="mt-1.5 shrink-0" icon={<Minimize2 size={15} />} onClick={exitFullscreen} title="Sair da tela cheia (Esc)">
@@ -285,7 +370,11 @@ export function RoadmapView() {
         <EffortDialog key={effortInitiative.id} initiative={effortInitiative} onClose={() => setEditingEffort(null)} />
       )}
 
-      {load.status === "ready" && data.initiatives.length === 0 && (
+      {is2026 && roadmap2026 && roadmap2026.items.length === 0 && (
+        <EmptyState className="mt-8" title="Roadmap 2026 vazio" description="A planilha importada não tem linhas de iniciativas." />
+      )}
+
+      {!is2026 && load.status === "ready" && data.initiatives.length === 0 && (
         <EmptyState
           className="mt-8"
           title="Nenhuma iniciativa no roadmap"

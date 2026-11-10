@@ -34,6 +34,9 @@ import type {
   prototypeRefSchema,
   repositoryBranchSchema,
   repositoryLinkSchema,
+  roadmap2026ItemSchema,
+  roadmap2026Schema,
+  roadmap2026SegmentSchema,
   squadInputSchema,
   squadSchema,
   strategyContextSchema,
@@ -55,6 +58,9 @@ import type {
   PROBLEM_VALIDATION,
   PROTOTYPE_STATUSES,
   QUARTERS,
+  ROADMAP_YEARS,
+  ROADMAP_2026_PHASES,
+  ROADMAP_2026_WAVES,
   SOURCE_KINDS,
 } from "@/lib/domain/constants";
 
@@ -111,6 +117,13 @@ export type PlatformGoal = z.infer<typeof platformGoalSchema>;
 export type PlatformStrategy = z.infer<typeof platformStrategySchema>;
 export type StructuralProblem = z.infer<typeof structuralProblemSchema>;
 export type StrategyContext = z.infer<typeof strategyContextSchema>;
+
+export type RoadmapYear = (typeof ROADMAP_YEARS)[number];
+export type Roadmap2026Phase = (typeof ROADMAP_2026_PHASES)[number];
+export type Roadmap2026Wave = (typeof ROADMAP_2026_WAVES)[number];
+export type Roadmap2026Segment = z.infer<typeof roadmap2026SegmentSchema>;
+export type Roadmap2026Item = z.infer<typeof roadmap2026ItemSchema>;
+export type Roadmap2026 = z.infer<typeof roadmap2026Schema>;
 
 export interface Database {
   schemaVersion: number;
