@@ -268,7 +268,7 @@ export function LateMenu2026({
           setOpen((v) => !v);
         }}
         className={cn(
-          "inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-bold transition-colors",
+          "inline-flex h-12 items-center gap-2 rounded-xl border px-4 text-[14.5px] font-bold transition-colors",
           open ? "border-[#e25858] bg-[#fdecec] text-[#a1262b]" : "border-[#f3c9c9] bg-surface text-[#a1262b] hover:bg-[#fff6f6]",
         )}
       >
@@ -690,8 +690,11 @@ export function TrackToggle({ expanded, onChange }: { expanded: boolean; onChang
   const Icon = expanded ? Shrink : Expand;
   return (
     <Button
-      className="h-10"
-      icon={<Icon size={15} />}
+      className={cn(
+        "h-12 rounded-xl px-4 text-[14.5px]",
+        expanded && "border-violet bg-brand-soft text-brand hover:border-violet hover:bg-brand-soft",
+      )}
+      icon={<Icon size={16} />}
       aria-pressed={expanded}
       title={expanded ? "Ocultar Design, Engenharia e QA de cada iniciativa" : "Mostrar o andamento e os responsáveis de Design, Engenharia e QA"}
       onClick={() => onChange(!expanded)}

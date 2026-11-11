@@ -207,7 +207,11 @@ export function RoadmapView() {
 
   const controls = (
     <>
-      <div role="tablist" aria-label="Visualização do roadmap" className="flex rounded-xl border border-line bg-surface p-1">
+      <div
+        role="tablist"
+        aria-label="Visualização do roadmap"
+        className={cn("flex rounded-xl border border-line bg-surface p-1", is2026 && "h-12 items-center shadow-[0_1px_3px_rgba(23,27,77,0.04)]")}
+      >
         {VIEWS.map(({ key, label, icon: Icon }) => (
           <button
             key={key}
@@ -220,7 +224,8 @@ export function RoadmapView() {
             onClick={() => setView(key)}
             onKeyDown={onViewKey}
             className={cn(
-              "inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-[13.5px] font-bold transition-colors",
+              "inline-flex items-center gap-1.5 rounded-lg font-bold transition-colors",
+              is2026 ? "h-10 px-3.5 text-[14.5px]" : "h-8 px-3 text-[13.5px]",
               view === key ? "bg-brand-soft text-brand" : "text-muted hover:text-ink",
             )}
           >
@@ -229,13 +234,17 @@ export function RoadmapView() {
           </button>
         ))}
       </div>
-      <div className="flex items-center gap-2 text-[14px] font-semibold text-muted">
-        <span aria-hidden>Plataforma</span>
+      {is2026 && <span aria-hidden className="hidden h-8 w-px self-end bg-line-strong sm:mb-2 sm:block" />}
+      <div className={cn("flex text-[14px] font-semibold text-muted", is2026 ? "flex-col gap-1.5" : "items-center gap-2")}>
+        <span aria-hidden className={cn(is2026 && "text-[13px]")}>Plataforma</span>
         <Select
           value={platformFilter}
           onChange={setPlatform}
           aria-label="Plataforma"
-          className="h-10 min-w-[180px] rounded-xl border border-line bg-surface px-3 text-[14px] font-semibold text-ink hover:border-line-strong focus:border-violet focus:outline-none focus:ring-4 focus:ring-[#6045d8]/12"
+          className={cn(
+            "rounded-xl border border-line bg-surface px-3 text-[14px] font-semibold text-ink hover:border-line-strong focus:border-violet focus:outline-none focus:ring-4 focus:ring-[#6045d8]/12",
+            is2026 ? "h-12 min-w-[190px] px-4 text-[15px] shadow-[0_1px_3px_rgba(23,27,77,0.04)]" : "h-10 min-w-[180px]",
+          )}
         >
           <option value="todas">Todas</option>
           {platformOptions.map((p) => (
@@ -246,9 +255,11 @@ export function RoadmapView() {
         </Select>
       </div>
       {is2026 && (
-        <div className="flex items-center gap-2 text-[14px] font-semibold text-muted">
-          <span aria-hidden>Status</span>
+        <div className="flex flex-col gap-1.5 text-[14px] font-semibold text-muted">
+          <span aria-hidden className="text-[13px]">Status</span>
           <MultiSelect
+            tall
+            className="min-w-[210px]"
             label="Status"
             value={status2026}
             onChange={(v) => setStatus2026(v as Status2026[])}
@@ -271,8 +282,8 @@ export function RoadmapView() {
   );
 
   const legend = is2026 ? (
-    <div className={cn("flex flex-col gap-1 text-[12.5px] text-muted", fullscreen && "text-[12px]")}>
-      <p className="flex flex-wrap items-center gap-x-4 gap-y-1">
+    <div className={cn("rounded-2xl border border-line bg-white/70 px-4 py-2.5 text-[13.5px] text-muted", fullscreen && "py-2 text-[12.5px]")}>
+      <p className="flex flex-wrap items-center gap-x-6 gap-y-1">
         {view === "cards" ? (
           <span>Cada card fica no trimestre em que termina a última semana projetada na planilha.</span>
         ) : (
@@ -402,13 +413,13 @@ export function RoadmapView() {
       <PageContainer className="pb-16 pt-6">
       {!fullscreen && (
         <>
-          <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-3">
+          <div className={cn("mt-7 flex flex-wrap gap-y-3", is2026 ? "items-end gap-x-4" : "items-center gap-x-6")}>
             {controls}
-            <div className="ml-auto flex flex-wrap items-center gap-2">
+            <div className={cn("ml-auto flex flex-wrap items-center", "gap-2")}>
               {actions2026}
               <Button
                 ref={fullscreenButtonRef}
-                className="h-10"
+                className={cn(is2026 ? "h-12 rounded-xl px-4 text-[14.5px]" : "h-10")}
                 icon={<Maximize2 size={15} />}
                 disabled={!ready}
                 title="Ver o roadmap ocupando a tela inteira"
@@ -418,7 +429,7 @@ export function RoadmapView() {
               </Button>
             </div>
           </div>
-          <div className="mt-3">{legend}</div>
+          <div className={is2026 ? "mt-4" : "mt-3"}>{legend}</div>
         {!is2026 && load.status === "error" && (
           <div className="mt-6">
             <ErrorBanner message={load.message} action={<Button size="sm" onClick={() => void reload()}>Tentar novamente</Button>} />

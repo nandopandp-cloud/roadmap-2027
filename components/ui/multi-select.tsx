@@ -23,6 +23,7 @@ export function MultiSelect({
   allLabel = "Todos",
   allCount,
   className,
+  tall = false,
 }: {
   /** Rótulo acessível do campo. */
   label: string;
@@ -32,6 +33,8 @@ export function MultiSelect({
   allLabel?: string;
   allCount?: number;
   className?: string;
+  /** Altura maior (48px), para barras com rótulo acima dos campos. */
+  tall?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -110,7 +113,8 @@ export function MultiSelect({
           }
         }}
         className={cn(
-          "group flex h-10 w-full min-w-[180px] items-center gap-2 rounded-xl border bg-surface px-3 text-left text-[14px] font-semibold text-ink transition-colors hover:border-line-strong focus:outline-none focus-visible:border-violet focus-visible:ring-4 focus-visible:ring-[#6045d8]/12",
+          tall ? "h-12 px-4 text-[15px] shadow-[0_1px_3px_rgba(23,27,77,0.04)]" : "h-10 px-3 text-[14px]",
+          "group flex w-full min-w-[180px] items-center gap-2 rounded-xl border bg-surface text-left font-semibold text-ink transition-colors hover:border-line-strong focus:outline-none focus-visible:border-violet focus-visible:ring-4 focus-visible:ring-[#6045d8]/12",
           open ? "border-violet ring-4 ring-[#6045d8]/12" : "border-line",
         )}
       >
