@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/client/api";
 import { useEffortTracks, useEvidenceTracks, useRoadmap } from "@/lib/client/store";
 import { EFFORT_TONE } from "@/lib/client/tones";
+import { eligibleOwners } from "@/lib/domain/org";
 import {
   EFFORT_TRACK_DISCIPLINE,
   EFFORT_TRACK_LABEL,
@@ -360,8 +361,10 @@ export function EffortDialog({ initiative, onClose }: { initiative: Initiative; 
     const discipline = EFFORT_TRACK_DISCIPLINE[t];
     const ownerId = draft[t].ownerId;
     const missingOwner = !!ownerId && !data.people.some((p) => p.id === ownerId);
+    // Só pessoas dos squads das plataformas da iniciativa (e o responsável atual, se já houver).
+    const inSquads = new Set(eligibleOwners(data.people, data.squads, initiative.platformIds).map((p) => p.id));
     const candidates = data.people
-      .filter((p) => p.discipline === discipline || p.id === ownerId)
+      .filter((p) => (p.discipline === discipline && inSquads.has(p.id)) || p.id === ownerId)
       .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
     const autoLabel =
       t === "design"
@@ -381,7 +384,7 @@ export function EffortDialog({ initiative, onClose }: { initiative: Initiative; 
               ? "O responsável anterior não está mais no organograma."
               : candidates.length
                 ? undefined
-                : `Nenhum colaborador com a função ${EFFORT_TRACK_LABEL[t]} em Times & Squads.`
+                : `Nenhum colaborador com a função ${EFFORT_TRACK_LABEL[t]} nos squads das plataformas desta iniciativa.`
           }
         >
           <option value="">A definir</option>

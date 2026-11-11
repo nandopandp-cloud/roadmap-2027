@@ -3,6 +3,7 @@ import { seedRoadmap2026 } from "@/data/seed/roadmap-2026";
 import { ILLUSTRATIONS } from "@/lib/domain/constants";
 import { inferDiscipline } from "@/lib/domain/org";
 import { importedItem, ownersFromSheet, trackStatusesFromSheet } from "@/lib/domain/roadmap-2026";
+import { eligibleOwners } from "@/lib/domain/org";
 import { defaultRoadmapOrder } from "@/lib/domain/roadmap-order";
 import type { Database, IllustrationKey, Person, PlatformStrategy, ProposalSection, RepositoryLink, Roadmap2026Item, Squad, StrategyContext } from "@/lib/domain/types";
 
@@ -64,6 +65,7 @@ export function migrateDatabase(db: Database): { db: Database; changed: boolean 
     };
   });
   const people = (db.people ?? []).map(migratePerson);
+  const squads = (db.squads ?? []).map(migrateSquad);
   return {
     db: {
       ...db,
@@ -71,17 +73,21 @@ export function migrateDatabase(db: Database): { db: Database; changed: boolean 
       initiatives,
       context: migrateContext(db.context),
       people,
-      squads: (db.squads ?? []).map(migrateSquad),
-      roadmap2026: migrateRoadmap2026(db.roadmap2026 ?? importedRoadmap2026(people), people),
+      squads,
+      roadmap2026: migrateRoadmap2026(db.roadmap2026 ?? importedRoadmap2026(people, squads), people, squads),
     },
     changed: true,
   };
 }
 
 /** Iniciativas do Roadmap 2026 como importadas da planilha (responsáveis lidos dos nomes escritos nela). */
-export function importedRoadmap2026(people: Person[] = []): Roadmap2026Item[] {
-  return seedRoadmap2026.items.map((item) => importedItem(item, people));
+export function importedRoadmap2026(people: Person[] = [], squads: Squad[] = []): Roadmap2026Item[] {
+  return seedRoadmap2026.items.map((item) => importedItem(item, candidatesFor(item, people, squads)));
 }
+
+/** Nome da planilha só vira responsável se a pessoa for do squad da iniciativa (ou não tiver squad). */
+const candidatesFor = (item: { platformId: string | null }, people: Person[], squads: Squad[]) =>
+  eligibleOwners(people, squads, item.platformId ? [item.platformId] : []);
 
 type LegacyRoadmap2026Item = Omit<Roadmap2026Item, "owners" | "trackStatus"> & {
   owners?: Roadmap2026Item["owners"];
@@ -90,10 +96,10 @@ type LegacyRoadmap2026Item = Omit<Roadmap2026Item, "owners" | "trackStatus"> & {
 };
 
 /** v16–v17: responsáveis e andamento por frente (da planilha, quando ainda não definidos) e sem o campo de onda. */
-function migrateRoadmap2026(items: LegacyRoadmap2026Item[], people: Person[]): Roadmap2026Item[] {
+function migrateRoadmap2026(items: LegacyRoadmap2026Item[], people: Person[], squads: Squad[]): Roadmap2026Item[] {
   return items.map(({ wave: _wave, ...item }) => ({
     ...item,
-    owners: item.owners ?? ownersFromSheet(item, people),
+    owners: item.owners ?? ownersFromSheet(item, candidatesFor(item, people, squads)),
     // Frentes que ainda não têm andamento gravado (ex.: QA, desde a v18) são lidas da planilha.
     trackStatus: { ...trackStatusesFromSheet(item), ...item.trackStatus },
   }));

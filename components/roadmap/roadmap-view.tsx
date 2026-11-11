@@ -390,6 +390,7 @@ export function RoadmapView() {
           owners={editingItem2026.owners}
           trackStatuses={editingItem2026.trackStatus}
           people={data.people}
+          squads={data.squads}
           onClose={() => setEditing2026(null)}
           onSave={async (item, owners, trackStatus) => {
             const { title, subtitle, platformId, backlog, status, segments } = item;

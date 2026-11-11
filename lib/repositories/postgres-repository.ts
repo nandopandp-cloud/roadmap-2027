@@ -119,7 +119,8 @@ export class PostgresRepository implements RoadmapRepository {
     const { rows: existing } = await client.query("SELECT 1 FROM roadmap_2026 LIMIT 1");
     if (!existing.length) {
       const { rows: people } = await client.query<{ data: Person }>("SELECT data FROM people");
-      await persistCollection(client, "roadmap_2026", [], importedRoadmap2026(people.map((r) => r.data)), true);
+      const { rows: squads } = await client.query<{ data: Squad }>("SELECT data FROM squads");
+      await persistCollection(client, "roadmap_2026", [], importedRoadmap2026(people.map((r) => r.data), squads.map((r) => r.data)), true);
     }
     await client.query("INSERT INTO roadmap_meta (key, value) VALUES ('roadmap_2026_imported', 'true')");
   }

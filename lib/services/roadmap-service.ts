@@ -4,6 +4,7 @@ import type { Viewer } from "@/lib/auth/session";
 import { EFFORT_TRACKS } from "@/lib/domain/constants";
 import { EFFORT_TRACK_LABEL } from "@/lib/domain/effort";
 import { effortTracksFor } from "@/lib/domain/effort-access";
+import { eligibleOwners, squadNamesOf } from "@/lib/domain/org";
 import type { Database, DocumentDraft, DocumentRef, EffortEstimate, Initiative, InitiativeEffort, InitiativeInput, Platform, StrategyContext } from "@/lib/domain/types";
 import { QUARTER_LABEL } from "@/lib/domain/labels";
 import { nextRoadmapOrder, placeInColumn, roadmapColumn } from "@/lib/domain/roadmap-order";
@@ -297,7 +298,7 @@ export async function patchEffort(id: string, data: unknown, viewer: Viewer): Pr
       const own = allowed.map((t) => EFFORT_TRACK_LABEL[t]).join(" e ");
       throw new DomainError(403, `Seu perfil estima apenas o esforço de ${own}.`);
     }
-    assertEffortOwners(db, effort);
+    assertEffortOwners(db, effort, before);
     const nameOf = (personId: string) => db.people.find((p) => p.id === personId)?.name ?? "colaborador removido";
     const changes = describeEffortChanges(before.effort, effort, nameOf);
     if (!changes.length) return before;
@@ -320,12 +321,15 @@ function sameEstimate(a: EffortEstimate | null, b: EffortEstimate | null): boole
   return a.weeks === b.weeks && a.startMode === b.startMode && a.startDate === b.startDate && a.ownerId === b.ownerId;
 }
 
-/** Os responsáveis pelo esforço precisam existir no organograma. */
-function assertEffortOwners(db: Database, effort: InitiativeEffort) {
+/** Os responsáveis pelo esforço precisam existir no organograma e, quando mudam, ser dos squads das plataformas da iniciativa. */
+function assertEffortOwners(db: Database, effort: InitiativeEffort, before: Initiative) {
   const fields: Record<string, string> = {};
+  const eligible = new Set(eligibleOwners(db.people, db.squads, before.platformIds).map((p) => p.id));
   for (const track of EFFORT_TRACKS) {
     const ownerId = effort[track]?.ownerId;
     if (ownerId && !db.people.some((p) => p.id === ownerId)) fields[`${track}.ownerId`] = "O responsável escolhido não existe mais no organograma.";
+    else if (ownerId && ownerId !== before.effort[track]?.ownerId && !eligible.has(ownerId))
+      fields[`${track}.ownerId`] = `Escolha alguém de ${squadNamesOf(db.squads, before.platformIds).join(" ou ")}.`;
   }
   if (Object.keys(fields).length) throw new DomainError(400, "Revise o responsável pelo esforço.", fields);
 }

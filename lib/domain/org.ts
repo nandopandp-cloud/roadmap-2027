@@ -124,6 +124,23 @@ export function relatedSquads(person: Person, squads: Squad[]): Squad[] {
   return squads.filter((s) => orderIn(person, s.id) !== undefined || s.leaderIds.includes(person.id));
 }
 
+/**
+ * Quem pode responder por iniciativas das plataformas informadas: integrantes e lideranças dos
+ * squads que cuidam delas. Quem é de outro squad não aparece; quem não está em squad nenhum
+ * (lideranças gerais, por exemplo) aparece em todas. Iniciativa sem plataforma (transversal) ou
+ * plataforma que nenhum squad assume: todas as pessoas.
+ */
+export function eligibleOwners<P extends Person>(people: P[], squads: Squad[], platformIds: string[]): P[] {
+  if (!platformIds.length) return people;
+  const squadsOfPlatforms = squads.filter((s) => s.platformIds.some((p) => platformIds.includes(p)));
+  if (!squadsOfPlatforms.length) return people;
+  return people.filter((p) => relatedSquads(p, squads).length === 0 || relatedSquads(p, squadsOfPlatforms).length > 0);
+}
+
+/** Nomes dos squads que assumem as plataformas (mensagens de validação). */
+export const squadNamesOf = (squads: Squad[], platformIds: string[]) =>
+  squads.filter((s) => s.platformIds.some((p) => platformIds.includes(p))).map((s) => s.name);
+
 const normalize = (v: string) =>
   v
     .normalize("NFD")

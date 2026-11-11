@@ -31,7 +31,8 @@ import {
   type TrackStatuses2026,
   type Work2026,
 } from "@/lib/domain/roadmap-2026";
-import type { Person, Platform, Roadmap2026Item, Roadmap2026Work } from "@/lib/domain/types";
+import type { Person, Platform, Roadmap2026Item, Roadmap2026Work, Squad } from "@/lib/domain/types";
+import { eligibleOwners } from "@/lib/domain/org";
 import { Avatar } from "@/components/org/avatar";
 import { OWNER_TRACK_ICON, TRACK_STATUS_TONE } from "@/components/roadmap/roadmap-2026";
 
@@ -151,6 +152,8 @@ function SegmentRow({
 function OwnerPicker({
   track,
   people,
+  eligible,
+  squadLabel,
   value,
   onChange,
   status,
@@ -158,6 +161,10 @@ function OwnerPicker({
 }: {
   track: OwnerTrack2026;
   people: Person[];
+  /** Pessoas dos squads da iniciativa (as opções da lista). */
+  eligible: Person[];
+  /** Squad da iniciativa, para a mensagem de quem está fora dele. */
+  squadLabel: string;
   value: string[];
   onChange: (ids: string[]) => void;
   /** Andamento da frente. */
@@ -167,8 +174,9 @@ function OwnerPicker({
   const Icon = OWNER_TRACK_ICON[track];
   const chosen = value.map((id) => people.find((p) => p.id === id)).filter((p): p is Person => !!p);
   const discipline = OWNER_TRACK_DISCIPLINE[track];
-  // Quem tem a função da frente aparece primeiro; depois as demais pessoas.
-  const options = people
+  const inSquad = new Set(eligible.map((p) => p.id));
+  // Só pessoas do squad da iniciativa; quem tem a função da frente aparece primeiro.
+  const options = eligible
     .filter((p) => !value.includes(p.id))
     .sort((a, b) => Number(b.discipline === discipline) - Number(a.discipline === discipline) || a.name.localeCompare(b.name, "pt-BR"));
   return (
@@ -200,9 +208,17 @@ function OwnerPicker({
         </span>
       )}
       {chosen.map((p) => (
-        <span key={p.id} className="inline-flex items-center gap-1.5 rounded-full border border-line bg-canvas py-0.5 pl-0.5 pr-1 text-[13px] font-semibold text-ink">
+        <span
+          key={p.id}
+          title={inSquad.has(p.id) ? undefined : `${p.name} não faz parte do squad ${squadLabel}.`}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-full border py-0.5 pl-0.5 pr-1 text-[13px] font-semibold text-ink",
+            inSquad.has(p.id) ? "border-line bg-canvas" : "border-[#f3c58a] bg-[#fff6ea]",
+          )}
+        >
           <Avatar person={p} size={24} />
           {p.name}
+          {!inSquad.has(p.id) && <span className="text-[11.5px] font-bold text-[#8a4b00]">fora do squad</span>}
           <button
             type="button"
             onClick={() => onChange(value.filter((id) => id !== p.id))}
@@ -226,7 +242,7 @@ function OwnerPicker({
           </Select>
         </span>
       ) : (
-        !people.length && <span className="text-[12.5px] text-muted">Cadastre as pessoas em Times &amp; Squads.</span>
+        <span className="text-[12.5px] text-muted">{people.length ? `Ninguém mais em ${squadLabel}.` : "Cadastre as pessoas em Times & Squads."}</span>
       )}
     </div>
   );
@@ -239,6 +255,7 @@ export function Item2026Dialog({
   owners: initialOwners,
   trackStatuses: initialTracks,
   people,
+  squads: orgSquads,
   onClose,
   onSave,
   onRemove,
@@ -250,6 +267,8 @@ export function Item2026Dialog({
   /** Andamento de Design, Engenharia e QA. */
   trackStatuses: TrackStatuses2026;
   people: Person[];
+  /** Squads do organograma (quem pode ser responsável). */
+  squads: Squad[];
   onClose: () => void;
   /** Devolve se salvou (em caso de erro a janela continua aberta). */
   onSave: (item: Roadmap2026Item, owners: Owners2026, trackStatuses: TrackStatuses2026) => Promise<boolean>;
@@ -273,6 +292,8 @@ export function Item2026Dialog({
     .map((t) => `${OWNER_TRACK_LABEL[t]} “${item[t]}”`)
     .join(" · ");
   const squads = [...platforms.map((p) => ({ value: p.id, label: p.name })), { value: "", label: "Transversais" }];
+  // Responsáveis possíveis: pessoas dos squads da plataforma da iniciativa (transversal: todos).
+  const eligible = eligibleOwners(people, orgSquads, draft.platformId ? [draft.platformId] : []);
 
   const close = async () => {
     if (dirty && !(await confirm({ title: "Descartar alterações?", message: "As mudanças nesta iniciativa ainda não foram salvas.", confirmLabel: "Descartar", tone: "danger" }))) return;
@@ -388,6 +409,8 @@ export function Item2026Dialog({
               key={track}
               track={track}
               people={people}
+              eligible={eligible}
+              squadLabel={draft.squad}
               value={owners[track]}
               onChange={(ids) => setOwners((o) => ({ ...o, [track]: ids }))}
               status={tracks[track]}
