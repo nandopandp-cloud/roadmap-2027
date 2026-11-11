@@ -11,8 +11,11 @@ import { readSession } from "@/lib/auth/session";
 
 const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
+/** Aviso de alteração enviado pela planilha (Apps Script): autenticado pelo segredo na própria rota. */
+const SHEET_NOTICE = "/api/roadmap/2026/sincronizar";
+
 function isPublic(pathname: string): boolean {
-  return pathname === "/login" || pathname.startsWith("/api/auth/");
+  return pathname === "/login" || pathname.startsWith("/api/auth/") || pathname === SHEET_NOTICE;
 }
 
 /**

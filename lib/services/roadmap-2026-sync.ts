@@ -32,9 +32,19 @@ import { readSheet } from "@/lib/services/xlsx-reader";
  */
 
 const SHEET_NAME = "Cenário atual";
-/** Intervalo mínimo entre leituras da planilha (a tela aberta pede a sincronização a cada 20 s). */
-const MIN_INTERVAL_MS = 15_000;
 const FETCH_TIMEOUT_MS = 8_000;
+
+/**
+ * Aviso da planilha: com `ROADMAP_SYNC_SECRET` definido, o Apps Script da planilha chama
+ * `POST /api/roadmap/2026/sincronizar` a cada alteração (scripts/planilha-roadmap-2026.gs) e a
+ * planilha só é lida nesses momentos. Abrir o Roadmap 2026 só lê a planilha como rede de segurança,
+ * se a última leitura tem mais de 1 hora. Sem o segredo (aviso não instalado), abrir o Roadmap 2026
+ * lê a planilha no máximo a cada 15 s.
+ */
+export const syncSecret = () => process.env.ROADMAP_SYNC_SECRET?.trim() || "";
+const MIN_INTERVAL_MS = () => (syncSecret() ? 60 * 60_000 : 15_000);
+/** O Google pode levar alguns segundos para refletir a alteração na exportação: novas tentativas após o aviso. */
+const NOTIFY_RETRIES_MS = [4_000, 8_000];
 
 const sheetId = /\/d\/([A-Za-z0-9_-]+)/.exec(seedRoadmap2026.source.url)?.[1];
 /** Exportação .xlsx da planilha (com cores). `ROADMAP_2026_SHEET_URL` substitui o endereço (testes). */
@@ -45,6 +55,8 @@ export interface SyncResult {
   /** Iniciativas atualizadas ou incluídas nesta sincronização. */
   updated: number;
   created: number;
+  /** A planilha estava diferente da última leitura. */
+  changed: boolean;
   error?: string;
 }
 
@@ -118,14 +130,36 @@ function applyRows(db: Database, rows: SheetRow[], now: string): { updated: numb
   return { updated, created };
 }
 
-let inflight: Promise<SyncResult> | null = null;
+let running: Promise<SyncResult> | null = null;
+let queued: Promise<SyncResult> | null = null;
 
-/** Lê a planilha e aplica as mudanças. Chamadas simultâneas compartilham a mesma leitura. */
+/**
+ * Lê a planilha e aplica as mudanças. Um pedido que chega durante uma leitura não a reaproveita
+ * (ela pode ter começado antes da alteração): entra em uma única leitura seguinte, compartilhada.
+ */
 export function syncRoadmap2026(): Promise<SyncResult> {
-  inflight ??= run().finally(() => {
-    inflight = null;
+  if (!running) {
+    running = run().finally(() => {
+      running = null;
+    });
+    return running;
+  }
+  queued ??= running.then(() => {
+    queued = null;
+    return syncRoadmap2026();
   });
-  return inflight;
+  return queued;
+}
+
+/** Aviso da planilha: lê na hora e, se ela ainda não refletir a alteração, tenta de novo em alguns segundos. */
+export async function syncRoadmap2026FromNotice(): Promise<SyncResult> {
+  let result = await syncRoadmap2026();
+  for (const wait of NOTIFY_RETRIES_MS) {
+    if (!result.ok || result.changed) break;
+    await new Promise((resolve) => setTimeout(resolve, wait));
+    result = await syncRoadmap2026();
+  }
+  return result;
 }
 
 async function run(): Promise<SyncResult> {
@@ -143,11 +177,11 @@ async function run(): Promise<SyncResult> {
     return await getRepository().transaction((db) => {
       if (db.roadmap2026Sync.lastHash === hash) {
         db.roadmap2026Sync = { ...db.roadmap2026Sync, lastSyncAt: now, lastError: "" };
-        return { ok: true, updated: 0, created: 0 };
+        return { ok: true, updated: 0, created: 0, changed: false };
       }
       const result = applyRows(db, rows, now);
       db.roadmap2026Sync = { ...db.roadmap2026Sync, lastSyncAt: now, lastHash: hash, lastError: "" };
-      return { ok: true, ...result };
+      return { ok: true, ...result, changed: true };
     });
   } catch (error) {
     const message = (error instanceof Error ? error.message : String(error)).slice(0, 500);
@@ -158,13 +192,13 @@ async function run(): Promise<SyncResult> {
         db.roadmap2026Sync = { ...db.roadmap2026Sync, lastSyncAt: now, lastError: message };
       })
       .catch(() => undefined);
-    return { ok: false, updated: 0, created: 0, error: message };
+    return { ok: false, updated: 0, created: 0, changed: false, error: message };
   }
 }
 
-/** Sincroniza se a última leitura tem mais de 15 s (chamada ao abrir o Roadmap 2026 e a cada 20 s com ele aberto). */
+/** Ao abrir o Roadmap 2026: lê a planilha se a última leitura passou do intervalo (ver `syncSecret`). */
 export async function syncRoadmap2026IfStale(lastSyncAt: string): Promise<SyncResult | null> {
   const last = Date.parse(lastSyncAt);
-  if (Number.isFinite(last) && Date.now() - last < MIN_INTERVAL_MS) return null;
+  if (Number.isFinite(last) && Date.now() - last < MIN_INTERVAL_MS()) return null;
   return syncRoadmap2026();
 }

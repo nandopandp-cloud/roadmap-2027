@@ -14,8 +14,12 @@ export type Roadmap2026Load =
 // Reaproveitado ao trocar de ano (e atualizado a cada alteração salva).
 let cache: Roadmap2026 | null = null;
 
-/** A tela aberta busca de novo a cada 20 s (e ao voltar para a aba): traz o que mudou na planilha. */
-const REFRESH_MS = 20_000;
+/**
+ * A tela aberta busca de novo no app (não na planilha) a cada 30 s e ao voltar para a aba, para
+ * mostrar o que a planilha mudou. Sem mouse, teclado ou toque por 5 min, para até a pessoa voltar.
+ */
+const REFRESH_MS = 30_000;
+const IDLE_MS = 5 * 60_000;
 // Alterações em andamento e contador de alterações: uma busca que cruzou com uma alteração é descartada.
 let writes = 0;
 let writeVersion = 0;
@@ -56,8 +60,10 @@ export function useRoadmap2026(enabled: boolean) {
     if (!enabled || !ready) return;
     let pointerDown = false;
     let fetching = false;
+    let lastActivity = Date.now();
+    const idle = () => Date.now() - lastActivity > IDLE_MS;
     const refresh = async () => {
-      if (fetching || pointerDown || writes || document.visibilityState !== "visible") return;
+      if (fetching || pointerDown || writes || idle() || document.visibilityState !== "visible") return;
       fetching = true;
       const version = writeVersion;
       try {
@@ -71,25 +77,40 @@ export function useRoadmap2026(enabled: boolean) {
         fetching = false;
       }
     };
+    // Atividade: quem volta depois de parado vê os dados atualizados na hora.
+    const onActivity = () => {
+      const wasIdle = idle();
+      lastActivity = Date.now();
+      if (wasIdle) void refresh();
+    };
     const onDown = () => {
       pointerDown = true;
+      onActivity();
     };
     const onUp = () => {
       pointerDown = false;
     };
     const onVisible = () => {
-      if (document.visibilityState === "visible") void refresh();
+      if (document.visibilityState !== "visible") return;
+      lastActivity = Date.now();
+      void refresh();
     };
     const timer = setInterval(() => void refresh(), REFRESH_MS);
     window.addEventListener("pointerdown", onDown, true);
     window.addEventListener("pointerup", onUp, true);
     window.addEventListener("pointercancel", onUp, true);
+    window.addEventListener("pointermove", onActivity, { capture: true, passive: true });
+    window.addEventListener("keydown", onActivity, true);
+    window.addEventListener("wheel", onActivity, { capture: true, passive: true });
     document.addEventListener("visibilitychange", onVisible);
     return () => {
       clearInterval(timer);
       window.removeEventListener("pointerdown", onDown, true);
       window.removeEventListener("pointerup", onUp, true);
       window.removeEventListener("pointercancel", onUp, true);
+      window.removeEventListener("pointermove", onActivity, true);
+      window.removeEventListener("keydown", onActivity, true);
+      window.removeEventListener("wheel", onActivity, true);
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, [enabled, ready]);
