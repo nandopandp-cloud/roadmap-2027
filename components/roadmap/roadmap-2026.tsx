@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, ArrowDownToLine, Check, CircleDashed, Code2, Expand, GripVertical, Layers, PenTool, Pencil, ShieldCheck, Shrink, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowDownToLine, Check, ChevronDown, CircleDashed, Code2, Expand, GripVertical, Layers, PenTool, Pencil, ShieldCheck, Shrink, type LucideIcon } from "lucide-react";
 import { createContext, useContext, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
 import { Avatar } from "@/components/org/avatar";
 import { useCardDrag, type DropTarget } from "@/components/ui/use-card-drag";
@@ -206,71 +206,131 @@ export function Roadmap2026Legend() {
 /* ------------------------------ Atrasadas ------------------------------ */
 
 /**
- * Destaque das iniciativas atrasadas: as que passaram do fim projetado sem conclusão (automático)
- * e as que o time marcou como Atrasada.
+ * Atrasadas, de forma discreta: um botão com a contagem que abre a lista (prazo vencido de cada
+ * uma). Clicar numa iniciativa abre a edição; "Mostrar só as atrasadas" aplica o filtro de status.
  */
-export function Delayed2026({
+export function LateMenu2026({
   items,
   platforms,
   canEdit,
   onEdit,
+  onShowOnly,
 }: {
   items: Roadmap2026Item[];
   platforms: Platform[];
   canEdit: boolean;
   onEdit: (id: string) => void;
+  onShowOnly: () => void;
 }) {
-  const late = items.filter((i) => effectiveStatus(i) === "atrasada");
+  const [open, setOpen] = useState(false);
+  // Posição da lista na tela (fixa), sempre dentro da janela com 16px de margem.
+  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
+  const late = items.filter((i) => effectiveStatus(i) === "atrasada").sort((a, b) => overdueWeeks(b) - overdueWeeks(a));
+
+  // Fecha ao clicar fora ou com Esc (devolvendo o foco ao botão).
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      setOpen(false);
+      ref.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    };
+    // A lista é fixa na tela: ao rolar a página (fora dela), fecha.
+    const onScroll = (e: Event) => !ref.current?.contains(e.target as Node) && setOpen(false);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey, true);
+    window.addEventListener("scroll", onScroll, true);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("scroll", onScroll, true);
+    };
+  }, [open]);
+
   if (!late.length) return null;
-
-  const row = (i: Roadmap2026Item) => {
-    const end = editableEnd(i);
-    const past = overdueWeeks(i);
-    const Tag = canEdit ? "button" : "div";
-    return (
-      <li key={i.id}>
-        <Tag
-          {...(canEdit ? { type: "button" as const, onClick: () => onEdit(i.id) } : {})}
-          className={cn(
-            "flex h-full w-full items-start gap-3 rounded-xl border border-[#f3c9c9] bg-surface px-3 py-2.5 text-left",
-            canEdit && "transition-colors hover:border-[#e25858]",
-          )}
-        >
-          <span className="flex min-w-0 flex-1 flex-col gap-1">
-            <span className="line-clamp-2 text-[13.5px] font-extrabold leading-snug text-navy">{i.title}</span>
-            <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <SquadPill item={i} platforms={platforms} />
-              <span className="text-[12px] font-semibold text-muted">
-                {lateReason(i) === "prazo" ? (
-                  <span className="font-bold text-[#a1262b]">Prazo vencido há {plural(past, "semana", "semanas")}</span>
-                ) : (
-                  <span className="font-bold text-[#a1262b]">Marcada como atrasada</span>
-                )}
-                {end !== null && ` · fim projetado: ${weekLabel(end - 1)}`}
-              </span>
-            </span>
-          </span>
-          {canEdit && <Pencil size={14} className="mt-1 shrink-0 text-subtle" aria-hidden />}
-        </Tag>
-      </li>
-    );
-  };
-
   return (
-    <section aria-labelledby="atrasadas-2026" className="mt-6 rounded-[24px] border border-[#f3c9c9] bg-[#fff6f6] p-4">
-      <header className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#fdecec] text-[#c9363b]" aria-hidden>
-          <AlertTriangle size={17} />
-        </span>
-        <h2 id="atrasadas-2026" className="text-[17px] font-black text-navy">
-          Atrasadas <span className="text-[#c9363b]">· {late.length}</span>
-        </h2>
-        <p className="text-[13px] text-muted">
-          Passaram do fim projetado sem que todas as frentes com responsável concluíssem.{canEdit ? " Clique para ajustar andamento e prazos." : ""}
-        </p>
-      </header>
-      <ul className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">{late.map(row)}</ul>
-    </section>
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        onClick={() => {
+          const rect = ref.current?.getBoundingClientRect();
+          if (rect) {
+            const width = Math.min(460, window.innerWidth - 32);
+            const left = Math.min(Math.max(16, rect.left), window.innerWidth - width - 16);
+            setPos({ top: rect.bottom + 8, left, width });
+          }
+          setOpen((v) => !v);
+        }}
+        className={cn(
+          "inline-flex h-10 items-center gap-1.5 rounded-xl border px-3 text-[13.5px] font-bold transition-colors",
+          open ? "border-[#e25858] bg-[#fdecec] text-[#a1262b]" : "border-[#f3c9c9] bg-surface text-[#a1262b] hover:bg-[#fff6f6]",
+        )}
+      >
+        <AlertTriangle size={15} aria-hidden />
+        {plural(late.length, "atrasada", "atrasadas")}
+        <ChevronDown size={15} aria-hidden className={cn("transition-transform", open && "rotate-180")} />
+      </button>
+      {open && pos && (
+        <div
+          role="dialog"
+          aria-label="Iniciativas atrasadas"
+          className="fixed z-[45] overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_18px_40px_rgba(23,27,77,0.18)]"
+          style={{ top: pos.top, left: pos.left, width: pos.width }}
+        >
+          <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-2.5">
+            <p className="text-[12.5px] text-muted">Fim projetado vencido sem todas as frentes concluídas.</p>
+            <button
+              type="button"
+              onClick={() => {
+                onShowOnly();
+                setOpen(false);
+              }}
+              className="shrink-0 text-[12.5px] font-bold text-brand hover:underline"
+            >
+              Mostrar só as atrasadas
+            </button>
+          </div>
+          <ul className="max-h-[min(420px,60vh)] overflow-y-auto py-1 [scrollbar-width:thin]">
+            {late.map((i) => {
+              const end = editableEnd(i);
+              const Tag = canEdit ? "button" : "div";
+              return (
+                <li key={i.id}>
+                  <Tag
+                    {...(canEdit
+                      ? {
+                          type: "button" as const,
+                          onClick: () => {
+                            setOpen(false);
+                            onEdit(i.id);
+                          },
+                        }
+                      : {})}
+                    className={cn("flex w-full items-center gap-3 px-4 py-2 text-left", canEdit && "transition-colors hover:bg-[#f6f4ff]")}
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13.5px] font-bold text-navy">{i.title}</span>
+                      <span className="block text-[12px] text-muted">
+                        {platforms.find((p) => p.id === i.platformId)?.name ?? i.squad}
+                        {end !== null && ` · fim projetado ${weekLabel(end - 1)}`}
+                      </span>
+                    </span>
+                    <span className="shrink-0 rounded-full bg-[#fdecec] px-2 py-0.5 text-[11.5px] font-bold text-[#a1262b]">
+                      há {plural(overdueWeeks(i), "semana", "semanas")}
+                    </span>
+                  </Tag>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }
 

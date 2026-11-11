@@ -8,7 +8,7 @@ import { PageContainer, PageHero } from "@/components/layout/page-header";
 import { RoadmapBoard } from "@/components/roadmap/roadmap-board";
 import { EffortDialog } from "@/components/roadmap/effort-dialog";
 import { RoadmapGantt } from "@/components/roadmap/roadmap-gantt";
-import { Delayed2026, Owners2026Context, Roadmap2026Board, Roadmap2026Gantt, Roadmap2026Legend, TrackToggle } from "@/components/roadmap/roadmap-2026";
+import { LateMenu2026, Owners2026Context, Roadmap2026Board, Roadmap2026Gantt, Roadmap2026Legend, TrackToggle } from "@/components/roadmap/roadmap-2026";
 import { Item2026Dialog } from "@/components/roadmap/roadmap-2026-dialog";
 import { YearSwitch } from "@/components/roadmap/year-switch";
 import { EFFORT_TONE } from "@/lib/client/tones";
@@ -22,12 +22,15 @@ import { useToast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/client/api";
 import { useInitiativeSelection } from "@/lib/client/selection";
 import { useCanEdit, useEffortTracks, useEvidenceTracks, useRoadmap } from "@/lib/client/store";
-import { platformKey2026, TRANSVERSAL_2026 } from "@/lib/domain/roadmap-2026";
+import { effectiveStatus, platformKey2026, STATUS_2026_LABEL, TRANSVERSAL_2026, type Status2026 } from "@/lib/domain/roadmap-2026";
 import { compareRoadmapOrder } from "@/lib/domain/roadmap-order";
 import type { Roadmap2026Item, RoadmapYear } from "@/lib/domain/types";
 
 /** Preferência "Expandir todos" do Roadmap 2026 (por navegador). */
 const TRACKS_KEY = "jg-roadmap:2026-frentes";
+
+/** Status que o filtro do 2026 oferece (os que o cálculo produz). */
+const STATUS_FILTER_2026 = ["planejada", "andamento", "atrasada", "concluida"] as const;
 
 const VIEWS = [
   { key: "cards", label: "Cards", icon: LayoutGrid },
@@ -151,9 +154,20 @@ export function RoadmapView() {
   }, [is2026, data.platforms, items2026]);
   // Plataforma escolhida em um ano que não existe no outro volta para "Todas".
   const platformFilter = platformOptions.some((o) => o.value === platform) ? platform : "todas";
-  const visible2026 = useMemo(
+  // Roadmap 2026: filtro por plataforma e, em seguida, por status (calculado).
+  const byPlatform2026 = useMemo(
     () => (items2026 ?? []).filter((i) => platformFilter === "todas" || platformKey2026(i) === platformFilter),
     [items2026, platformFilter],
+  );
+  const [status2026, setStatus2026] = useState<"todos" | Status2026>("todos");
+  const statusCounts2026 = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const i of byPlatform2026) counts[effectiveStatus(i)] = (counts[effectiveStatus(i)] ?? 0) + 1;
+    return counts;
+  }, [byPlatform2026]);
+  const visible2026 = useMemo(
+    () => (status2026 === "todos" ? byPlatform2026 : byPlatform2026.filter((i) => effectiveStatus(i) === status2026)),
+    [byPlatform2026, status2026],
   );
   const loading2026 = !items2026;
   const ready = is2026 ? !!roadmap2026 && roadmap2026.items.length > 0 : load.status === "ready" && data.initiatives.length > 0;
@@ -212,9 +226,30 @@ export function RoadmapView() {
           ))}
         </Select>
       </div>
+      {is2026 && (
+        <div className="flex items-center gap-2 text-[14px] font-semibold text-muted">
+          <span aria-hidden>Status</span>
+          <Select
+            value={status2026}
+            onChange={(v) => setStatus2026(v as "todos" | Status2026)}
+            aria-label="Status"
+            className="h-10 min-w-[180px] rounded-xl border border-line bg-surface px-3 text-[14px] font-semibold text-ink hover:border-line-strong focus:border-violet focus:outline-none focus:ring-4 focus:ring-[#6045d8]/12"
+          >
+            <option value="todos">Todos ({byPlatform2026.length})</option>
+            {STATUS_FILTER_2026.map((st) => (
+              <option key={st} value={st}>
+                {STATUS_2026_LABEL[st]} ({statusCounts2026[st] ?? 0})
+              </option>
+            ))}
+          </Select>
+        </div>
+      )}
       {!is2026 && <Checkbox label="Mostrar marcos" checked={showMilestones} onChange={setShowMilestones} />}
       {!is2026 && view === "gantt" && <Checkbox label="Mostrar esforço" checked={showEffort} onChange={setShowEffort} />}
       {is2026 && <TrackToggle expanded={showTracks} onChange={toggleTracks} />}
+      {is2026 && items2026 && (
+        <LateMenu2026 items={byPlatform2026} platforms={data.platforms} canEdit={canPlan2026} onEdit={setEditing2026} onShowOnly={() => setStatus2026("atrasada")} />
+      )}
     </>
   );
 
@@ -376,7 +411,6 @@ export function RoadmapView() {
           </div>
         )}
 
-          {is2026 && items2026 && <Delayed2026 items={visible2026} platforms={data.platforms} canEdit={canPlan2026} onEdit={setEditing2026} />}
           {panel}
         </>
       )}
