@@ -20,6 +20,9 @@ import { TRACK_STATUS_TONE } from "@/components/roadmap/roadmap-2026";
 /** Combinação área + status da área ("design:andamento"). */
 export type AreaCell = `${TrackStatusTrack}:${TrackStatus2026}`;
 export const areaCell = (track: TrackStatusTrack, status: TrackStatus2026) => `${track}:${status}` as AreaCell;
+/** Todas as combinações área × status: o padrão do filtro (não filtra nada). */
+export const ALL_AREA_CELLS: AreaCell[] = TRACK_STATUS_TRACKS.flatMap((t) => TRACK_STATUSES_2026.map((st) => `${t}:${st}` as AreaCell));
+export const isAllCells = (cells: AreaCell[]) => ALL_AREA_CELLS.every((c) => cells.includes(c));
 export const splitCell = (cell: AreaCell) => cell.split(":") as [TrackStatusTrack, TrackStatus2026];
 /** "Design em andamento". */
 export const cellLabel = (cell: AreaCell) => {
@@ -125,10 +128,14 @@ export function AreaFilter2026({
     const all = column.every((c) => value.includes(c));
     onChange(all ? value.filter((c) => !column.includes(c)) : [...new Set([...value, ...column])]);
   };
-  const allCells = TRACK_STATUS_TRACKS.flatMap((t) => TRACK_STATUSES_2026.map((st) => areaCell(t, st)));
-  const allSelected = allCells.every((c) => value.includes(c));
+  const allSelected = isAllCells(value);
+  /** Seleção rápida: só um status em todas as áreas. */
+  const onlyColumn = (status: TrackStatus2026) => onChange(TRACK_STATUS_TRACKS.map((t) => areaCell(t, status)));
+  const isOnlyColumn = (status: TrackStatus2026) =>
+    value.length === TRACK_STATUS_TRACKS.length && TRACK_STATUS_TRACKS.every((t) => value.includes(areaCell(t, status)));
   // O detalhe de cada combinação aparece nas etiquetas de "Filtrando"; aqui fica o resumo curto.
-  const summary = value.length ? "Selecionadas" : "Todas";
+  const summary = allSelected ? "Todas" : value.length ? "Selecionadas" : "Nenhuma";
+  const filtering = !allSelected;
 
   return (
     <div ref={ref}>
@@ -136,7 +143,7 @@ export function AreaFilter2026({
         type="button"
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={`Áreas: ${value.length ? value.map(cellLabel).join(", ") : "todas"}`}
+        aria-label={`Áreas: ${allSelected ? "todas" : value.length ? value.map(cellLabel).join(", ") : "nenhuma"}`}
         onClick={() => {
           const rect = ref.current?.getBoundingClientRect();
           if (rect) {
@@ -148,12 +155,12 @@ export function AreaFilter2026({
         }}
         className={cn(
           "inline-flex h-12 max-w-[200px] items-center gap-2 rounded-xl border px-3 text-[14px] font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet",
-          value.length || open ? "border-violet bg-brand-soft text-brand" : "border-line bg-surface text-ink hover:border-line-strong",
+          filtering || open ? "border-violet bg-brand-soft text-brand" : "border-line bg-surface text-ink hover:border-line-strong",
         )}
       >
         <SlidersHorizontal size={16} aria-hidden className="shrink-0" />
         <span className="truncate">{summary}</span>
-        {value.length > 0 && <span className="rounded-full bg-violet px-2 text-[12px] font-extrabold text-white">{value.length}</span>}
+        {filtering && value.length > 0 && <span className="rounded-full bg-violet px-2 text-[12px] font-extrabold text-white">{value.length}</span>}
         <ChevronDown size={16} aria-hidden className={cn("shrink-0 transition-transform", open && "rotate-180")} />
       </button>
       {open && pos && (
@@ -164,25 +171,46 @@ export function AreaFilter2026({
           className="fixed z-[45] rounded-2xl border border-line bg-surface p-4 shadow-[0_18px_40px_rgba(23,27,77,0.18)]"
           style={{ top: pos.top, left: pos.left, width: pos.width }}
         >
-          <div className="flex items-start justify-between gap-3">
-            <p className="text-[15px] font-black text-navy">Filtrar por área</p>
-            <button
-              type="button"
-              onClick={() => onChange(allSelected ? [] : allCells)}
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 text-[13px] font-extrabold text-brand hover:bg-[#f3f1fd]"
-            >
-              <span
-                aria-hidden
-                className={cn("flex h-4 w-4 items-center justify-center rounded-[4px] border-2", allSelected ? "border-violet bg-violet text-white" : "border-line-strong")}
-              >
-                {allSelected && <Check size={11} strokeWidth={3.2} />}
-              </span>
-              {allSelected ? "Desmarcar todos" : "Selecionar todos"}
-            </button>
-          </div>
+          <p className="text-[15px] font-black text-navy">Filtrar por área</p>
           <p className="mt-0.5 text-[12.5px] text-muted">
             Marque o status de cada área. Ex.: “Engenharia · Não iniciado” mostra as iniciativas em que a engenharia ainda não começou.
           </p>
+          <div role="group" aria-label="Seleção rápida" className="mt-3 flex flex-wrap items-center gap-1.5">
+            <span className="mr-1 text-[12.5px] font-extrabold text-muted">Seleção rápida:</span>
+            <button
+              type="button"
+              aria-pressed={allSelected}
+              onClick={() => onChange(ALL_AREA_CELLS)}
+              className={cn(
+                "inline-flex h-8 items-center gap-1.5 rounded-full border-[1.5px] px-3 text-[13px] font-bold transition-colors",
+                allSelected ? "border-violet bg-brand-soft text-brand" : "border-line text-muted hover:border-line-strong hover:text-ink",
+              )}
+            >
+              {allSelected && <Check size={13} strokeWidth={3} aria-hidden />}
+              Todos
+            </button>
+            {TRACK_STATUSES_2026.map((st) => {
+              const on = isOnlyColumn(st);
+              const tone = TRACK_STATUS_TONE[st];
+              return (
+                <button
+                  key={st}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => onlyColumn(st)}
+                  title={`Só ${TRACK_STATUS_LABEL[st].toLowerCase()}, em todas as áreas`}
+                  className={cn(
+                    "inline-flex h-8 items-center gap-1.5 rounded-full border-[1.5px] px-3 text-[13px] font-bold transition-colors",
+                    on ? "" : "border-line text-muted hover:border-line-strong hover:text-ink",
+                  )}
+                  style={on ? { borderColor: tone.dot, background: tone.bg, color: tone.fg } : undefined}
+                >
+                  <span aria-hidden className="h-2 w-2 rounded-full" style={{ background: tone.dot }} />
+                  {TRACK_STATUS_LABEL[st]}
+                </button>
+              );
+            })}
+          </div>
           <div className="mt-3 overflow-x-auto">
             <table className="w-full border-separate [border-spacing:0_6px]">
               <thead>
@@ -258,7 +286,7 @@ export function AreaFilter2026({
             <span>Mais de uma célula marcada: aparece quem atende a qualquer uma. Clique na área ou no status para marcar a linha ou a coluna.</span>
             {value.length > 0 && (
               <button type="button" onClick={() => onChange([])} className="font-bold text-brand hover:underline">
-                Limpar áreas
+                Desmarcar todos
               </button>
             )}
           </div>
@@ -310,8 +338,8 @@ export function ActiveFilters2026({
  * uma linha inteira vira "Design (todos os status)" e uma coluna inteira "Em andamento (todas as áreas)".
  */
 export function groupAreaCells(cells: AreaCell[]): { key: string; label: string; cells: AreaCell[] }[] {
-  const all = TRACK_STATUS_TRACKS.flatMap((t) => TRACK_STATUSES_2026.map((st) => areaCell(t, st)));
-  if (all.every((c) => cells.includes(c))) return [{ key: "todas", label: "todas", cells: all }];
+  if (isAllCells(cells)) return [];
+  if (!cells.length) return [{ key: "nenhuma", label: "nenhuma", cells: [] }];
   let rest = [...cells];
   const groups: { key: string; label: string; cells: AreaCell[] }[] = [];
   for (const t of TRACK_STATUS_TRACKS) {

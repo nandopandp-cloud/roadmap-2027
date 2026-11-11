@@ -11,7 +11,7 @@ import { RoadmapGantt } from "@/components/roadmap/roadmap-gantt";
 import { LateMenu2026, Owners2026Context, Roadmap2026Board, Roadmap2026Gantt, Roadmap2026Legend, TrackToggle } from "@/components/roadmap/roadmap-2026";
 import { Item2026Dialog } from "@/components/roadmap/roadmap-2026-dialog";
 import { YearSwitch } from "@/components/roadmap/year-switch";
-import { ActiveFilters2026, AreaFilter2026, areaCell, groupAreaCells, splitCell, type AreaCell } from "@/components/roadmap/roadmap-2026-filters";
+import { ActiveFilters2026, ALL_AREA_CELLS, AreaFilter2026, areaCell, groupAreaCells, isAllCells, splitCell, type AreaCell } from "@/components/roadmap/roadmap-2026-filters";
 import { EFFORT_TONE } from "@/lib/client/tones";
 import { Button } from "@/components/ui/button";
 import { useFocusTrap } from "@/components/ui/dialog";
@@ -87,7 +87,7 @@ export function RoadmapView() {
     // A iniciativa precisa estar visível: filtros de status ou de área que a escondam são limpos.
     const item = items2026?.find((i) => i.id === id);
     if (item && !matchesStatus(item, status2026)) setStatus2026([]);
-    if (item && !matchesCells(item, areaCells2026)) setAreaCells2026([]);
+    if (item && !matchesCells(item, areaCells2026)) setAreaCells2026(ALL_AREA_CELLS);
     setHighlight2026(id);
     requestAnimationFrame(() =>
       requestAnimationFrame(() => document.querySelector(`[data-item-2026="${id}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" })),
@@ -187,11 +187,12 @@ export function RoadmapView() {
   // Status da iniciativa escolhidos (vazio = todos).
   const [status2026, setStatus2026] = useState<Status2026[]>([]);
   // Combinações área × status da área ("design:andamento"); vazio = todas.
-  const [areaCells2026, setAreaCells2026] = useState<AreaCell[]>([]);
+  // Padrão: todas as combinações marcadas (não filtra).
+  const [areaCells2026, setAreaCells2026] = useState<AreaCell[]>(ALL_AREA_CELLS);
   const matchesStatus = (i: Roadmap2026Item, statuses: Status2026[]) => !statuses.length || statuses.includes(effectiveStatus(i));
   /** A iniciativa atende a alguma combinação marcada (área que se aplica, com aquele status). */
   const matchesCells = (i: Roadmap2026Item, cells: AreaCell[]) => {
-    if (!cells.length) return true;
+    if (isAllCells(cells)) return true;
     const active = activeTracks(i);
     return cells.some((c) => {
       const [track, status] = splitCell(c);
@@ -218,7 +219,7 @@ export function RoadmapView() {
   const clearFilters2026 = () => {
     setPlatform("todas");
     setStatus2026([]);
-    setAreaCells2026([]);
+    setAreaCells2026(ALL_AREA_CELLS);
   };
   const loading2026 = !items2026;
   // Barra no mesmo padrão nos dois anos (rótulos acima dos campos, botões de 48px).
@@ -493,7 +494,12 @@ export function RoadmapView() {
                         key: `a-${g.key}`,
                         prefix: "Área:",
                         label: g.label,
-                        onRemove: () => setAreaCells2026((v) => v.filter((x) => !g.cells.includes(x))),
+                        // Remover a etiqueta "nenhuma" (ou a última combinação) volta para todas.
+                        onRemove: () =>
+                          setAreaCells2026((v) => {
+                            const next = v.filter((x) => !g.cells.includes(x));
+                            return g.cells.length === 0 || next.length === 0 ? ALL_AREA_CELLS : next;
+                          }),
                       })),
                     ]}
                   />
