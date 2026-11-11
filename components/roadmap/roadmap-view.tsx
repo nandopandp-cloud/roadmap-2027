@@ -23,7 +23,20 @@ import { useToast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/client/api";
 import { useInitiativeSelection } from "@/lib/client/selection";
 import { useCanEdit, useEffortTracks, useEvidenceTracks, useRoadmap } from "@/lib/client/store";
-import { effectiveStatus, platformKey2026, STATUS_2026_LABEL, TRANSVERSAL_2026, type Status2026 } from "@/lib/domain/roadmap-2026";
+import {
+  activeTracks,
+  effectiveStatus,
+  OWNER_TRACK_LABEL,
+  platformKey2026,
+  STATUS_2026_LABEL,
+  TRACK_STATUS_LABEL,
+  TRACK_STATUS_TRACKS,
+  TRACK_STATUSES_2026,
+  TRANSVERSAL_2026,
+  type Status2026,
+  type TrackStatus2026,
+  type TrackStatusTrack,
+} from "@/lib/domain/roadmap-2026";
 import { compareRoadmapOrder } from "@/lib/domain/roadmap-order";
 import type { Roadmap2026Item, RoadmapYear } from "@/lib/domain/types";
 
@@ -179,14 +192,38 @@ export function RoadmapView() {
   );
   // Status escolhidos no filtro (vazio = todos).
   const [status2026, setStatus2026] = useState<Status2026[]>([]);
+  // Áreas (Design, Engenharia, QA) e o andamento delas; vazio = todas.
+  const [area2026, setArea2026] = useState<TrackStatusTrack[]>([]);
+  const [areaStatus2026, setAreaStatus2026] = useState<TrackStatus2026[]>([]);
+  /** A iniciativa tem a área (não retirada) e, se pedido, o andamento escolhido em alguma das áreas consideradas. */
+  const matchesArea = (i: Roadmap2026Item, areas: TrackStatusTrack[], statuses: TrackStatus2026[]) => {
+    const active = activeTracks(i);
+    const considered = (areas.length ? areas : TRACK_STATUS_TRACKS).filter((t) => active.includes(t));
+    if (areas.length && !considered.length) return false;
+    return !statuses.length || considered.some((t) => statuses.includes(i.trackStatus[t]));
+  };
+  const matchesStatus = (i: Roadmap2026Item, statuses: Status2026[]) => !statuses.length || statuses.includes(effectiveStatus(i));
+  // Contagem de cada opção considerando os demais filtros.
   const statusCounts2026 = useMemo(() => {
     const counts: Record<string, number> = {};
-    for (const i of byPlatform2026) counts[effectiveStatus(i)] = (counts[effectiveStatus(i)] ?? 0) + 1;
+    for (const i of byPlatform2026.filter((x) => matchesArea(x, area2026, areaStatus2026))) counts[effectiveStatus(i)] = (counts[effectiveStatus(i)] ?? 0) + 1;
     return counts;
-  }, [byPlatform2026]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [byPlatform2026, area2026, areaStatus2026]);
+  const areaCounts2026 = useMemo(() => {
+    const base = byPlatform2026.filter((x) => matchesStatus(x, status2026));
+    return Object.fromEntries(TRACK_STATUS_TRACKS.map((t) => [t, base.filter((x) => matchesArea(x, [t], areaStatus2026)).length]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [byPlatform2026, status2026, areaStatus2026]);
+  const areaStatusCounts2026 = useMemo(() => {
+    const base = byPlatform2026.filter((x) => matchesStatus(x, status2026));
+    return Object.fromEntries(TRACK_STATUSES_2026.map((st) => [st, base.filter((x) => matchesArea(x, area2026, [st])).length]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [byPlatform2026, status2026, area2026]);
   const visible2026 = useMemo(
-    () => (status2026.length === 0 ? byPlatform2026 : byPlatform2026.filter((i) => status2026.includes(effectiveStatus(i)))),
-    [byPlatform2026, status2026],
+    () => byPlatform2026.filter((i) => matchesStatus(i, status2026) && matchesArea(i, area2026, areaStatus2026)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [byPlatform2026, status2026, area2026, areaStatus2026],
   );
   const loading2026 = !items2026;
   // Barra no mesmo padrão nos dois anos (rótulos acima dos campos, botões de 48px).
@@ -258,15 +295,42 @@ export function RoadmapView() {
       </div>
       {is2026 && (
         <div className="flex flex-col gap-1.5 text-[14px] font-semibold text-muted">
-          <span aria-hidden className="text-[13px]">Status</span>
+          <span aria-hidden className="text-[13px]">Status da iniciativa</span>
           <MultiSelect
             tall
             className="w-[230px]"
-            label="Status"
+            label="Status da iniciativa"
             value={status2026}
             onChange={(v) => setStatus2026(v as Status2026[])}
-            allCount={byPlatform2026.length}
+            allCount={Object.values(statusCounts2026).reduce((a, b) => a + b, 0)}
             options={STATUS_FILTER_2026.map((st) => ({ value: st, label: STATUS_2026_LABEL[st], count: statusCounts2026[st] ?? 0 }))}
+          />
+        </div>
+      )}
+      {is2026 && (
+        <div className="flex flex-col gap-1.5 text-[14px] font-semibold text-muted">
+          <span aria-hidden className="text-[13px]">Área</span>
+          <MultiSelect
+            tall
+            className="w-[210px]"
+            label="Área"
+            allLabel="Todas"
+            value={area2026}
+            onChange={(v) => setArea2026(v as TrackStatusTrack[])}
+            options={TRACK_STATUS_TRACKS.map((t) => ({ value: t, label: OWNER_TRACK_LABEL[t], count: areaCounts2026[t] ?? 0 }))}
+          />
+        </div>
+      )}
+      {is2026 && (
+        <div className="flex flex-col gap-1.5 text-[14px] font-semibold text-muted">
+          <span aria-hidden className="text-[13px]">Status da área</span>
+          <MultiSelect
+            tall
+            className="w-[230px]"
+            label="Status da área"
+            value={areaStatus2026}
+            onChange={(v) => setAreaStatus2026(v as TrackStatus2026[])}
+            options={TRACK_STATUSES_2026.map((st) => ({ value: st, label: TRACK_STATUS_LABEL[st], count: areaStatusCounts2026[st] ?? 0 }))}
           />
         </div>
       )}
@@ -432,11 +496,8 @@ export function RoadmapView() {
       <PageContainer className="pb-16 pt-6">
       {!fullscreen && (
         <>
-          <div className={cn("mt-7 flex flex-wrap gap-y-3", styled ? "items-end gap-x-4" : "items-center gap-x-6")}>
-            {controls}
-            <div className={cn("ml-auto flex flex-wrap items-center", "gap-2")}>
-              {actions2026}
-              {actions2027}
+          {(() => {
+            const fullscreenButton = (
               <Button
                 ref={fullscreenButtonRef}
                 className={cn(styled ? "h-12 rounded-xl px-4 text-[14.5px]" : "h-10")}
@@ -447,9 +508,34 @@ export function RoadmapView() {
               >
                 Tela cheia
               </Button>
-            </div>
-          </div>
-          <div className="mt-4">{is2026 ? legend : <div className="rounded-2xl border border-line bg-white/70 px-4 py-2.5">{legend}</div>}</div>
+            );
+            return is2026 ? (
+              <>
+                {/* 2026: filtros numa linha; legenda e ações na seguinte. */}
+                <div className="mt-7 flex flex-wrap items-end gap-x-4 gap-y-3">{controls}</div>
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <div className="min-w-0 flex-1">{legend}</div>
+                  <div className="ml-auto flex flex-wrap items-center gap-2">
+                    {actions2026}
+                    {fullscreenButton}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className={cn("mt-7 flex flex-wrap gap-y-3", styled ? "items-end gap-x-4" : "items-center gap-x-6")}>
+                  {controls}
+                  <div className="ml-auto flex flex-wrap items-center gap-2">
+                    {actions2027}
+                    {fullscreenButton}
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <div className="rounded-2xl border border-line bg-white/70 px-4 py-2.5">{legend}</div>
+                </div>
+              </>
+            );
+          })()}
         {!is2026 && load.status === "error" && (
           <div className="mt-6">
             <ErrorBanner message={load.message} action={<Button size="sm" onClick={() => void reload()}>Tentar novamente</Button>} />
