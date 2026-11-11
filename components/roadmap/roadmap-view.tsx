@@ -10,6 +10,7 @@ import { EffortDialog } from "@/components/roadmap/effort-dialog";
 import { RoadmapGantt } from "@/components/roadmap/roadmap-gantt";
 import { Delayed2026, Roadmap2026Board, Roadmap2026Gantt, Roadmap2026Legend, Roadmap2026Source } from "@/components/roadmap/roadmap-2026";
 import { Item2026Dialog } from "@/components/roadmap/roadmap-2026-dialog";
+import { YearSwitch } from "@/components/roadmap/year-switch";
 import { EFFORT_TONE } from "@/lib/client/tones";
 import { Button } from "@/components/ui/button";
 import { useFocusTrap } from "@/components/ui/dialog";
@@ -21,7 +22,6 @@ import { useToast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/client/api";
 import { useInitiativeSelection } from "@/lib/client/selection";
 import { useCanEdit, useEffortTracks, useEvidenceTracks, useRoadmap } from "@/lib/client/store";
-import { ROADMAP_YEARS } from "@/lib/domain/constants";
 import { platformKey2026, TRANSVERSAL_2026 } from "@/lib/domain/roadmap-2026";
 import { compareRoadmapOrder } from "@/lib/domain/roadmap-order";
 import type { Roadmap2026Item, RoadmapYear } from "@/lib/domain/types";
@@ -141,36 +141,8 @@ export function RoadmapView() {
     document.getElementById(`roadmap-view-${next}`)?.focus();
   };
 
-  const onYearKey = (e: KeyboardEvent<HTMLButtonElement>) => {
-    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) return;
-    e.preventDefault();
-    const next = ROADMAP_YEARS[(ROADMAP_YEARS.indexOf(year) + 1) % ROADMAP_YEARS.length];
-    setYear(next);
-    document.getElementById(`roadmap-year-${next}`)?.focus();
-  };
-
   const controls = (
     <>
-      <div role="radiogroup" aria-label="Ano do roadmap" className="flex rounded-xl border border-line bg-surface p-1">
-        {ROADMAP_YEARS.map((y) => (
-          <button
-            key={y}
-            id={`roadmap-year-${y}`}
-            role="radio"
-            type="button"
-            aria-checked={year === y}
-            tabIndex={year === y ? 0 : -1}
-            onClick={() => setYear(y)}
-            onKeyDown={onYearKey}
-            className={cn(
-              "inline-flex h-8 items-center rounded-lg px-3 text-[13.5px] font-black transition-colors",
-              year === y ? "bg-navy text-white" : "text-muted hover:text-ink",
-            )}
-          >
-            {y}
-          </button>
-        ))}
-      </div>
       <div role="tablist" aria-label="Visualização do roadmap" className="flex rounded-xl border border-line bg-surface p-1">
         {VIEWS.map(({ key, label, icon: Icon }) => (
           <button
@@ -325,8 +297,9 @@ export function RoadmapView() {
             : "Como as iniciativas se distribuem ao longo do ano. Quarters e prioridades são propostas até serem validados."
         }
       >
-        {canEdit && !is2026 && (
-          <div className="mt-8">
+        <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-4">
+          <YearSwitch year={year} onChange={setYear} />
+          {canEdit && !is2026 && (
             <Button
               variant="primary"
               className="h-[52px] rounded-[14px] px-6 text-[15px] shadow-[0_8px_20px_rgba(0,133,124,0.25)]"
@@ -335,8 +308,8 @@ export function RoadmapView() {
             >
               Nova iniciativa
             </Button>
-          </div>
-        )}
+          )}
+        </div>
       </PageHero>
       <PageContainer className="pb-16 pt-6">
       {!fullscreen && (
@@ -385,6 +358,7 @@ export function RoadmapView() {
             <div className="flex items-start gap-3">
               <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-5 gap-y-2.5">
                 <h2 className="text-[16px] font-black text-navy">{title}</h2>
+                <YearSwitch year={year} onChange={setYear} compact />
                 {controls}
               </div>
               <Button size="sm" variant="primary" className="mt-1.5 shrink-0" icon={<Minimize2 size={15} />} onClick={exitFullscreen} title="Sair da tela cheia (Esc)">
