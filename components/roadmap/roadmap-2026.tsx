@@ -22,9 +22,9 @@ import {
   cycle2026DatePosition,
   editableEnd,
   editableQuarter,
-  autoDone,
   effectiveStatus,
   lateReason,
+  statusReason,
   overdueWeeks,
   weekLabel,
   weekPosition,
@@ -281,7 +281,7 @@ export function Delayed2026({
           Atrasadas <span className="text-[#c9363b]">· {late.length}</span>
         </h2>
         <p className="text-[13px] text-muted">
-          Passaram do fim projetado sem conclusão ou foram marcadas como atrasadas.{canEdit ? " Clique para ajustar status e prazos." : ""}
+          Passaram do fim projetado sem que todas as frentes com responsável concluíssem.{canEdit ? " Clique para ajustar andamento e prazos." : ""}
         </p>
       </header>
       <ul className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">{late.map(row)}</ul>
@@ -473,9 +473,7 @@ function GanttRow2026({
     (work === "engenharia" && trackStatus.engineering === "concluido") ||
     (work === "qa" && trackStatus.qa === "concluido");
   const late = shown === "atrasada";
-  const autoLate = lateReason(item) === "prazo" && item.status !== "atrasada";
-  const end = editableEnd(item);
-  const done = item.status === "concluida";
+  const done = shown === "concluida";
 
   const commit = (segId: string, mode: DragState["mode"], delta: number) => {
     if (!delta) return;
@@ -533,12 +531,7 @@ function GanttRow2026({
         )}
         {/* Para quem edita, a coluna inteira (nome, status e responsáveis) abre a edição. */}
         {(() => {
-          const lateTitle =
-            autoLate && end !== null
-              ? `Atrasada automaticamente: o fim projetado (${weekLabel(end - 1)}) já passou.`
-              : autoDone(item)
-                ? "Concluída automaticamente: Design e Engenharia concluídos."
-                : undefined;
+          const lateTitle = statusReason(item);
           const body = (
             <>
               <span className="line-clamp-2 text-[13.5px] font-extrabold leading-snug text-navy" title={item.title}>

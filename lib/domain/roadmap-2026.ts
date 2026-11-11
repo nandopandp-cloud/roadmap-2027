@@ -263,34 +263,58 @@ export function ownersFromSheet(item: Pick<Roadmap2026Item, "design" | "engineer
   return { design: pick(item.design), engineering: pick(item.engineering), qa: pick(item.qa) };
 }
 
-/* ------------------------------ Atraso e conclusão automáticos ------------------------------ */
+/* ------------------------------ Status calculado ------------------------------ */
 
-/** O que as regras de status precisam de uma iniciativa (o andamento por frente é opcional). */
-type Item2026Status = Pick<Roadmap2026Item, "segments" | "status"> & { trackStatus?: Roadmap2026TrackStatus };
+/** O que as regras de status precisam de uma iniciativa. */
+type Item2026Status = Pick<Roadmap2026Item, "segments" | "status"> & { trackStatus?: Roadmap2026TrackStatus; owners?: Roadmap2026Owners };
 
-/** Concluída: status escolhido ou Design e Engenharia concluídos. */
-export function isDone(item: Item2026Status): boolean {
-  return item.status === "concluida" || (item.trackStatus?.design === "concluido" && item.trackStatus?.engineering === "concluido");
+/** Frentes envolvidas: as que têm responsável ou que já começaram. */
+export function involvedTracks(item: Item2026Status): TrackStatusTrack[] {
+  const statuses = item.trackStatus;
+  if (!statuses) return [];
+  return TRACK_STATUS_TRACKS.filter((t) => (item.owners?.[t]?.length ?? 0) > 0 || statuses[t] !== "nao_iniciado");
 }
 
-/** Concluída automaticamente: as duas frentes concluídas, sem o status geral marcado. */
-export const autoDone = (item: Item2026Status) => item.status !== "concluida" && isDone(item);
+/**
+ * Concluída só quando todas as frentes envolvidas (com responsável ou já começadas) estão
+ * concluídas. Sem nenhuma frente envolvida, vale a situação lida da planilha na importação.
+ */
+export function isDone(item: Item2026Status): boolean {
+  const tracks = involvedTracks(item);
+  if (!tracks.length) return item.status === "concluida";
+  return tracks.every((t) => item.trackStatus![t] === "concluido");
+}
 
 /**
- * Status exibido: a iniciativa cujo fim projetado já passou (e que não está concluída) aparece
- * como Atrasada automaticamente, até ser concluída ou ter as semanas estendidas. O status
- * gravado continua o escolhido pelo time.
+ * Status exibido, sempre calculado: Concluída (todas as frentes envolvidas concluídas); senão
+ * Atrasada se o fim projetado já passou; Em andamento se alguma frente já começou; Planejada.
  */
 export function effectiveStatus(item: Item2026Status, today = new Date()): Status2026 {
   if (isDone(item)) return "concluida";
-  return overdueWeeks(item, today) > 0 ? "atrasada" : item.status;
+  if (overdueWeeks(item, today) > 0) return "atrasada";
+  const started = item.trackStatus ? TRACK_STATUS_TRACKS.some((t) => item.trackStatus![t] !== "nao_iniciado") : false;
+  return started ? "andamento" : "planejada";
 }
 
-/** Por que a iniciativa está atrasada: prazo vencido (automático) ou status escolhido pelo time. */
-export function lateReason(item: Item2026Status, today = new Date()): "prazo" | "manual" | null {
-  if (isDone(item)) return null;
-  if (overdueWeeks(item, today) > 0) return "prazo";
-  return item.status === "atrasada" ? "manual" : null;
+/** Atrasada sempre pelo prazo (fim projetado vencido sem conclusão). */
+export function lateReason(item: Item2026Status, today = new Date()): "prazo" | null {
+  return !isDone(item) && overdueWeeks(item, today) > 0 ? "prazo" : null;
+}
+
+/** Explicação do status calculado (dica no Gantt e janela de edição). */
+export function statusReason(item: Item2026Status, today = new Date()): string {
+  const status = effectiveStatus(item, today);
+  const tracks = involvedTracks(item);
+  const label = (t: TrackStatusTrack) => ({ design: "Design", engineering: "Engenharia", qa: "QA" })[t];
+  const pending = tracks.filter((t) => item.trackStatus![t] !== "concluido").map(label);
+  const list = (names: string[]) => (names.length > 1 ? `${names.slice(0, -1).join(", ")} e ${names[names.length - 1]}` : names[0]);
+  if (status === "concluida")
+    return tracks.length ? `Concluída: ${list(tracks.map(label))} ${tracks.length > 1 ? "concluíram" : "concluiu"}.` : "Concluída na planilha (sem responsáveis nem andamento por frente).";
+  const end = editableEnd(item);
+  const waiting = pending.length ? ` Falta concluir: ${list(pending)}.` : "";
+  if (status === "atrasada") return `Atrasada: o fim projetado (${weekLabel(end! - 1)}) já passou.${waiting}`;
+  if (status === "andamento") return `Em andamento: alguma frente já começou e o prazo ainda não venceu.${waiting}`;
+  return "Planejada: nenhuma frente começou ainda.";
 }
 
 /* ------------------------------ Status por frente ------------------------------ */

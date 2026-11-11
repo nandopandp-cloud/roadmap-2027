@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, ArrowLeft, ArrowRight, Check, Minus, Plus, Trash2, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Minus, Plus, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Modal, useConfirm } from "@/components/ui/dialog";
@@ -8,7 +8,7 @@ import { Checkbox, SelectField, TextField } from "@/components/ui/fields";
 import { Select } from "@/components/ui/select";
 import { cn, formatDateTime, plural } from "@/lib/client/cn";
 import { STATUS_2026_TONE, WORK_2026_TONE } from "@/lib/client/tones";
-import { ROADMAP_2026_STATUSES, ROADMAP_2026_WEEK_COUNT, ROADMAP_2026_WORK } from "@/lib/domain/constants";
+import { ROADMAP_2026_WEEK_COUNT, ROADMAP_2026_WORK } from "@/lib/domain/constants";
 import {
   CYCLE_2026_MONTHS,
   OWNER_TRACK_DISCIPLINE,
@@ -18,10 +18,8 @@ import {
   TRACK_STATUS_LABEL,
   TRACK_STATUSES_2026,
   WEEKS_PER_MONTH,
-  autoDone,
-  editableEnd,
-  lateReason,
-  weekLabel,
+  effectiveStatus,
+  statusReason,
   WORK_2026_LABEL,
   weekPosition,
   workPeriod,
@@ -339,41 +337,30 @@ export function Item2026Dialog({
       }
     >
       <div className="flex flex-col gap-5">
-        <fieldset>
-          <legend className="mb-2 text-sm font-bold text-ink">Status</legend>
-          <div role="radiogroup" aria-label="Status" className="flex flex-wrap gap-2">
-            {ROADMAP_2026_STATUSES.map((st) => {
-              const tone = STATUS_2026_TONE[st];
-              const on = draft.status === st;
-              return (
-                <button
-                  key={st}
-                  type="button"
-                  role="radio"
-                  aria-checked={on}
-                  onClick={() => set("status", st)}
-                  className={cn("inline-flex h-9 items-center gap-2 rounded-full border-2 px-3.5 text-[13px] font-bold transition-colors", on ? "" : "border-line bg-surface text-muted hover:border-line-strong")}
-                  style={on ? { background: tone.bg, color: tone.fg, borderColor: tone.dot } : undefined}
-                >
+        {(() => {
+          // Status calculado com o que está na janela (andamento e responsáveis ainda não salvos).
+          const preview = { ...draft, owners, trackStatus: tracks };
+          const shown = effectiveStatus(preview);
+          const tone = STATUS_2026_TONE[shown];
+          return (
+            <section aria-labelledby="status-2026" className="rounded-xl border border-line bg-canvas px-4 py-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 id="status-2026" className="text-sm font-bold text-ink">
+                  Status
+                </h3>
+                <span className="inline-flex h-7 items-center gap-1.5 rounded-full px-3 text-[12.5px] font-bold" style={{ background: tone.bg, color: tone.fg }}>
                   <span aria-hidden className="h-2 w-2 rounded-full" style={{ background: tone.dot }} />
-                  {STATUS_2026_LABEL[st]}
-                </button>
-              );
-            })}
-          </div>
-          {autoDone({ ...draft, trackStatus: tracks }) && (
-            <p className="mt-2 flex gap-1.5 rounded-lg bg-[#e6f6ec] px-3 py-2 text-[12.5px] font-semibold text-[#1b6b3a]">
-              <Check size={14} className="mt-0.5 shrink-0" aria-hidden />
-              Design e Engenharia concluídos: a iniciativa conta como Concluída.
-            </p>
-          )}
-          {lateReason({ ...draft, trackStatus: tracks }) === "prazo" && editableEnd(draft) !== null && (
-            <p className="mt-2 flex gap-1.5 rounded-lg bg-[#fdecec] px-3 py-2 text-[12.5px] font-semibold text-[#a1262b]">
-              <AlertTriangle size={14} className="mt-0.5 shrink-0" aria-hidden />
-              O fim projetado ({weekLabel(editableEnd(draft)! - 1)}) já passou: a iniciativa aparece como Atrasada até ser concluída ou ter as semanas estendidas.
-            </p>
-          )}
-        </fieldset>
+                  {STATUS_2026_LABEL[shown]}
+                </span>
+                <span className="text-[12.5px] font-semibold text-muted">{statusReason(preview)}</span>
+              </div>
+              <p className="mt-1.5 text-xs text-subtle">
+                Calculado automaticamente: Concluída quando todas as frentes com responsável concluírem; senão Atrasada se o fim projetado passou, Em
+                andamento se alguma frente começou, ou Planejada.
+              </p>
+            </section>
+          );
+        })()}
 
         <div className="grid gap-4 sm:grid-cols-2">
           <TextField label="Nome" required value={draft.title} onChange={(e) => set("title", e.target.value)} className="sm:col-span-2" />
