@@ -668,14 +668,16 @@ export const roadmap2026WorkSchema = z
  * padrão vale também para campos ausentes de um `.partial()`, e a alteração parcial apagaria
  * o que não foi enviado.
  */
+const ownerIds = z.array(localId).max(10, "Escolha no máximo 10 pessoas por frente.");
+
+/** Responsáveis por frente: colaboradores de Times & Squads (ids). */
+export const roadmap2026OwnersSchema = z.object({ design: ownerIds, engineering: ownerIds, qa: ownerIds });
+
 const roadmap2026EditableFields = {
   title: required("O nome", 200),
   subtitle: text(200),
   platformId: localId.nullable(),
-  wave: z.enum(ROADMAP_2026_WAVES).nullable(),
-  design: text(120),
-  engineering: text(120),
-  qa: text(120),
+  owners: roadmap2026OwnersSchema,
   backlog: z.boolean(),
   status: z.enum(ROADMAP_2026_STATUSES),
   segments: z.array(roadmap2026WorkSchema).max(ROADMAP_2026_WEEK_COUNT),
@@ -687,6 +689,13 @@ export const roadmap2026ItemSchema = z.object({
   ...roadmap2026EditableFields,
   /** Squad exibido: nome da plataforma ou "Transversais" (texto da planilha na importação). */
   squad: required("O squad", 80),
+  /**
+   * Design, Engenheiro e QA como escritos na planilha ("Concluído", "Andamento - Renan"…).
+   * Só referência: quem responde pela iniciativa fica em `owners`.
+   */
+  design: text(120),
+  engineering: text(120),
+  qa: text(120),
   /** "Qtd Semana" e "ENG. PRECIFICAR" da planilha, mantidos como referência. */
   weeks: z.number().positive().max(52).nullable(),
   pricing: z.boolean(),

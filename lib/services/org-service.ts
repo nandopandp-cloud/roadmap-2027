@@ -2,6 +2,7 @@ import "server-only";
 import type { z } from "zod";
 import { EFFORT_TRACKS } from "@/lib/domain/constants";
 import { applyMove, createsCycle, nextSquadOrder, orderIn } from "@/lib/domain/org";
+import { OWNER_TRACKS_2026 } from "@/lib/domain/roadmap-2026";
 import type { Database, Person, PersonInput, Squad, SquadInput } from "@/lib/domain/types";
 import { getRepository } from "@/lib/repositories";
 import { DomainError, notFound } from "@/lib/services/errors";
@@ -99,7 +100,10 @@ function detach(db: Database, id: string) {
   reassignEffortOwner(db, id, null);
 }
 
-/** Responsável pelo esforço (Design/Engenharia) que sai do organograma: passa ao substituto ou fica "a definir". */
+/**
+ * Responsável pelo esforço (Design/Engenharia) e pelas iniciativas do Roadmap 2026 que sai do
+ * organograma: passa ao substituto ou fica "a definir".
+ */
 function reassignEffortOwner(db: Database, from: string, to: string | null) {
   db.initiatives = db.initiatives.map((i) => {
     const effort = { ...i.effort };
@@ -112,6 +116,12 @@ function reassignEffortOwner(db: Database, from: string, to: string | null) {
       }
     }
     return changed ? { ...i, effort } : i;
+  });
+  // Responsáveis do Roadmap 2026: o substituto assume a frente; sem substituto, a pessoa sai da lista.
+  db.roadmap2026 = db.roadmap2026.map((item) => {
+    if (!OWNER_TRACKS_2026.some((t) => item.owners[t].includes(from))) return item;
+    const swap = (ids: string[]) => [...new Set(ids.flatMap((x) => (x === from ? (to ? [to] : []) : [x])))];
+    return { ...item, owners: { design: swap(item.owners.design), engineering: swap(item.owners.engineering), qa: swap(item.owners.qa) } };
   });
 }
 

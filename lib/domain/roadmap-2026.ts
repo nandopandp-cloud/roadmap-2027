@@ -3,7 +3,7 @@
  * semanas S1–S4 de julho/2026 a abril/2027, períodos, situação e trimestre de entrega.
  */
 import { ROADMAP_2026_STATUSES, ROADMAP_2026_WEEK_COUNT, ROADMAP_2026_WORK } from "@/lib/domain/constants";
-import type { Roadmap2026ImportItem, Roadmap2026Item, Roadmap2026Phase, Roadmap2026Segment, Roadmap2026Wave, Roadmap2026Work } from "@/lib/domain/types";
+import type { Person, Roadmap2026ImportItem, Roadmap2026Item, Roadmap2026Owners, Roadmap2026Phase, Roadmap2026Segment, Roadmap2026Wave, Roadmap2026Work } from "@/lib/domain/types";
 
 /** Meses da planilha, na ordem das colunas (quatro semanas cada). */
 export const CYCLE_2026_MONTHS = [
@@ -157,14 +157,14 @@ export function initialStatus(item: Roadmap2026ImportItem): Status2026 {
  * viram o tipo de trabalho; verde, azul, vermelho e cinza diziam a situação (agora no status),
  * não o tipo — ficam como "Fase não informada".
  */
-export function importedItem(item: Roadmap2026ImportItem): Roadmap2026Item {
+export function importedItem(item: Roadmap2026ImportItem, people: Pick<Person, "id" | "name">[] = []): Roadmap2026Item {
   return {
     id: item.id,
     title: item.title,
     subtitle: "",
     squad: item.squad,
     platformId: item.platformId,
-    wave: item.wave,
+    owners: ownersFromSheet(item, people),
     weeks: item.weeks,
     design: item.design,
     engineering: item.engineering,
@@ -207,3 +207,47 @@ export function editableQuarter(item: Pick<Roadmap2026Item, "segments">): Cycle2
 
 /** "S3 de ago/26 a S1 de set/26 (3 semanas)" para uma fase editável. */
 export const workPeriod = (s: Pick<Roadmap2026Work, "start" | "weeks">) => segmentPeriod({ phase: "indefinido", start: s.start, weeks: s.weeks });
+
+/* ------------------------------ Responsáveis ------------------------------ */
+
+/** Frentes com responsáveis declarados em cada iniciativa do 2026. */
+export const OWNER_TRACKS_2026 = ["design", "engineering", "qa"] as const;
+export type OwnerTrack2026 = (typeof OWNER_TRACKS_2026)[number];
+export const OWNER_TRACK_LABEL: Record<OwnerTrack2026, string> = { design: "Design", engineering: "Engenharia", qa: "QA" };
+/** Função no organograma sugerida para cada frente (ordena a lista de pessoas). */
+export const OWNER_TRACK_DISCIPLINE = { design: "design", engineering: "engenharia", qa: "qa" } as const;
+export type Owners2026 = Roadmap2026Owners;
+export const EMPTY_OWNERS_2026: Owners2026 = { design: [], engineering: [], qa: [] };
+
+const norm = (v: string) =>
+  v
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .trim();
+
+/** Textos da planilha que descrevem situação, não pessoa. */
+const NOT_A_PERSON = /^(concluid[oa]|andamento|atrasad[oa]|sem designer|lead novo|despriorizad[oa]|nao iniciad[oa])$/;
+
+/**
+ * Pessoa escrita na planilha ("Renan", "Andamento - Renan") → colaborador de Times & Squads
+ * com esse primeiro nome (ou nome completo). Só associa quando há exatamente uma pessoa.
+ */
+export function matchSheetPerson(text: string, people: Pick<Person, "id" | "name">[]): string | null {
+  const name = norm(text.replace(/^andamento\s*-\s*/i, ""));
+  if (!name || NOT_A_PERSON.test(name)) return null;
+  const found = people.filter((p) => {
+    const full = norm(p.name);
+    return full === name || full.split(/\s+/)[0] === name;
+  });
+  return found.length === 1 ? found[0].id : null;
+}
+
+/** Responsáveis lidos dos textos da planilha (Design, Engenharia, QA). */
+export function ownersFromSheet(item: Pick<Roadmap2026Item, "design" | "engineering" | "qa">, people: Pick<Person, "id" | "name">[]): Owners2026 {
+  const pick = (text: string) => {
+    const id = matchSheetPerson(text, people);
+    return id ? [id] : [];
+  };
+  return { design: pick(item.design), engineering: pick(item.engineering), qa: pick(item.qa) };
+}

@@ -1,7 +1,8 @@
 "use client";
 
-import { AlertTriangle, Check, ChevronDown, CircleDashed, ExternalLink, GripVertical, Layers, Pencil } from "lucide-react";
-import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
+import { AlertTriangle, Check, ChevronDown, CircleDashed, Code2, ExternalLink, GripVertical, Layers, PenTool, Pencil, ShieldCheck, type LucideIcon } from "lucide-react";
+import { createContext, useContext, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
+import { Avatar } from "@/components/org/avatar";
 import { PLATFORM_GLYPHS } from "@/components/platforms/platform-icon";
 import { Badge } from "@/components/ui/badges";
 import { Skeleton } from "@/components/ui/feedback";
@@ -11,8 +12,9 @@ import { ROADMAP_2026_WEEK_COUNT, ROADMAP_2026_WORK } from "@/lib/domain/constan
 import {
   CYCLE_2026_MONTHS,
   CYCLE_2026_QUARTERS,
+  OWNER_TRACK_LABEL,
+  OWNER_TRACKS_2026,
   STATUS_2026_LABEL,
-  WAVE_2026_LABEL,
   WORK_2026_LABEL,
   cycle2026DatePosition,
   editableEnd,
@@ -21,20 +23,89 @@ import {
   weekLabel,
   weekPosition,
   workPeriod,
+  type OwnerTrack2026,
+  type Owners2026,
 } from "@/lib/domain/roadmap-2026";
-import type { Platform, Roadmap2026Item, Roadmap2026Source, Roadmap2026Work } from "@/lib/domain/types";
+import type { Person, Platform, Roadmap2026Item, Roadmap2026Source, Roadmap2026Work } from "@/lib/domain/types";
 
 const formatDate = (iso: string) => iso.split("-").reverse().join("/");
 const WEEKS = ROADMAP_2026_WEEK_COUNT;
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
 
-/** Pessoas e situação das frentes, como escritas na planilha. */
-function people(item: Roadmap2026Item) {
-  return [
-    ["Design", item.design],
-    ["Engenharia", item.engineering],
-    ["QA", item.qa],
-  ].filter(([, value]) => value) as [string, string][];
+/** Responsáveis de cada iniciativa (por frente) e o organograma, fornecidos pela página. */
+export const Owners2026Context = createContext<{ ownersOf: (item: Roadmap2026Item) => Owners2026; people: Person[] }>({
+  ownersOf: () => ({ design: [], engineering: [], qa: [] }),
+  people: [],
+});
+
+export const OWNER_TRACK_ICON: Record<OwnerTrack2026, LucideIcon> = { design: PenTool, engineering: Code2, qa: ShieldCheck };
+const OWNER_TRACK_COLOR: Record<OwnerTrack2026, string> = { design: "#C2307F", engineering: "#2160D9", qa: "#0B776F" };
+
+/** Pessoas responsáveis por frente, na ordem das frentes. */
+function useOwners(item: Roadmap2026Item) {
+  const { ownersOf, people } = useContext(Owners2026Context);
+  const owners = ownersOf(item);
+  return OWNER_TRACKS_2026.map((track) => ({
+    track,
+    people: owners[track].map((id) => people.find((p) => p.id === id)).filter((p): p is Person => !!p),
+  })).filter((g) => g.people.length > 0);
+}
+
+/**
+ * Avatares dos responsáveis, agrupados por frente (ícone de Design, Engenharia ou QA). Quem
+ * responde por mais de uma frente aparece em cada uma.
+ */
+function OwnerAvatars({ item, size = 24 }: { item: Roadmap2026Item; size?: number }) {
+  const groups = useOwners(item);
+  if (!groups.length) return <span className="text-[11.5px] font-semibold text-subtle">Sem responsável</span>;
+  const label = groups.map((g) => `${OWNER_TRACK_LABEL[g.track]}: ${g.people.map((p) => p.name).join(", ")}`).join(" · ");
+  return (
+    <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1" role="img" aria-label={`Responsáveis — ${label}`} title={label}>
+      {groups.map(({ track, people }) => {
+        const Icon = OWNER_TRACK_ICON[track];
+        return (
+          <span key={track} className="flex items-center gap-1">
+            <Icon size={13} aria-hidden style={{ color: OWNER_TRACK_COLOR[track] }} />
+            <span className="flex items-center">
+              {people.slice(0, 3).map((p, idx) => (
+                <Avatar key={p.id} person={p} size={size} className={idx > 0 ? "-ml-1.5" : undefined} />
+              ))}
+              {people.length > 3 && <span className="ml-1 text-[11px] font-bold text-muted">+{people.length - 3}</span>}
+            </span>
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
+/** Responsáveis por frente com nome (cards). */
+function OwnerRows({ item }: { item: Roadmap2026Item }) {
+  const groups = useOwners(item);
+  if (!groups.length) return <span className="text-[12.5px] font-semibold text-subtle">Sem responsável definido</span>;
+  return (
+    <span className="flex flex-col gap-1.5">
+      {groups.map(({ track, people }) => {
+        const Icon = OWNER_TRACK_ICON[track];
+        return (
+          <span key={track} className="flex items-center gap-2 text-[12.5px]">
+            <span className="flex w-[92px] shrink-0 items-center gap-1.5 font-bold text-muted">
+              <Icon size={13} aria-hidden style={{ color: OWNER_TRACK_COLOR[track] }} />
+              {OWNER_TRACK_LABEL[track]}
+            </span>
+            <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+              {people.map((p) => (
+                <span key={p.id} className="flex min-w-0 items-center gap-1.5">
+                  <Avatar person={p} size={22} />
+                  <span className="truncate font-semibold text-ink">{p.name.split(" ")[0]}</span>
+                </span>
+              ))}
+            </span>
+          </span>
+        );
+      })}
+    </span>
+  );
 }
 
 /** Squad da planilha com o ícone e a cor da plataforma correspondente. */
@@ -190,7 +261,6 @@ export function Delayed2026({
 /* ---------------------------------- Cards ---------------------------------- */
 
 function Card2026({ item, platforms, onEdit }: { item: Roadmap2026Item; platforms: Platform[]; onEdit?: () => void }) {
-  const who = people(item);
   const Tag = onEdit ? "button" : "article";
   return (
     <Tag
@@ -203,10 +273,7 @@ function Card2026({ item, platforms, onEdit }: { item: Roadmap2026Item; platform
     >
       <span className="flex flex-wrap items-center justify-between gap-2">
         <SquadPill item={item} platforms={platforms} />
-        <span className="flex items-center gap-2">
-          {item.wave && <span className="text-[11.5px] font-extrabold text-subtle">{WAVE_2026_LABEL[item.wave]}</span>}
-          {onEdit && <Pencil size={13} className="text-subtle" aria-hidden />}
-        </span>
+        {onEdit && <Pencil size={13} className="text-subtle" aria-hidden />}
       </span>
       <span>
         <span className="block text-[15.5px] font-extrabold leading-snug text-navy">{item.title}</span>
@@ -220,18 +287,7 @@ function Card2026({ item, platforms, onEdit }: { item: Roadmap2026Item; platform
           </Badge>
         )}
       </span>
-      {who.length > 0 && (
-        <span className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-0.5 text-[12.5px]">
-          {who.map(([label, value]) => (
-            <span key={label} className="contents">
-              <span className="font-bold text-muted">{label}</span>
-              <span className="truncate text-ink" title={value}>
-                {value}
-              </span>
-            </span>
-          ))}
-        </span>
-      )}
+      <OwnerRows item={item} />
       {item.segments.length > 0 && (
         <span className="flex flex-col gap-1 border-t border-line pt-2">
           {item.segments.map((s) => (
@@ -366,7 +422,6 @@ function GanttRow2026({
   onEdit: () => void;
   onChange: (item: Roadmap2026Item) => void;
 }) {
-  const who = people(item);
   const [drag, setDrag] = useState<DragState | null>(null);
   const active = drag;
   const weekPx = timelineWidth / WEEKS || 1;
@@ -417,14 +472,11 @@ function GanttRow2026({
           ) : (
             <StatusBadge2026 status={item.status} />
           )}
-          {item.wave && <span className="text-[11.5px] font-semibold text-muted">{WAVE_2026_LABEL[item.wave]}</span>}
-          {item.backlog && <span className="text-[11.5px] font-semibold text-muted">· Backlog</span>}
-        </span>
-        {who.length > 0 && (
-          <span className="truncate text-[11.5px] text-subtle" title={who.map(([l, v]) => `${l}: ${v}`).join(" · ")}>
-            {who.map(([l, v]) => `${l}: ${v}`).join(" · ")}
+          {item.backlog && <span className="text-[11.5px] font-semibold text-muted">Backlog</span>}
+          <span className="ml-auto">
+            <OwnerAvatars item={item} />
           </span>
-        )}
+        </span>
       </div>
       <div className="relative min-h-[72px]" style={TIMELINE_BG}>
         <TodayLine />

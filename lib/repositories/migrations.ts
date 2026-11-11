@@ -2,11 +2,11 @@ import { seedContext } from "@/data/seed/context";
 import { seedRoadmap2026 } from "@/data/seed/roadmap-2026";
 import { ILLUSTRATIONS } from "@/lib/domain/constants";
 import { inferDiscipline } from "@/lib/domain/org";
-import { importedItem } from "@/lib/domain/roadmap-2026";
+import { importedItem, ownersFromSheet } from "@/lib/domain/roadmap-2026";
 import { defaultRoadmapOrder } from "@/lib/domain/roadmap-order";
 import type { Database, IllustrationKey, Person, PlatformStrategy, ProposalSection, RepositoryLink, Roadmap2026Item, Squad, StrategyContext } from "@/lib/domain/types";
 
-export const SCHEMA_VERSION = 15;
+export const SCHEMA_VERSION = 16;
 
 /** Ilustrações removidas da biblioteca → equivalentes atuais. */
 const RENAMED_ILLUSTRATIONS: Record<string, IllustrationKey | null> = { cometa: null, lua: null };
@@ -34,6 +34,9 @@ const RENAMED_ILLUSTRATIONS: Record<string, IllustrationKey | null> = { cometa: 
  * v14 → v15: Roadmap 2026 editável (roadmap2026), importado da planilha do time (data/seed/roadmap-2026.ts)
  *            com status inicial lido das cores. No Postgres a importação é feita uma vez na tabela
  *            roadmap_2026 (ver postgres-repository.ts).
+ * v15 → v16: Roadmap 2026 com responsáveis por frente (owners: colaboradores de Times & Squads),
+ *            preenchidos a partir dos nomes escritos na planilha quando há uma única pessoa com
+ *            esse nome; o campo de onda (wave) deixa de existir.
  */
 export function migrateDatabase(db: Database): { db: Database; changed: boolean } {
   if ((db.schemaVersion ?? 1) >= SCHEMA_VERSION) return { db, changed: false };
@@ -57,23 +60,31 @@ export function migrateDatabase(db: Database): { db: Database; changed: boolean 
       effortEvidence: raw.effortEvidence ?? { design: [], engineering: [] },
     };
   });
+  const people = (db.people ?? []).map(migratePerson);
   return {
     db: {
       ...db,
       schemaVersion: SCHEMA_VERSION,
       initiatives,
       context: migrateContext(db.context),
-      people: (db.people ?? []).map(migratePerson),
+      people,
       squads: (db.squads ?? []).map(migrateSquad),
-      roadmap2026: db.roadmap2026 ?? importedRoadmap2026(),
+      roadmap2026: migrateRoadmap2026(db.roadmap2026 ?? importedRoadmap2026(people), people),
     },
     changed: true,
   };
 }
 
-/** Iniciativas do Roadmap 2026 como importadas da planilha. */
-export function importedRoadmap2026(): Roadmap2026Item[] {
-  return seedRoadmap2026.items.map(importedItem);
+/** Iniciativas do Roadmap 2026 como importadas da planilha (responsáveis lidos dos nomes escritos nela). */
+export function importedRoadmap2026(people: Person[] = []): Roadmap2026Item[] {
+  return seedRoadmap2026.items.map((item) => importedItem(item, people));
+}
+
+type LegacyRoadmap2026Item = Omit<Roadmap2026Item, "owners"> & { owners?: Roadmap2026Item["owners"]; wave?: unknown };
+
+/** v16: responsáveis por frente (da planilha, quando ainda não definidos) e sem o campo de onda. */
+function migrateRoadmap2026(items: LegacyRoadmap2026Item[], people: Person[]): Roadmap2026Item[] {
+  return items.map(({ wave: _wave, ...item }) => ({ ...item, owners: item.owners ?? ownersFromSheet(item, people) }));
 }
 
 type LegacyRepository = Omit<RepositoryLink, "branches"> & { branches?: RepositoryLink["branches"]; branchUrl?: string };

@@ -8,7 +8,7 @@ import { PageContainer, PageHero } from "@/components/layout/page-header";
 import { RoadmapBoard } from "@/components/roadmap/roadmap-board";
 import { EffortDialog } from "@/components/roadmap/effort-dialog";
 import { RoadmapGantt } from "@/components/roadmap/roadmap-gantt";
-import { Delayed2026, Roadmap2026Board, Roadmap2026Gantt, Roadmap2026Legend, Roadmap2026Source } from "@/components/roadmap/roadmap-2026";
+import { Delayed2026, Owners2026Context, Roadmap2026Board, Roadmap2026Gantt, Roadmap2026Legend, Roadmap2026Source } from "@/components/roadmap/roadmap-2026";
 import { Item2026Dialog } from "@/components/roadmap/roadmap-2026-dialog";
 import { YearSwitch } from "@/components/roadmap/year-switch";
 import { EFFORT_TONE } from "@/lib/client/tones";
@@ -82,6 +82,8 @@ export function RoadmapView() {
     }
   };
   const change2026 = (item: Roadmap2026Item) => void save2026(item.id, { segments: item.segments });
+  // Responsáveis de cada iniciativa (colaboradores de Times & Squads), para os avatares.
+  const owners2026 = useMemo(() => ({ ownersOf: (item: Roadmap2026Item) => item.owners, people: data.people }), [data.people]);
   const [platform, setPlatform] = useState("todas");
   const [showMilestones, setShowMilestones] = useState(true);
   const [showEffort, setShowEffort] = useState(true);
@@ -287,7 +289,7 @@ export function RoadmapView() {
   );
 
   return (
-    <>
+    <Owners2026Context.Provider value={owners2026}>
       <PageHero
         crumbs={[{ label: "Roadmap" }]}
         title={title}
@@ -376,10 +378,12 @@ export function RoadmapView() {
           key={editingItem2026.id}
           item={editingItem2026}
           platforms={data.platforms}
+          owners={editingItem2026.owners}
+          people={data.people}
           onClose={() => setEditing2026(null)}
-          onSave={async (item) => {
-            const { title, subtitle, platformId, wave, design, engineering, qa, backlog, status, segments } = item;
-            const ok = await save2026(item.id, { title, subtitle, platformId, wave, design, engineering, qa, backlog, status, segments }, "Alterações salvas.");
+          onSave={async (item, owners) => {
+            const { title, subtitle, platformId, backlog, status, segments } = item;
+            const ok = await save2026(item.id, { title, subtitle, platformId, owners, backlog, status, segments }, "Alterações salvas.");
             if (ok) setEditing2026(null);
             return ok;
           }}
@@ -414,6 +418,6 @@ export function RoadmapView() {
         />
       )}
     </PageContainer>
-    </>
+    </Owners2026Context.Provider>
   );
 }

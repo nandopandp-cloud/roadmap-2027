@@ -8,18 +8,24 @@ import { Checkbox, SelectField, TextField } from "@/components/ui/fields";
 import { Select } from "@/components/ui/select";
 import { cn, formatDateTime, plural } from "@/lib/client/cn";
 import { STATUS_2026_TONE, WORK_2026_TONE } from "@/lib/client/tones";
-import { ROADMAP_2026_STATUSES, ROADMAP_2026_WAVES, ROADMAP_2026_WEEK_COUNT, ROADMAP_2026_WORK } from "@/lib/domain/constants";
+import { ROADMAP_2026_STATUSES, ROADMAP_2026_WEEK_COUNT, ROADMAP_2026_WORK } from "@/lib/domain/constants";
 import {
   CYCLE_2026_MONTHS,
+  OWNER_TRACK_DISCIPLINE,
+  OWNER_TRACK_LABEL,
+  OWNER_TRACKS_2026,
   STATUS_2026_LABEL,
-  WAVE_2026_LABEL,
   WEEKS_PER_MONTH,
   WORK_2026_LABEL,
   weekPosition,
   workPeriod,
+  type OwnerTrack2026,
+  type Owners2026,
   type Work2026,
 } from "@/lib/domain/roadmap-2026";
-import type { Platform, Roadmap2026Item, Roadmap2026Wave, Roadmap2026Work } from "@/lib/domain/types";
+import type { Person, Platform, Roadmap2026Item, Roadmap2026Work } from "@/lib/domain/types";
+import { Avatar } from "@/components/org/avatar";
+import { OWNER_TRACK_ICON } from "@/components/roadmap/roadmap-2026";
 
 const WEEKS = ROADMAP_2026_WEEK_COUNT;
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
@@ -133,19 +139,72 @@ function SegmentRow({
   );
 }
 
+/** Pessoas responsáveis por uma frente: escolhidas no organograma, com avatar. */
+function OwnerPicker({ track, people, value, onChange }: { track: OwnerTrack2026; people: Person[]; value: string[]; onChange: (ids: string[]) => void }) {
+  const Icon = OWNER_TRACK_ICON[track];
+  const chosen = value.map((id) => people.find((p) => p.id === id)).filter((p): p is Person => !!p);
+  const discipline = OWNER_TRACK_DISCIPLINE[track];
+  // Quem tem a função da frente aparece primeiro; depois as demais pessoas.
+  const options = people
+    .filter((p) => !value.includes(p.id))
+    .sort((a, b) => Number(b.discipline === discipline) - Number(a.discipline === discipline) || a.name.localeCompare(b.name, "pt-BR"));
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-surface p-2.5">
+      <span className="flex w-[104px] shrink-0 items-center gap-1.5 text-[13px] font-bold text-ink">
+        <Icon size={15} aria-hidden className="text-muted" />
+        {OWNER_TRACK_LABEL[track]}
+      </span>
+      {chosen.map((p) => (
+        <span key={p.id} className="inline-flex items-center gap-1.5 rounded-full border border-line bg-canvas py-0.5 pl-0.5 pr-1 text-[13px] font-semibold text-ink">
+          <Avatar person={p} size={24} />
+          {p.name}
+          <button
+            type="button"
+            onClick={() => onChange(value.filter((id) => id !== p.id))}
+            aria-label={`Remover ${p.name} de ${OWNER_TRACK_LABEL[track]}`}
+            className="flex h-6 w-6 items-center justify-center rounded-full text-subtle hover:bg-[#fdecec] hover:text-[#c42b3a]"
+          >
+            <X size={13} />
+          </button>
+        </span>
+      ))}
+      {options.length > 0 ? (
+        <span className="w-[210px]">
+          <Select value="" onChange={(id) => id && onChange([...value, id])} aria-label={`Adicionar responsável de ${OWNER_TRACK_LABEL[track]}`} className={control}>
+            <option value="">{chosen.length ? "Adicionar outra pessoa…" : "Escolher pessoa…"}</option>
+            {options.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+                {p.role ? ` · ${p.role}` : ""}
+              </option>
+            ))}
+          </Select>
+        </span>
+      ) : (
+        !people.length && <span className="text-[12.5px] text-muted">Cadastre as pessoas em Times &amp; Squads.</span>
+      )}
+    </div>
+  );
+}
+
 /** Edição de uma iniciativa do Roadmap 2026: status, identificação, responsáveis e semanas. */
 export function Item2026Dialog({
   item,
   platforms,
+  owners: initialOwners,
+  people,
   onClose,
   onSave,
   onRemove,
 }: {
   item: Roadmap2026Item;
   platforms: Platform[];
+  /** Responsáveis atuais e o organograma (Times & Squads). */
+  owners: Owners2026;
+  people: Person[];
   onClose: () => void;
   /** Devolve se salvou (em caso de erro a janela continua aberta). */
-  onSave: (item: Roadmap2026Item) => Promise<boolean>;
+  onSave: (item: Roadmap2026Item, owners: Owners2026) => Promise<boolean>;
   onRemove: (id: string) => Promise<boolean>;
 }) {
   const confirm = useConfirm();
@@ -153,7 +212,16 @@ export function Item2026Dialog({
   const [busy, setBusy] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const set = <K extends keyof Roadmap2026Item>(key: K, value: Roadmap2026Item[K]) => setDraft((d) => ({ ...d, [key]: value }));
-  const dirty = JSON.stringify(draft) !== JSON.stringify(item);
+  // Pessoas que saíram de Times & Squads não aparecem nem são reenviadas.
+  const [start] = useState(() => {
+    const known = (ids: string[]) => ids.filter((id) => people.some((p) => p.id === id));
+    return { design: known(initialOwners.design), engineering: known(initialOwners.engineering), qa: known(initialOwners.qa) };
+  });
+  const [owners, setOwners] = useState(start);
+  const dirty = JSON.stringify(draft) !== JSON.stringify(item) || JSON.stringify(owners) !== JSON.stringify(start);
+  const sheetText = OWNER_TRACKS_2026.filter((t) => item[t])
+    .map((t) => `${OWNER_TRACK_LABEL[t]} “${item[t]}”`)
+    .join(" · ");
   const squads = [...platforms.map((p) => ({ value: p.id, label: p.name })), { value: "", label: "Transversais" }];
 
   const close = async () => {
@@ -191,7 +259,7 @@ export function Item2026Dialog({
             disabled={!dirty || !draft.title.trim()}
             onClick={async () => {
               setBusy(true);
-              if (!(await onSave({ ...draft, title: draft.title.trim(), subtitle: draft.subtitle.trim() }))) setBusy(false);
+              if (!(await onSave({ ...draft, title: draft.title.trim(), subtitle: draft.subtitle.trim() }, owners))) setBusy(false);
             }}
           >
             Salvar
@@ -248,21 +316,16 @@ export function Item2026Dialog({
               </option>
             ))}
           </SelectField>
-          <SelectField label="Onda" value={draft.wave ?? ""} onChange={(e) => set("wave", (e.target.value || null) as Roadmap2026Wave | null)}>
-            <option value="">Sem onda</option>
-            {ROADMAP_2026_WAVES.map((w) => (
-              <option key={w} value={w}>
-                {WAVE_2026_LABEL[w]}
-              </option>
-            ))}
-          </SelectField>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-3">
-          <TextField label="Design" value={draft.design} onChange={(e) => set("design", e.target.value)} />
-          <TextField label="Engenharia" value={draft.engineering} onChange={(e) => set("engineering", e.target.value)} />
-          <TextField label="QA" value={draft.qa} onChange={(e) => set("qa", e.target.value)} />
-        </div>
+        <fieldset className="flex flex-col gap-3">
+          <legend className="mb-1 text-sm font-bold text-ink">Responsáveis</legend>
+          <p className="-mt-1 text-xs text-muted">Quem está tocando a iniciativa em cada frente. As pessoas vêm de Times &amp; Squads.</p>
+          {OWNER_TRACKS_2026.map((track) => (
+            <OwnerPicker key={track} track={track} people={people} value={owners[track]} onChange={(ids) => setOwners((o) => ({ ...o, [track]: ids }))} />
+          ))}
+          {sheetText && <p className="text-xs text-subtle">Na planilha: {sheetText}.</p>}
+        </fieldset>
         <Checkbox label="Backlog" hint="Ainda não priorizada para execução." checked={draft.backlog} onChange={(v) => set("backlog", v)} />
 
         <section aria-labelledby="fases-2026" className="flex flex-col gap-2.5">

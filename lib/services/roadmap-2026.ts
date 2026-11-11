@@ -2,8 +2,8 @@ import "server-only";
 import { seedRoadmap2026 } from "@/data/seed/roadmap-2026";
 import type { Viewer } from "@/lib/auth/session";
 import { canPlanRoadmap2026For } from "@/lib/domain/effort-access";
-import { STATUS_2026_LABEL, WAVE_2026_LABEL, WORK_2026_LABEL, workPeriod } from "@/lib/domain/roadmap-2026";
-import type { Database, Roadmap2026, Roadmap2026Item } from "@/lib/domain/types";
+import { OWNER_TRACK_LABEL, OWNER_TRACKS_2026, STATUS_2026_LABEL, WORK_2026_LABEL, workPeriod } from "@/lib/domain/roadmap-2026";
+import type { Database, Person, Roadmap2026, Roadmap2026Item } from "@/lib/domain/types";
 import { getRepository, storageKind } from "@/lib/repositories";
 import { READ_ONLY_MESSAGE } from "@/lib/repositories/json-file-repository";
 import { DomainError, notFound } from "@/lib/services/errors";
@@ -44,20 +44,17 @@ async function guardStorage<T>(fn: () => Promise<T>): Promise<T> {
 const quoted = (v: string) => (v ? `“${v}”` : "vazio");
 
 /** Mudanças relevantes entre duas versões de uma iniciativa do 2026, para o histórico. */
-export function describe2026Changes(before: Roadmap2026Item, after: Roadmap2026Item): string[] {
+export function describe2026Changes(before: Roadmap2026Item, after: Roadmap2026Item, people: Pick<Person, "id" | "name">[] = []): string[] {
   const out: string[] = [];
   if (before.status !== after.status) out.push(`Status: ${STATUS_2026_LABEL[before.status]} → ${STATUS_2026_LABEL[after.status]}.`);
   if (before.title !== after.title) out.push(`Nome alterado de “${before.title}” para “${after.title}”.`);
   if (before.subtitle !== after.subtitle) out.push(after.subtitle ? `Subtítulo: ${quoted(after.subtitle)}.` : "Subtítulo removido.");
   if (before.squad !== after.squad) out.push(`Squad: ${before.squad} → ${after.squad}.`);
-  if (before.wave !== after.wave)
-    out.push(`Onda: ${before.wave ? WAVE_2026_LABEL[before.wave] : "sem onda"} → ${after.wave ? WAVE_2026_LABEL[after.wave] : "sem onda"}.`);
-  for (const [key, label] of [
-    ["design", "Design"],
-    ["engineering", "Engenharia"],
-    ["qa", "QA"],
-  ] as const) {
-    if (before[key] !== after[key]) out.push(`${label}: ${quoted(before[key])} → ${quoted(after[key])}.`);
+  const names = (ids: string[]) => (ids.length ? ids.map((id) => people.find((p) => p.id === id)?.name ?? "pessoa removida").join(", ") : "ninguém");
+  for (const track of OWNER_TRACKS_2026) {
+    const a = before.owners[track];
+    const b = after.owners[track];
+    if (a.length !== b.length || a.some((id, i) => id !== b[i])) out.push(`Responsáveis de ${OWNER_TRACK_LABEL[track]}: ${names(a)} → ${names(b)}.`);
   }
   if (before.backlog !== after.backlog) out.push(after.backlog ? "Marcada como backlog." : "Saiu do backlog.");
   for (const seg of after.segments) {
@@ -90,12 +87,19 @@ export async function patchRoadmap2026Item(id: string, data: unknown, viewer: Vi
       if (idx < 0) throw notFound("Iniciativa do Roadmap 2026");
       const before = db.roadmap2026[idx];
       const next: Roadmap2026Item = { ...before, ...patch };
+      if (patch.owners) {
+        // Só colaboradores de Times & Squads, sem repetição na mesma frente.
+        const known = new Set(db.people.map((p) => p.id));
+        const unknown = OWNER_TRACKS_2026.flatMap((t) => patch.owners![t]).filter((pid) => !known.has(pid));
+        if (unknown.length) throw new DomainError(400, "Escolha pessoas cadastradas em Times & Squads.", { owners: "Pessoa não encontrada no organograma." });
+        next.owners = { design: [...new Set(patch.owners.design)], engineering: [...new Set(patch.owners.engineering)], qa: [...new Set(patch.owners.qa)] };
+      }
       if (patch.platformId !== undefined && patch.platformId !== before.platformId) {
         const platform = patch.platformId ? db.platforms.find((p) => p.id === patch.platformId) : null;
         if (patch.platformId && !platform) throw new DomainError(400, "Squad inválido.", { platformId: "Escolha um squad da lista." });
         next.squad = platform ? platform.name : "Transversais";
       }
-      const changes = describe2026Changes(before, next);
+      const changes = describe2026Changes(before, next, db.people);
       if (!changes.length) return before;
       const at = new Date().toISOString();
       next.history = [...changes.map((c) => historyEntry(`${c.slice(0, -1)} (por ${viewer.name}).`, at)), ...before.history].slice(0, 500);

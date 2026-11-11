@@ -37,6 +37,7 @@ import type {
   roadmap2026ImportItemSchema,
   roadmap2026ImportSchema,
   roadmap2026ItemSchema,
+  roadmap2026OwnersSchema,
   roadmap2026SegmentSchema,
   roadmap2026SourceSchema,
   roadmap2026WorkSchema,
@@ -129,6 +130,7 @@ export type Roadmap2026ImportItem = z.infer<typeof roadmap2026ImportItemSchema>;
 export type Roadmap2026Import = z.infer<typeof roadmap2026ImportSchema>;
 export type Roadmap2026Source = z.infer<typeof roadmap2026SourceSchema>;
 export type Roadmap2026Work = z.infer<typeof roadmap2026WorkSchema>;
+export type Roadmap2026Owners = z.infer<typeof roadmap2026OwnersSchema>;
 /** Iniciativa do Roadmap 2026 (editável, gravada no banco). */
 export type Roadmap2026Item = z.infer<typeof roadmap2026ItemSchema>;
 /** Resposta de GET /api/roadmap/2026. */
