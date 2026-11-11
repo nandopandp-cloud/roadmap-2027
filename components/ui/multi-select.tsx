@@ -54,7 +54,9 @@ export function MultiSelect({
     ? withCount(allLabel, allCount)
     : chosen.length === 1
       ? withCount(chosen[0].label, chosen[0].count)
-      : `${chosen.map((o) => o.label).join(", ")} (${chosen.reduce((n, o) => n + (o.count ?? 0), 0)})`;
+      : `${chosen[0].label} +${chosen.length - 1} (${chosen.reduce((n, o) => n + (o.count ?? 0), 0)})`;
+  // Nome completo da seleção (rótulo acessível e dica): o campo mostra a versão curta.
+  const fullSummary = chosen.length > 1 ? `${chosen.map((o) => o.label).join(", ")} (${chosen.reduce((n, o) => n + (o.count ?? 0), 0)})` : summary;
 
   const focusItem = (step: number) => {
     const items = [...(ref.current?.querySelectorAll<HTMLElement>("[data-multi-item]") ?? [])];
@@ -100,7 +102,8 @@ export function MultiSelect({
     <div ref={ref} className={cn("relative", className)}>
       <button
         type="button"
-        aria-label={`${label}: ${summary}`}
+        aria-label={`${label}: ${fullSummary}`}
+        title={fullSummary}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? listId : undefined}

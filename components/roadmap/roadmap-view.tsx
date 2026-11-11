@@ -2,7 +2,7 @@
 
 import { MultiSelect } from "@/components/ui/multi-select";
 import { Select } from "@/components/ui/select";
-import { ChartGantt, Flag, GitFork, GripVertical, LayoutGrid, Maximize2, Minimize2, Plus } from "lucide-react";
+import { ChartGantt, Flag, GitFork, GripVertical, LayoutGrid, Maximize2, Minimize2, Plus, Timer } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { PageContainer, PageHero } from "@/components/layout/page-header";
@@ -189,6 +189,8 @@ export function RoadmapView() {
     [byPlatform2026, status2026],
   );
   const loading2026 = !items2026;
+  // Barra no mesmo padrão nos dois anos (rótulos acima dos campos, botões de 48px).
+  const styled = true;
   const ready = is2026 ? !!roadmap2026 && roadmap2026.items.length > 0 : load.status === "ready" && data.initiatives.length > 0;
   const title = `Roadmap ${year}`;
   const visible = useMemo(
@@ -210,7 +212,7 @@ export function RoadmapView() {
       <div
         role="tablist"
         aria-label="Visualização do roadmap"
-        className={cn("flex rounded-xl border border-line bg-surface p-1", is2026 && "h-12 items-center shadow-[0_1px_3px_rgba(23,27,77,0.04)]")}
+        className={cn("flex rounded-xl border border-line bg-surface p-1", styled && "h-12 items-center shadow-[0_1px_3px_rgba(23,27,77,0.04)]")}
       >
         {VIEWS.map(({ key, label, icon: Icon }) => (
           <button
@@ -225,7 +227,7 @@ export function RoadmapView() {
             onKeyDown={onViewKey}
             className={cn(
               "inline-flex items-center gap-1.5 rounded-lg font-bold transition-colors",
-              is2026 ? "h-10 px-3.5 text-[14.5px]" : "h-8 px-3 text-[13.5px]",
+              styled ? "h-10 px-3.5 text-[14.5px]" : "h-8 px-3 text-[13.5px]",
               view === key ? "bg-brand-soft text-brand" : "text-muted hover:text-ink",
             )}
           >
@@ -234,16 +236,16 @@ export function RoadmapView() {
           </button>
         ))}
       </div>
-      {is2026 && <span aria-hidden className="hidden h-8 w-px self-end bg-line-strong sm:mb-2 sm:block" />}
-      <div className={cn("flex text-[14px] font-semibold text-muted", is2026 ? "flex-col gap-1.5" : "items-center gap-2")}>
-        <span aria-hidden className={cn(is2026 && "text-[13px]")}>Plataforma</span>
+      {styled && <span aria-hidden className="hidden h-8 w-px self-end bg-line-strong sm:mb-2 sm:block" />}
+      <div className={cn("flex text-[14px] font-semibold text-muted", styled ? "flex-col gap-1.5" : "items-center gap-2")}>
+        <span aria-hidden className={cn(styled && "text-[13px]")}>Plataforma</span>
         <Select
           value={platformFilter}
           onChange={setPlatform}
           aria-label="Plataforma"
           className={cn(
             "rounded-xl border border-line bg-surface px-3 text-[14px] font-semibold text-ink hover:border-line-strong focus:border-violet focus:outline-none focus:ring-4 focus:ring-[#6045d8]/12",
-            is2026 ? "h-12 min-w-[190px] px-4 text-[15px] shadow-[0_1px_3px_rgba(23,27,77,0.04)]" : "h-10 min-w-[180px]",
+            styled ? "h-12 min-w-[190px] px-4 text-[15px] shadow-[0_1px_3px_rgba(23,27,77,0.04)]" : "h-10 min-w-[180px]",
           )}
         >
           <option value="todas">Todas</option>
@@ -259,7 +261,7 @@ export function RoadmapView() {
           <span aria-hidden className="text-[13px]">Status</span>
           <MultiSelect
             tall
-            className="min-w-[210px]"
+            className="w-[230px]"
             label="Status"
             value={status2026}
             onChange={(v) => setStatus2026(v as Status2026[])}
@@ -268,12 +270,29 @@ export function RoadmapView() {
           />
         </div>
       )}
-      {!is2026 && <Checkbox label="Mostrar marcos" checked={showMilestones} onChange={setShowMilestones} />}
-      {!is2026 && view === "gantt" && <Checkbox label="Mostrar esforço" checked={showEffort} onChange={setShowEffort} />}
     </>
   );
 
   /** Ações do 2026 (frentes e atrasadas), alinhadas com a tela cheia. */
+  /** Liga/desliga no padrão dos botões do 2026 (Marcos e Esforço do 2027). */
+  const toggle = (label: string, on: boolean, set: (v: boolean) => void, Icon: typeof Flag, title: string) => (
+    <Button
+      className={cn("h-12 rounded-xl px-4 text-[14.5px]", on && "border-violet bg-brand-soft text-brand hover:border-violet hover:bg-brand-soft")}
+      icon={<Icon size={16} />}
+      aria-pressed={on}
+      title={title}
+      onClick={() => set(!on)}
+    >
+      {label}
+    </Button>
+  );
+  const actions2027 = !is2026 && (
+    <>
+      {toggle("Marcos", showMilestones, setShowMilestones, Flag, "Mostrar ou ocultar os marcos")}
+      {view === "gantt" && toggle("Esforço", showEffort, setShowEffort, Timer, "Mostrar ou ocultar o esforço estimado de Design e Engenharia")}
+    </>
+  );
+
   const actions2026 = is2026 && (
     <>
       <TrackToggle expanded={showTracks} onChange={toggleTracks} />
@@ -413,13 +432,14 @@ export function RoadmapView() {
       <PageContainer className="pb-16 pt-6">
       {!fullscreen && (
         <>
-          <div className={cn("mt-7 flex flex-wrap gap-y-3", is2026 ? "items-end gap-x-4" : "items-center gap-x-6")}>
+          <div className={cn("mt-7 flex flex-wrap gap-y-3", styled ? "items-end gap-x-4" : "items-center gap-x-6")}>
             {controls}
             <div className={cn("ml-auto flex flex-wrap items-center", "gap-2")}>
               {actions2026}
+              {actions2027}
               <Button
                 ref={fullscreenButtonRef}
-                className={cn(is2026 ? "h-12 rounded-xl px-4 text-[14.5px]" : "h-10")}
+                className={cn(styled ? "h-12 rounded-xl px-4 text-[14.5px]" : "h-10")}
                 icon={<Maximize2 size={15} />}
                 disabled={!ready}
                 title="Ver o roadmap ocupando a tela inteira"
@@ -429,7 +449,7 @@ export function RoadmapView() {
               </Button>
             </div>
           </div>
-          <div className={is2026 ? "mt-4" : "mt-3"}>{legend}</div>
+          <div className="mt-4">{is2026 ? legend : <div className="rounded-2xl border border-line bg-white/70 px-4 py-2.5">{legend}</div>}</div>
         {!is2026 && load.status === "error" && (
           <div className="mt-6">
             <ErrorBanner message={load.message} action={<Button size="sm" onClick={() => void reload()}>Tentar novamente</Button>} />
@@ -460,7 +480,7 @@ export function RoadmapView() {
                 <h2 className="text-[16px] font-black text-navy">{title}</h2>
                 <YearSwitch year={year} onChange={setYear} compact />
                 {controls}
-                {actions2026 && <div className="flex items-center gap-2">{actions2026}</div>}
+                {(actions2026 || actions2027) && <div className="flex items-center gap-2">{actions2026 || actions2027}</div>}
               </div>
               <Button size="sm" variant="primary" className="mt-1.5 shrink-0" icon={<Minimize2 size={15} />} onClick={exitFullscreen} title="Sair da tela cheia (Esc)">
                 Sair
