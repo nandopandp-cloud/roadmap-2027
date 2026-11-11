@@ -32,8 +32,8 @@ import { readSheet } from "@/lib/services/xlsx-reader";
  */
 
 const SHEET_NAME = "Cenário atual";
-/** Intervalo mínimo entre leituras da planilha (as páginas pedem a sincronização ao abrir). */
-const MIN_INTERVAL_MS = 2 * 60_000;
+/** Intervalo mínimo entre leituras da planilha (a tela aberta pede a sincronização a cada 20 s). */
+const MIN_INTERVAL_MS = 15_000;
 const FETCH_TIMEOUT_MS = 8_000;
 
 const sheetId = /\/d\/([A-Za-z0-9_-]+)/.exec(seedRoadmap2026.source.url)?.[1];
@@ -162,7 +162,7 @@ async function run(): Promise<SyncResult> {
   }
 }
 
-/** Sincroniza se a última leitura tem mais de 2 minutos (chamada ao abrir o Roadmap 2026). */
+/** Sincroniza se a última leitura tem mais de 15 s (chamada ao abrir o Roadmap 2026 e a cada 20 s com ele aberto). */
 export async function syncRoadmap2026IfStale(lastSyncAt: string): Promise<SyncResult | null> {
   const last = Date.parse(lastSyncAt);
   if (Number.isFinite(last) && Date.now() - last < MIN_INTERVAL_MS) return null;

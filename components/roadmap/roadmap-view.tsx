@@ -34,6 +34,7 @@ import {
   type Status2026,
 } from "@/lib/domain/roadmap-2026";
 import { compareRoadmapOrder } from "@/lib/domain/roadmap-order";
+import { ROADMAP_2026_STATUSES } from "@/lib/domain/constants";
 import type { Roadmap2026Item, RoadmapYear } from "@/lib/domain/types";
 
 /** Preferência "Expandir todos" do Roadmap 2026 (por navegador). */
@@ -45,25 +46,79 @@ const VIEWS = [
 ] as const;
 type View = (typeof VIEWS)[number]["key"];
 
+type Update<T> = T | ((current: T) => T);
+const resolve = <T,>(next: Update<T>, current: T): T => (typeof next === "function" ? (next as (c: T) => T)(current) : next);
+
+/** `?areas=nenhuma`: nenhuma combinação marcada (sem o parâmetro: todas). */
+const NO_AREAS = "nenhuma";
+
 /**
- * Visão (?visao=gantt) e ano (?ano=2026) ficam na URL, preservando os parâmetros do drawer.
- * Sem parâmetro: Cards do Roadmap 2027.
+ * Visão e filtros ficam na URL (sobrevivem ao F5 e vão junto no link), preservando os parâmetros
+ * do drawer. Só aparece o que difere do padrão:
+ * ?visao=gantt · ?ano=2026 · ?plataforma=<id> · ?status=atrasada,… · ?areas=design:andamento,…
+ * · ?marcos=0 · ?esforco=0. Sem parâmetro: Cards do Roadmap 2027, sem filtros.
  */
 function useRoadmapView() {
   const params = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
-  const view: View = params.get("visao") === "gantt" ? "gantt" : "cards";
-  const year: RoadmapYear = params.get("ano") === "2026" ? 2026 : 2027;
+  // Alterações seguidas no mesmo evento (ex.: limpar filtros) partem da última URL pedida,
+  // não da que ainda está renderizada.
+  const pending = useRef<string | null>(null);
+  const current = params.toString();
+  useEffect(() => {
+    pending.current = null;
+  }, [current]);
+  const query = () => new URLSearchParams(pending.current ?? current);
   const replace = (mutate: (query: URLSearchParams) => void) => {
-    const query = new URLSearchParams(params.toString());
-    mutate(query);
-    const qs = query.toString();
+    const next = query();
+    mutate(next);
+    const qs = next.toString();
+    pending.current = qs;
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   };
-  const setView = (next: View) => replace((q) => (next === "cards" ? q.delete("visao") : q.set("visao", next)));
-  const setYear = (next: RoadmapYear) => replace((q) => (next === 2027 ? q.delete("ano") : q.set("ano", String(next))));
-  return { view, setView, year, setYear };
+  const setParam = (key: string, value: string | null) => replace((q) => (value === null ? q.delete(key) : q.set(key, value)));
+
+  const readStatus = (q: URLSearchParams) =>
+    (q.get("status") ?? "").split(",").filter((s): s is Status2026 => (ROADMAP_2026_STATUSES as readonly string[]).includes(s));
+  const readAreas = (q: URLSearchParams): AreaCell[] => {
+    const raw = q.get("areas");
+    if (raw === null) return ALL_AREA_CELLS;
+    if (raw === NO_AREAS) return [];
+    const cells = raw.split(",").filter((c): c is AreaCell => (ALL_AREA_CELLS as string[]).includes(c));
+    return cells.length ? cells : ALL_AREA_CELLS;
+  };
+
+  const view: View = params.get("visao") === "gantt" ? "gantt" : "cards";
+  const year: RoadmapYear = params.get("ano") === "2026" ? 2026 : 2027;
+  const platform = params.get("plataforma") ?? "todas";
+  const status2026 = readStatus(params);
+  const areaCells2026 = readAreas(params);
+  const showMilestones = params.get("marcos") !== "0";
+  const showEffort = params.get("esforco") !== "0";
+
+  return {
+    view,
+    setView: (next: View) => setParam("visao", next === "cards" ? null : next),
+    year,
+    setYear: (next: RoadmapYear) => setParam("ano", next === 2027 ? null : String(next)),
+    platform,
+    setPlatform: (next: string) => setParam("plataforma", next === "todas" ? null : next),
+    status2026,
+    setStatus2026: (next: Update<Status2026[]>) => {
+      const value = resolve(next, readStatus(query()));
+      setParam("status", value.length ? value.join(",") : null);
+    },
+    areaCells2026,
+    setAreaCells2026: (next: Update<AreaCell[]>) => {
+      const value = resolve(next, readAreas(query()));
+      setParam("areas", isAllCells(value) ? null : value.length ? value.join(",") : NO_AREAS);
+    },
+    showMilestones,
+    setShowMilestones: (next: boolean) => setParam("marcos", next ? null : "0"),
+    showEffort,
+    setShowEffort: (next: boolean) => setParam("esforco", next ? null : "0"),
+  };
 }
 
 export function RoadmapView() {
@@ -72,7 +127,22 @@ export function RoadmapView() {
   const effortTracks = useEffortTracks();
   const attachTracks = useEvidenceTracks();
   const { selectedId, open } = useInitiativeSelection();
-  const { view, setView, year, setYear } = useRoadmapView();
+  const {
+    view,
+    setView,
+    year,
+    setYear,
+    platform,
+    setPlatform,
+    status2026,
+    setStatus2026,
+    areaCells2026,
+    setAreaCells2026,
+    showMilestones,
+    setShowMilestones,
+    showEffort,
+    setShowEffort,
+  } = useRoadmapView();
   const is2026 = year === 2026;
   const { load: load2026, retry: retry2026, update: update2026, remove: remove2026, move: move2026 } = useRoadmap2026(is2026);
   const roadmap2026 = load2026.status === "ready" ? load2026.data : null;
@@ -141,9 +211,6 @@ export function RoadmapView() {
     }),
     [data.people, showTracks, highlight2026],
   );
-  const [platform, setPlatform] = useState("todas");
-  const [showMilestones, setShowMilestones] = useState(true);
-  const [showEffort, setShowEffort] = useState(true);
   const [editingEffort, setEditingEffort] = useState<string | null>(null);
   const effortInitiative = editingEffort ? data.initiatives.find((i) => i.id === editingEffort) : undefined;
   const [fullscreen, setFullscreen] = useState(false);
@@ -184,11 +251,8 @@ export function RoadmapView() {
     () => (items2026 ?? []).filter((i) => platformFilter === "todas" || platformKey2026(i) === platformFilter),
     [items2026, platformFilter],
   );
-  // Status da iniciativa escolhidos (vazio = todos).
-  const [status2026, setStatus2026] = useState<Status2026[]>([]);
-  // Combinações área × status da área ("design:andamento"); vazio = todas.
-  // Padrão: todas as combinações marcadas (não filtra).
-  const [areaCells2026, setAreaCells2026] = useState<AreaCell[]>(ALL_AREA_CELLS);
+  // Status da iniciativa escolhidos (vazio = todos) e combinações área × status da área
+  // ("design:andamento"; padrão: todas marcadas, não filtra) vêm da URL (useRoadmapView).
   const matchesStatus = (i: Roadmap2026Item, statuses: Status2026[]) => !statuses.length || statuses.includes(effectiveStatus(i));
   /** A iniciativa atende a alguma combinação marcada (área que se aplica, com aquele status). */
   const matchesCells = (i: Roadmap2026Item, cells: AreaCell[]) => {

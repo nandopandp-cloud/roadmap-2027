@@ -27,7 +27,7 @@ const source = roadmap2026SourceSchema.parse(seedRoadmap2026.source);
 
 /**
  * Iniciativas do Roadmap 2026. Ao abrir, sincroniza com a planilha do time se a última leitura tem
- * mais de 2 minutos (ver roadmap-2026-sync.ts); se a planilha não responder, mostra o que já está salvo.
+ * mais de 15 s (ver roadmap-2026-sync.ts); se a planilha não responder, mostra o que já está salvo.
  */
 export async function getRoadmap2026(): Promise<Roadmap2026> {
   const repo = getRepository();

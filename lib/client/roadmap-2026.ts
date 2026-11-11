@@ -14,6 +14,21 @@ export type Roadmap2026Load =
 // Reaproveitado ao trocar de ano (e atualizado a cada alteração salva).
 let cache: Roadmap2026 | null = null;
 
+/** A tela aberta busca de novo a cada 20 s (e ao voltar para a aba): traz o que mudou na planilha. */
+const REFRESH_MS = 20_000;
+// Alterações em andamento e contador de alterações: uma busca que cruzou com uma alteração é descartada.
+let writes = 0;
+let writeVersion = 0;
+async function writing<T>(fn: () => Promise<T>): Promise<T> {
+  writes++;
+  writeVersion++;
+  try {
+    return await fn();
+  } finally {
+    writes--;
+  }
+}
+
 const message = (error: unknown, fallback: string) => (error instanceof ApiError ? error.message : fallback);
 
 /** Carrega o Roadmap 2026 quando o ano é aberto e aplica as alterações (otimistas, com desfazer em caso de erro). */
@@ -35,6 +50,50 @@ export function useRoadmap2026(enabled: boolean) {
     if (enabled && load.status === "idle") void fetchData();
   }, [enabled, load.status, fetchData]);
 
+  // Atualização silenciosa com a tela aberta: não interrompe arrastos nem alterações sendo salvas.
+  const ready = load.status === "ready";
+  useEffect(() => {
+    if (!enabled || !ready) return;
+    let pointerDown = false;
+    let fetching = false;
+    const refresh = async () => {
+      if (fetching || pointerDown || writes || document.visibilityState !== "visible") return;
+      fetching = true;
+      const version = writeVersion;
+      try {
+        const data = await api.roadmap2026();
+        if (writes || version !== writeVersion) return;
+        cache = data;
+        setLoad({ status: "ready", data });
+      } catch {
+        // Falha temporária: a tela segue com o que já tem e tenta de novo no próximo ciclo.
+      } finally {
+        fetching = false;
+      }
+    };
+    const onDown = () => {
+      pointerDown = true;
+    };
+    const onUp = () => {
+      pointerDown = false;
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    const timer = setInterval(() => void refresh(), REFRESH_MS);
+    window.addEventListener("pointerdown", onDown, true);
+    window.addEventListener("pointerup", onUp, true);
+    window.addEventListener("pointercancel", onUp, true);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("pointerdown", onDown, true);
+      window.removeEventListener("pointerup", onUp, true);
+      window.removeEventListener("pointercancel", onUp, true);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [enabled, ready]);
+
   const apply = useCallback((mutate: (items: Roadmap2026Item[]) => Roadmap2026Item[]) => {
     if (!cache) return;
     cache = { ...cache, items: mutate(cache.items) };
@@ -48,7 +107,7 @@ export function useRoadmap2026(enabled: boolean) {
       if (!previous) return;
       apply((items) => items.map((i) => (i.id === id ? { ...i, ...patch } : i)));
       try {
-        const saved = await api.patchRoadmap2026Item(id, patch);
+        const saved = await writing(() => api.patchRoadmap2026Item(id, patch));
         apply((items) => items.map((i) => (i.id === id ? saved : i)));
         return saved;
       } catch (error) {
@@ -66,7 +125,7 @@ export function useRoadmap2026(enabled: boolean) {
       if (!previous) return;
       apply((items) => items.filter((i) => i.id !== id));
       try {
-        await api.removeRoadmap2026Item(id);
+        await writing(() => api.removeRoadmap2026Item(id));
       } catch (error) {
         apply((items) => [...items.slice(0, index), previous, ...items.slice(index)]);
         throw new ApiError(message(error, "Não foi possível remover a iniciativa."), error instanceof ApiError ? error.status : 0);
@@ -89,7 +148,7 @@ export function useRoadmap2026(enabled: boolean) {
         return rest;
       });
       try {
-        await api.moveRoadmap2026Item(id, { beforeId, afterId });
+        await writing(() => api.moveRoadmap2026Item(id, { beforeId, afterId }));
       } catch (error) {
         apply(() => previous);
         throw new ApiError(message(error, "Não foi possível mudar a ordem."), error instanceof ApiError ? error.status : 0);
