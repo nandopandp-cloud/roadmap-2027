@@ -177,16 +177,13 @@ export function AreaFilter2026({
           </p>
           <div role="group" aria-label="Seleção rápida" className="mt-3 flex flex-wrap items-center gap-1.5">
             <span className="mr-1 text-[12.5px] font-extrabold text-muted">Seleção rápida:</span>
+            {/* "Todos" é só uma ação (marca tudo): nunca aparece marcado, para não confundir com um status. */}
             <button
               type="button"
-              aria-pressed={allSelected}
               onClick={() => onChange(ALL_AREA_CELLS)}
-              className={cn(
-                "inline-flex h-8 items-center gap-1.5 rounded-full border-[1.5px] px-3 text-[13px] font-bold transition-colors",
-                allSelected ? "border-violet bg-brand-soft text-brand" : "border-line text-muted hover:border-line-strong hover:text-ink",
-              )}
+              title="Marcar todos os status de todas as áreas"
+              className="inline-flex h-8 items-center gap-1.5 rounded-full border-[1.5px] border-line px-3 text-[13px] font-bold text-muted transition-colors hover:border-line-strong hover:text-ink"
             >
-              {allSelected && <Check size={13} strokeWidth={3} aria-hidden />}
               Todos
             </button>
             {TRACK_STATUSES_2026.map((st) => {
