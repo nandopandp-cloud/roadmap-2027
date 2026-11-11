@@ -1,6 +1,5 @@
 "use client";
 
-import { MultiSelect } from "@/components/ui/multi-select";
 import { Select } from "@/components/ui/select";
 import { ChartGantt, Flag, GitFork, GripVertical, LayoutGrid, Maximize2, Minimize2, Plus, Timer } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -12,6 +11,7 @@ import { RoadmapGantt } from "@/components/roadmap/roadmap-gantt";
 import { LateMenu2026, Owners2026Context, Roadmap2026Board, Roadmap2026Gantt, Roadmap2026Legend, TrackToggle } from "@/components/roadmap/roadmap-2026";
 import { Item2026Dialog } from "@/components/roadmap/roadmap-2026-dialog";
 import { YearSwitch } from "@/components/roadmap/year-switch";
+import { ActiveFilters2026, AreaFilter2026, areaCell, cellLabel, splitCell, StatusChips2026, type AreaCell } from "@/components/roadmap/roadmap-2026-filters";
 import { EFFORT_TONE } from "@/lib/client/tones";
 import { Button } from "@/components/ui/button";
 import { useFocusTrap } from "@/components/ui/dialog";
@@ -26,16 +26,12 @@ import { useCanEdit, useEffortTracks, useEvidenceTracks, useRoadmap } from "@/li
 import {
   activeTracks,
   effectiveStatus,
-  OWNER_TRACK_LABEL,
   platformKey2026,
   STATUS_2026_LABEL,
-  TRACK_STATUS_LABEL,
   TRACK_STATUS_TRACKS,
   TRACK_STATUSES_2026,
   TRANSVERSAL_2026,
   type Status2026,
-  type TrackStatus2026,
-  type TrackStatusTrack,
 } from "@/lib/domain/roadmap-2026";
 import { compareRoadmapOrder } from "@/lib/domain/roadmap-order";
 import type { Roadmap2026Item, RoadmapYear } from "@/lib/domain/types";
@@ -91,9 +87,10 @@ export function RoadmapView() {
   // Iniciativa destacada depois de escolhida na lista de atrasadas (rola até ela).
   const [highlight2026, setHighlight2026] = useState<string | null>(null);
   const goTo2026 = (id: string) => {
-    // A iniciativa precisa estar visível: um filtro de status que a esconda volta para "Todos".
+    // A iniciativa precisa estar visível: filtros de status ou de área que a escondam são limpos.
     const item = items2026?.find((i) => i.id === id);
-    if (item && status2026.length && !status2026.includes(effectiveStatus(item))) setStatus2026([]);
+    if (item && !matchesStatus(item, status2026)) setStatus2026([]);
+    if (item && !matchesCells(item, areaCells2026)) setAreaCells2026([]);
     setHighlight2026(id);
     requestAnimationFrame(() =>
       requestAnimationFrame(() => document.querySelector(`[data-item-2026="${id}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" })),
@@ -190,41 +187,48 @@ export function RoadmapView() {
     () => (items2026 ?? []).filter((i) => platformFilter === "todas" || platformKey2026(i) === platformFilter),
     [items2026, platformFilter],
   );
-  // Status escolhidos no filtro (vazio = todos).
+  // Status da iniciativa escolhidos (vazio = todos).
   const [status2026, setStatus2026] = useState<Status2026[]>([]);
-  // Áreas (Design, Engenharia, QA) e o andamento delas; vazio = todas.
-  const [area2026, setArea2026] = useState<TrackStatusTrack[]>([]);
-  const [areaStatus2026, setAreaStatus2026] = useState<TrackStatus2026[]>([]);
-  /** A iniciativa tem a área (não retirada) e, se pedido, o andamento escolhido em alguma das áreas consideradas. */
-  const matchesArea = (i: Roadmap2026Item, areas: TrackStatusTrack[], statuses: TrackStatus2026[]) => {
-    const active = activeTracks(i);
-    const considered = (areas.length ? areas : TRACK_STATUS_TRACKS).filter((t) => active.includes(t));
-    if (areas.length && !considered.length) return false;
-    return !statuses.length || considered.some((t) => statuses.includes(i.trackStatus[t]));
-  };
+  // Combinações área × status da área ("design:andamento"); vazio = todas.
+  const [areaCells2026, setAreaCells2026] = useState<AreaCell[]>([]);
   const matchesStatus = (i: Roadmap2026Item, statuses: Status2026[]) => !statuses.length || statuses.includes(effectiveStatus(i));
-  // Contagem de cada opção considerando os demais filtros.
+  /** A iniciativa atende a alguma combinação marcada (área que se aplica, com aquele status). */
+  const matchesCells = (i: Roadmap2026Item, cells: AreaCell[]) => {
+    if (!cells.length) return true;
+    const active = activeTracks(i);
+    return cells.some((c) => {
+      const [track, status] = splitCell(c);
+      return active.includes(track) && i.trackStatus[track] === status;
+    });
+  };
+  // Contagens de cada opção considerando os demais filtros.
   const statusCounts2026 = useMemo(() => {
     const counts: Record<string, number> = {};
-    for (const i of byPlatform2026.filter((x) => matchesArea(x, area2026, areaStatus2026))) counts[effectiveStatus(i)] = (counts[effectiveStatus(i)] ?? 0) + 1;
+    for (const i of byPlatform2026.filter((x) => matchesCells(x, areaCells2026))) counts[effectiveStatus(i)] = (counts[effectiveStatus(i)] ?? 0) + 1;
     return counts;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [byPlatform2026, area2026, areaStatus2026]);
-  const areaCounts2026 = useMemo(() => {
+  }, [byPlatform2026, areaCells2026]);
+  const cellCounts2026 = useMemo(() => {
     const base = byPlatform2026.filter((x) => matchesStatus(x, status2026));
-    return Object.fromEntries(TRACK_STATUS_TRACKS.map((t) => [t, base.filter((x) => matchesArea(x, [t], areaStatus2026)).length]));
+    const counts: Record<string, number> = {};
+    const rows: Record<string, number> = {};
+    for (const t of TRACK_STATUS_TRACKS) {
+      rows[t] = base.filter((x) => activeTracks(x).includes(t)).length;
+      for (const st of TRACK_STATUSES_2026) counts[areaCell(t, st)] = base.filter((x) => matchesCells(x, [areaCell(t, st)])).length;
+    }
+    return { counts, rows };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [byPlatform2026, status2026, areaStatus2026]);
-  const areaStatusCounts2026 = useMemo(() => {
-    const base = byPlatform2026.filter((x) => matchesStatus(x, status2026));
-    return Object.fromEntries(TRACK_STATUSES_2026.map((st) => [st, base.filter((x) => matchesArea(x, area2026, [st])).length]));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [byPlatform2026, status2026, area2026]);
+  }, [byPlatform2026, status2026]);
   const visible2026 = useMemo(
-    () => byPlatform2026.filter((i) => matchesStatus(i, status2026) && matchesArea(i, area2026, areaStatus2026)),
+    () => byPlatform2026.filter((i) => matchesStatus(i, status2026) && matchesCells(i, areaCells2026)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [byPlatform2026, status2026, area2026, areaStatus2026],
+    [byPlatform2026, status2026, areaCells2026],
   );
+  const clearFilters2026 = () => {
+    setPlatform("todas");
+    setStatus2026([]);
+    setAreaCells2026([]);
+  };
   const loading2026 = !items2026;
   // Barra no mesmo padrão nos dois anos (rótulos acima dos campos, botões de 48px).
   const styled = true;
@@ -282,7 +286,7 @@ export function RoadmapView() {
           aria-label="Plataforma"
           className={cn(
             "rounded-xl border border-line bg-surface px-3 text-[14px] font-semibold text-ink hover:border-line-strong focus:border-violet focus:outline-none focus:ring-4 focus:ring-[#6045d8]/12",
-            styled ? "h-12 min-w-[190px] px-4 text-[15px] shadow-[0_1px_3px_rgba(23,27,77,0.04)]" : "h-10 min-w-[180px]",
+            styled ? "h-12 min-w-[160px] px-4 text-[15px] shadow-[0_1px_3px_rgba(23,27,77,0.04)]" : "h-10 min-w-[180px]",
           )}
         >
           <option value="todas">Todas</option>
@@ -296,42 +300,13 @@ export function RoadmapView() {
       {is2026 && (
         <div className="flex flex-col gap-1.5 text-[14px] font-semibold text-muted">
           <span aria-hidden className="text-[13px]">Status da iniciativa</span>
-          <MultiSelect
-            tall
-            className="w-[230px]"
-            label="Status da iniciativa"
-            value={status2026}
-            onChange={(v) => setStatus2026(v as Status2026[])}
-            allCount={Object.values(statusCounts2026).reduce((a, b) => a + b, 0)}
-            options={STATUS_FILTER_2026.map((st) => ({ value: st, label: STATUS_2026_LABEL[st], count: statusCounts2026[st] ?? 0 }))}
-          />
+          <StatusChips2026 statuses={STATUS_FILTER_2026} value={status2026} counts={statusCounts2026} onChange={setStatus2026} />
         </div>
       )}
       {is2026 && (
         <div className="flex flex-col gap-1.5 text-[14px] font-semibold text-muted">
-          <span aria-hidden className="text-[13px]">Área</span>
-          <MultiSelect
-            tall
-            className="w-[210px]"
-            label="Área"
-            allLabel="Todas"
-            value={area2026}
-            onChange={(v) => setArea2026(v as TrackStatusTrack[])}
-            options={TRACK_STATUS_TRACKS.map((t) => ({ value: t, label: OWNER_TRACK_LABEL[t], count: areaCounts2026[t] ?? 0 }))}
-          />
-        </div>
-      )}
-      {is2026 && (
-        <div className="flex flex-col gap-1.5 text-[14px] font-semibold text-muted">
-          <span aria-hidden className="text-[13px]">Status da área</span>
-          <MultiSelect
-            tall
-            className="w-[230px]"
-            label="Status da área"
-            value={areaStatus2026}
-            onChange={(v) => setAreaStatus2026(v as TrackStatus2026[])}
-            options={TRACK_STATUSES_2026.map((st) => ({ value: st, label: TRACK_STATUS_LABEL[st], count: areaStatusCounts2026[st] ?? 0 }))}
-          />
+          <span aria-hidden className="text-[13px]">Áreas</span>
+          <AreaFilter2026 value={areaCells2026} counts={cellCounts2026.counts} rowCounts={cellCounts2026.rows} onChange={setAreaCells2026} />
         </div>
       )}
     </>
@@ -511,15 +486,28 @@ export function RoadmapView() {
             );
             return is2026 ? (
               <>
-                {/* 2026: filtros numa linha; legenda e ações na seguinte. */}
-                <div className="mt-7 flex flex-wrap items-end gap-x-4 gap-y-3">{controls}</div>
+                {/* 2026: filtros; depois os filtros ativos e as ações; depois a legenda. */}
+                <div className="mt-7 flex flex-wrap items-end gap-x-3 gap-y-3">{controls}</div>
                 <div className="mt-4 flex flex-wrap items-center gap-3">
-                  <div className="min-w-0 flex-1">{legend}</div>
+                  <div className="min-w-0 flex-1">
+                    <ActiveFilters2026
+                      total={visible2026.length}
+                      onClear={clearFilters2026}
+                      pills={[
+                        ...(platformFilter !== "todas"
+                          ? [{ key: "plataforma", label: platformOptions.find((o) => o.value === platformFilter)?.label ?? platformFilter, onRemove: () => setPlatform("todas") }]
+                          : []),
+                        ...status2026.map((st) => ({ key: `s-${st}`, prefix: "Status:", label: STATUS_2026_LABEL[st], onRemove: () => setStatus2026((v) => v.filter((x) => x !== st)) })),
+                        ...areaCells2026.map((c) => ({ key: `a-${c}`, prefix: "Área:", label: cellLabel(c), onRemove: () => setAreaCells2026((v) => v.filter((x) => x !== c)) })),
+                      ]}
+                    />
+                  </div>
                   <div className="ml-auto flex flex-wrap items-center gap-2">
                     {actions2026}
                     {fullscreenButton}
                   </div>
                 </div>
+                <div className="mt-4">{legend}</div>
               </>
             ) : (
               <>
