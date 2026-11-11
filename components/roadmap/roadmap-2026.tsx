@@ -16,10 +16,13 @@ import {
   OWNER_TRACK_LABEL,
   OWNER_TRACKS_2026,
   STATUS_2026_LABEL,
+  TRACK_STATUS_LABEL,
+  TRACK_STATUS_SHORT,
   WORK_2026_LABEL,
   cycle2026DatePosition,
   editableEnd,
   editableQuarter,
+  autoDone,
   effectiveStatus,
   lateReason,
   overdueWeeks,
@@ -28,6 +31,8 @@ import {
   workPeriod,
   type OwnerTrack2026,
   type Owners2026,
+  type TrackStatus2026,
+  type TrackStatuses2026,
 } from "@/lib/domain/roadmap-2026";
 import type { Person, Platform, Roadmap2026Item, Roadmap2026Source, Roadmap2026Work } from "@/lib/domain/types";
 
@@ -36,10 +41,68 @@ const WEEKS = ROADMAP_2026_WEEK_COUNT;
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
 
 /** Responsáveis de cada iniciativa (por frente) e o organograma, fornecidos pela página. */
-export const Owners2026Context = createContext<{ ownersOf: (item: Roadmap2026Item) => Owners2026; people: Person[] }>({
+export const Owners2026Context = createContext<{
+  ownersOf: (item: Roadmap2026Item) => Owners2026;
+  trackStatusOf: (item: Roadmap2026Item) => TrackStatuses2026;
+  people: Person[];
+}>({
   ownersOf: () => ({ design: [], engineering: [], qa: [] }),
+  trackStatusOf: () => ({ design: "nao_iniciado", engineering: "nao_iniciado" }),
   people: [],
 });
+
+/** Tons do andamento por frente (texto com contraste AA sobre o fundo suave). */
+export const TRACK_STATUS_TONE: Record<TrackStatus2026, { bg: string; fg: string; dot: string }> = {
+  nao_iniciado: { bg: "#F1F3F8", fg: "#5F6C8F", dot: "#B4BCD3" },
+  andamento: { bg: "#FFF2E5", fg: "#934400", dot: "#F28A1F" },
+  concluido: { bg: "#E6F6EC", fg: "#1B6B3A", dot: "#22A05A" },
+};
+
+/** Status da frente em pílula pequena (bolinha + texto). */
+function TrackStatusPill({ status, short = false }: { status: TrackStatus2026; short?: boolean }) {
+  const tone = TRACK_STATUS_TONE[status];
+  return (
+    <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-1.5 py-px text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>
+      {status === "concluido" ? <Check size={11} strokeWidth={3} aria-hidden /> : <span aria-hidden className="h-1.5 w-1.5 rounded-full" style={{ background: tone.dot }} />}
+      {short ? TRACK_STATUS_SHORT[status] : TRACK_STATUS_LABEL[status]}
+    </span>
+  );
+}
+
+/**
+ * Gantt: uma pílula por frente — Design e Engenharia sempre (com o andamento de cada uma),
+ * QA quando há responsável — com os avatares de quem a toca.
+ */
+function TrackChips({ item }: { item: Roadmap2026Item }) {
+  const { ownersOf, trackStatusOf, people } = useContext(Owners2026Context);
+  const owners = ownersOf(item);
+  const statuses = trackStatusOf(item);
+  const tracks = OWNER_TRACKS_2026.filter((t) => t !== "qa" || owners.qa.length > 0);
+  return (
+    <span className="flex flex-wrap items-center gap-1">
+      {tracks.map((track) => {
+        const Icon = OWNER_TRACK_ICON[track];
+        const list = owners[track].map((id) => people.find((p) => p.id === id)).filter((p): p is Person => !!p);
+        const status = track === "qa" ? null : statuses[track];
+        const label = `${OWNER_TRACK_LABEL[track]}${status ? `: ${TRACK_STATUS_LABEL[status]}` : ""}${list.length ? ` · ${list.map((p) => p.name).join(", ")}` : " · sem responsável"}`;
+        return (
+          <span key={track} title={label} aria-label={label} role="img" className={cn("inline-flex items-center gap-1 rounded-full border border-line bg-surface py-px pl-1.5", list.length ? "pr-px" : "pr-1.5")}>
+            <Icon size={12} aria-hidden style={{ color: OWNER_TRACK_COLOR[track] }} />
+            {status && <TrackStatusPill status={status} short />}
+            {list.length > 0 ? (
+              <span className="flex items-center">
+                {list.slice(0, 2).map((p, idx) => (
+                  <Avatar key={p.id} person={p} size={18} className={idx > 0 ? "-ml-1.5" : undefined} />
+                ))}
+                {list.length > 2 && <span className="ml-0.5 text-[10.5px] font-bold text-muted">+{list.length - 2}</span>}
+              </span>
+            ) : null}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
 
 export const OWNER_TRACK_ICON: Record<OwnerTrack2026, LucideIcon> = { design: PenTool, engineering: Code2, qa: ShieldCheck };
 const OWNER_TRACK_COLOR: Record<OwnerTrack2026, string> = { design: "#C2307F", engineering: "#2160D9", qa: "#0B776F" };
@@ -54,56 +117,36 @@ function useOwners(item: Roadmap2026Item) {
   })).filter((g) => g.people.length > 0);
 }
 
-/**
- * Avatares dos responsáveis, agrupados por frente (ícone de Design, Engenharia ou QA). Quem
- * responde por mais de uma frente aparece em cada uma.
- */
-function OwnerAvatars({ item, size = 24 }: { item: Roadmap2026Item; size?: number }) {
-  const groups = useOwners(item);
-  if (!groups.length) return <span className="text-[11.5px] font-semibold text-subtle">Sem responsável</span>;
-  const label = groups.map((g) => `${OWNER_TRACK_LABEL[g.track]}: ${g.people.map((p) => p.name).join(", ")}`).join(" · ");
-  return (
-    <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1" role="img" aria-label={`Responsáveis — ${label}`} title={label}>
-      {groups.map(({ track, people }) => {
-        const Icon = OWNER_TRACK_ICON[track];
-        return (
-          <span key={track} className="flex items-center gap-1">
-            <Icon size={13} aria-hidden style={{ color: OWNER_TRACK_COLOR[track] }} />
-            <span className="flex items-center">
-              {people.slice(0, 3).map((p, idx) => (
-                <Avatar key={p.id} person={p} size={size} className={idx > 0 ? "-ml-1.5" : undefined} />
-              ))}
-              {people.length > 3 && <span className="ml-1 text-[11px] font-bold text-muted">+{people.length - 3}</span>}
-            </span>
-          </span>
-        );
-      })}
-    </span>
-  );
-}
-
 /** Responsáveis por frente com nome (cards). */
 function OwnerRows({ item }: { item: Roadmap2026Item }) {
-  const groups = useOwners(item);
-  if (!groups.length) return <span className="text-[12.5px] font-semibold text-subtle">Sem responsável definido</span>;
+  const { trackStatusOf } = useContext(Owners2026Context);
+  const statuses = trackStatusOf(item);
+  const withOwners = useOwners(item);
+  // Design e Engenharia sempre aparecem (com o andamento); QA só com responsável.
+  const groups = OWNER_TRACKS_2026.filter((t) => t !== "qa" || withOwners.some((g) => g.track === "qa")).map(
+    (track) => withOwners.find((g) => g.track === track) ?? { track, people: [] as Person[] },
+  );
   return (
     <span className="flex flex-col gap-1.5">
       {groups.map(({ track, people }) => {
         const Icon = OWNER_TRACK_ICON[track];
         return (
-          <span key={track} className="flex items-center gap-2 text-[12.5px]">
-            <span className="flex w-[92px] shrink-0 items-center gap-1.5 font-bold text-muted">
+          <span key={track} className="grid grid-cols-[88px_auto_minmax(0,1fr)] items-center gap-2 text-[12.5px]">
+            <span className="flex items-center gap-1.5 font-bold text-muted">
               <Icon size={13} aria-hidden style={{ color: OWNER_TRACK_COLOR[track] }} />
               {OWNER_TRACK_LABEL[track]}
             </span>
-            <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-              {people.map((p) => (
-                <span key={p.id} className="flex min-w-0 items-center gap-1.5">
-                  <Avatar person={p} size={22} />
-                  <span className="truncate font-semibold text-ink">{p.name.split(" ")[0]}</span>
-                </span>
-              ))}
-            </span>
+            {track !== "qa" ? <TrackStatusPill status={statuses[track]} /> : <span />}
+            {people.length === 0 ? (
+              <span className="truncate text-[12px] text-subtle">—</span>
+            ) : (
+              <span className="flex min-w-0 items-center" title={people.map((p) => p.name).join(", ")} role="img" aria-label={people.map((p) => p.name).join(", ")}>
+                {people.slice(0, 4).map((p, idx) => (
+                  <Avatar key={p.id} person={p} size={22} className={idx > 0 ? "-ml-1.5" : undefined} />
+                ))}
+                {people.length > 4 && <span className="ml-1 text-[11px] font-bold text-muted">+{people.length - 4}</span>}
+              </span>
+            )}
           </span>
         );
       })}
@@ -373,7 +416,7 @@ export function Roadmap2026Board({
 
 /* ---------------------------------- Gantt ---------------------------------- */
 
-const ROW = "grid grid-cols-[200px_minmax(0,1fr)] sm:grid-cols-[290px_minmax(0,1fr)]";
+const ROW = "grid grid-cols-[230px_minmax(0,1fr)] sm:grid-cols-[340px_minmax(0,1fr)]";
 
 /** Semanas (bem claras), meses e, mais fortes, as divisões entre trimestres (a cada 3 meses = 30%). */
 const TIMELINE_BG: CSSProperties = {
@@ -426,6 +469,10 @@ function GanttRow2026({
   const active = drag;
   const weekPx = timelineWidth / WEEKS || 1;
   const shown = effectiveStatus(item);
+  const { trackStatusOf } = useContext(Owners2026Context);
+  const trackStatus = trackStatusOf(item);
+  const trackDone = (work: Roadmap2026Work["work"]) =>
+    (work === "design" && trackStatus.design === "concluido") || (work === "engenharia" && trackStatus.engineering === "concluido");
   const late = shown === "atrasada";
   const autoLate = lateReason(item) === "prazo" && item.status !== "atrasada";
   const end = editableEnd(item);
@@ -487,7 +534,12 @@ function GanttRow2026({
         )}
         {/* Para quem edita, a coluna inteira (nome, status e responsáveis) abre a edição. */}
         {(() => {
-          const lateTitle = autoLate && end !== null ? `Atrasada automaticamente: o fim projetado (${weekLabel(end - 1)}) já passou.` : undefined;
+          const lateTitle =
+            autoLate && end !== null
+              ? `Atrasada automaticamente: o fim projetado (${weekLabel(end - 1)}) já passou.`
+              : autoDone(item)
+                ? "Concluída automaticamente: Design e Engenharia concluídos."
+                : undefined;
           const body = (
             <>
               <span className="line-clamp-2 text-[13.5px] font-extrabold leading-snug text-navy" title={item.title}>
@@ -499,10 +551,8 @@ function GanttRow2026({
                   <StatusBadge2026 status={shown} />
                 </span>
                 {item.backlog && <span className="text-[11.5px] font-semibold text-muted">Backlog</span>}
-                <span className="ml-auto">
-                  <OwnerAvatars item={item} />
-                </span>
               </span>
+              <TrackChips item={item} />
             </>
           );
           return canEdit ? (
@@ -559,14 +609,14 @@ function GanttRow2026({
                   "absolute top-1/2 flex h-[26px] -translate-y-1/2 touch-none items-center overflow-visible rounded-md text-[11.5px] font-extrabold text-white shadow-[0_2px_6px_rgba(23,27,77,0.14)]",
                   canEdit && "cursor-grab select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet active:cursor-grabbing",
                   late && "ring-2 ring-[#E25858] ring-offset-1",
-                  done && "opacity-50",
+                  (done || trackDone(s.work)) && "opacity-50",
                   dragging && "z-10 cursor-grabbing shadow-[0_8px_20px_rgba(23,27,77,0.28)] ring-2 ring-white",
                 )}
                 style={{ left: `calc(${weekPosition(s.start)}% + 1px)`, width: `calc(${width}% - 2px)`, background: tone.solid }}
               >
                 {fits && (
                   <span className="flex min-w-0 items-center gap-1 truncate px-2">
-                    {done && <Check size={12} className="shrink-0" aria-hidden />}
+                    {(done || trackDone(s.work)) && <Check size={12} className="shrink-0" aria-hidden />}
                     <span className="truncate">{label}</span>
                   </span>
                 )}

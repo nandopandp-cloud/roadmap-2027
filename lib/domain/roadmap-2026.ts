@@ -2,8 +2,18 @@
  * Regras de leitura do Roadmap 2026 (projeção importada da planilha do time): calendário de
  * semanas S1–S4 de julho/2026 a abril/2027, períodos, situação e trimestre de entrega.
  */
-import { ROADMAP_2026_STATUSES, ROADMAP_2026_WEEK_COUNT, ROADMAP_2026_WORK } from "@/lib/domain/constants";
-import type { Person, Roadmap2026ImportItem, Roadmap2026Item, Roadmap2026Owners, Roadmap2026Phase, Roadmap2026Segment, Roadmap2026Wave, Roadmap2026Work } from "@/lib/domain/types";
+import { ROADMAP_2026_STATUSES, ROADMAP_2026_TRACK_STATUSES, ROADMAP_2026_WEEK_COUNT, ROADMAP_2026_WORK } from "@/lib/domain/constants";
+import type {
+  Person,
+  Roadmap2026ImportItem,
+  Roadmap2026Item,
+  Roadmap2026Owners,
+  Roadmap2026Phase,
+  Roadmap2026Segment,
+  Roadmap2026TrackStatus,
+  Roadmap2026Wave,
+  Roadmap2026Work,
+} from "@/lib/domain/types";
 
 /** Meses da planilha, na ordem das colunas (quatro semanas cada). */
 export const CYCLE_2026_MONTHS = [
@@ -165,6 +175,7 @@ export function importedItem(item: Roadmap2026ImportItem, people: Pick<Person, "
     squad: item.squad,
     platformId: item.platformId,
     owners: ownersFromSheet(item, people),
+    trackStatus: trackStatusesFromSheet(item),
     weeks: item.weeks,
     design: item.design,
     engineering: item.engineering,
@@ -191,11 +202,11 @@ export function weekIndexOf(date: Date): number | null {
 
 export const editableEnd = (item: Pick<Roadmap2026Item, "segments">) => (item.segments.length ? Math.max(...item.segments.map((s) => s.start + s.weeks)) : null);
 
-/** Fim projetado já passou (semanas inteiras antes da atual) e o item não está concluído nem marcado como atrasado. */
-export function overdueWeeks(item: Pick<Roadmap2026Item, "segments" | "status">, today = new Date()): number {
+/** Semanas desde o fim projetado (0 quando ainda não passou ou a iniciativa está concluída). */
+export function overdueWeeks(item: Item2026Status, today = new Date()): number {
   const end = editableEnd(item);
   const now = weekIndexOf(today);
-  if (end === null || now === null || item.status === "concluida") return 0;
+  if (end === null || now === null || isDone(item)) return 0;
   return Math.max(0, now - end + 1);
 }
 
@@ -252,21 +263,58 @@ export function ownersFromSheet(item: Pick<Roadmap2026Item, "design" | "engineer
   return { design: pick(item.design), engineering: pick(item.engineering), qa: pick(item.qa) };
 }
 
-/* ------------------------------ Atraso automático ------------------------------ */
+/* ------------------------------ Atraso e conclusão automáticos ------------------------------ */
+
+/** O que as regras de status precisam de uma iniciativa (o andamento por frente é opcional). */
+type Item2026Status = Pick<Roadmap2026Item, "segments" | "status"> & { trackStatus?: Roadmap2026TrackStatus };
+
+/** Concluída: status escolhido ou Design e Engenharia concluídos. */
+export function isDone(item: Item2026Status): boolean {
+  return item.status === "concluida" || (item.trackStatus?.design === "concluido" && item.trackStatus?.engineering === "concluido");
+}
+
+/** Concluída automaticamente: as duas frentes concluídas, sem o status geral marcado. */
+export const autoDone = (item: Item2026Status) => item.status !== "concluida" && isDone(item);
 
 /**
  * Status exibido: a iniciativa cujo fim projetado já passou (e que não está concluída) aparece
  * como Atrasada automaticamente, até ser concluída ou ter as semanas estendidas. O status
  * gravado continua o escolhido pelo time.
  */
-export function effectiveStatus(item: Pick<Roadmap2026Item, "segments" | "status">, today = new Date()): Status2026 {
-  if (item.status === "concluida") return "concluida";
+export function effectiveStatus(item: Item2026Status, today = new Date()): Status2026 {
+  if (isDone(item)) return "concluida";
   return overdueWeeks(item, today) > 0 ? "atrasada" : item.status;
 }
 
 /** Por que a iniciativa está atrasada: prazo vencido (automático) ou status escolhido pelo time. */
-export function lateReason(item: Pick<Roadmap2026Item, "segments" | "status">, today = new Date()): "prazo" | "manual" | null {
-  if (item.status === "concluida") return null;
+export function lateReason(item: Item2026Status, today = new Date()): "prazo" | "manual" | null {
+  if (isDone(item)) return null;
   if (overdueWeeks(item, today) > 0) return "prazo";
   return item.status === "atrasada" ? "manual" : null;
+}
+
+/* ------------------------------ Status por frente ------------------------------ */
+
+/** Andamento de cada frente (Design e Engenharia), separado do status geral da iniciativa. */
+export const TRACK_STATUSES_2026 = ROADMAP_2026_TRACK_STATUSES;
+export type TrackStatus2026 = (typeof TRACK_STATUSES_2026)[number];
+export const TRACK_STATUS_TRACKS = ["design", "engineering"] as const;
+export type TrackStatusTrack = (typeof TRACK_STATUS_TRACKS)[number];
+export type TrackStatuses2026 = Roadmap2026TrackStatus;
+
+/** Andamento das frentes lido dos textos de Design e Engenheiro da planilha. */
+export function trackStatusesFromSheet(item: Pick<Roadmap2026Item, "design" | "engineering">): TrackStatuses2026 {
+  return { design: trackStatusFromSheet(item.design), engineering: trackStatusFromSheet(item.engineering) };
+}
+
+export const TRACK_STATUS_LABEL: Record<TrackStatus2026, string> = { nao_iniciado: "Não iniciado", andamento: "Em andamento", concluido: "Concluído" };
+/** Rótulo curto (chips do Gantt). */
+export const TRACK_STATUS_SHORT: Record<TrackStatus2026, string> = { nao_iniciado: "A iniciar", andamento: "Andamento", concluido: "Concluído" };
+
+/** Texto da planilha → andamento da frente: "Concluído", "Andamento…"; nomes e o resto = não iniciado. */
+export function trackStatusFromSheet(text: string): TrackStatus2026 {
+  const t = norm(text);
+  if (/^concluid[oa]$/.test(t)) return "concluido";
+  if (t.startsWith("andamento")) return "andamento";
+  return "nao_iniciado";
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, ArrowLeft, ArrowRight, Minus, Plus, Trash2, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Check, Minus, Plus, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Modal, useConfirm } from "@/components/ui/dialog";
@@ -15,7 +15,10 @@ import {
   OWNER_TRACK_LABEL,
   OWNER_TRACKS_2026,
   STATUS_2026_LABEL,
+  TRACK_STATUS_LABEL,
+  TRACK_STATUSES_2026,
   WEEKS_PER_MONTH,
+  autoDone,
   editableEnd,
   lateReason,
   weekLabel,
@@ -24,11 +27,13 @@ import {
   workPeriod,
   type OwnerTrack2026,
   type Owners2026,
+  type TrackStatus2026,
+  type TrackStatuses2026,
   type Work2026,
 } from "@/lib/domain/roadmap-2026";
 import type { Person, Platform, Roadmap2026Item, Roadmap2026Work } from "@/lib/domain/types";
 import { Avatar } from "@/components/org/avatar";
-import { OWNER_TRACK_ICON } from "@/components/roadmap/roadmap-2026";
+import { OWNER_TRACK_ICON, TRACK_STATUS_TONE } from "@/components/roadmap/roadmap-2026";
 
 const WEEKS = ROADMAP_2026_WEEK_COUNT;
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
@@ -143,7 +148,22 @@ function SegmentRow({
 }
 
 /** Pessoas responsáveis por uma frente: escolhidas no organograma, com avatar. */
-function OwnerPicker({ track, people, value, onChange }: { track: OwnerTrack2026; people: Person[]; value: string[]; onChange: (ids: string[]) => void }) {
+function OwnerPicker({
+  track,
+  people,
+  value,
+  onChange,
+  status,
+  onStatus,
+}: {
+  track: OwnerTrack2026;
+  people: Person[];
+  value: string[];
+  onChange: (ids: string[]) => void;
+  /** Andamento da frente (Design e Engenharia). */
+  status?: TrackStatus2026;
+  onStatus?: (status: TrackStatus2026) => void;
+}) {
   const Icon = OWNER_TRACK_ICON[track];
   const chosen = value.map((id) => people.find((p) => p.id === id)).filter((p): p is Person => !!p);
   const discipline = OWNER_TRACK_DISCIPLINE[track];
@@ -157,6 +177,28 @@ function OwnerPicker({ track, people, value, onChange }: { track: OwnerTrack2026
         <Icon size={15} aria-hidden className="text-muted" />
         {OWNER_TRACK_LABEL[track]}
       </span>
+      {status && onStatus && (
+        <span role="radiogroup" aria-label={`Andamento de ${OWNER_TRACK_LABEL[track]}`} className="mr-1 flex rounded-lg border border-line bg-canvas p-0.5">
+          {TRACK_STATUSES_2026.map((st) => {
+            const on = status === st;
+            const tone = TRACK_STATUS_TONE[st];
+            return (
+              <button
+                key={st}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                onClick={() => onStatus(st)}
+                className={cn("inline-flex h-7 items-center gap-1 rounded-md px-2 text-[12px] font-bold transition-colors", on ? "shadow-sm" : "text-muted hover:text-ink")}
+                style={on ? { background: tone.bg, color: tone.fg } : undefined}
+              >
+                <span aria-hidden className="h-1.5 w-1.5 rounded-full" style={{ background: tone.dot }} />
+                {TRACK_STATUS_LABEL[st]}
+              </button>
+            );
+          })}
+        </span>
+      )}
       {chosen.map((p) => (
         <span key={p.id} className="inline-flex items-center gap-1.5 rounded-full border border-line bg-canvas py-0.5 pl-0.5 pr-1 text-[13px] font-semibold text-ink">
           <Avatar person={p} size={24} />
@@ -195,6 +237,7 @@ export function Item2026Dialog({
   item,
   platforms,
   owners: initialOwners,
+  trackStatuses: initialTracks,
   people,
   onClose,
   onSave,
@@ -204,10 +247,12 @@ export function Item2026Dialog({
   platforms: Platform[];
   /** Responsáveis atuais e o organograma (Times & Squads). */
   owners: Owners2026;
+  /** Andamento de Design e Engenharia. */
+  trackStatuses: TrackStatuses2026;
   people: Person[];
   onClose: () => void;
   /** Devolve se salvou (em caso de erro a janela continua aberta). */
-  onSave: (item: Roadmap2026Item, owners: Owners2026) => Promise<boolean>;
+  onSave: (item: Roadmap2026Item, owners: Owners2026, trackStatuses: TrackStatuses2026) => Promise<boolean>;
   onRemove: (id: string) => Promise<boolean>;
 }) {
   const confirm = useConfirm();
@@ -221,7 +266,9 @@ export function Item2026Dialog({
     return { design: known(initialOwners.design), engineering: known(initialOwners.engineering), qa: known(initialOwners.qa) };
   });
   const [owners, setOwners] = useState(start);
-  const dirty = JSON.stringify(draft) !== JSON.stringify(item) || JSON.stringify(owners) !== JSON.stringify(start);
+  const [tracks, setTracks] = useState(initialTracks);
+  const dirty =
+    JSON.stringify(draft) !== JSON.stringify(item) || JSON.stringify(owners) !== JSON.stringify(start) || JSON.stringify(tracks) !== JSON.stringify(initialTracks);
   const sheetText = OWNER_TRACKS_2026.filter((t) => item[t])
     .map((t) => `${OWNER_TRACK_LABEL[t]} “${item[t]}”`)
     .join(" · ");
@@ -262,7 +309,7 @@ export function Item2026Dialog({
             disabled={!dirty || !draft.title.trim()}
             onClick={async () => {
               setBusy(true);
-              if (!(await onSave({ ...draft, title: draft.title.trim(), subtitle: draft.subtitle.trim() }, owners))) setBusy(false);
+              if (!(await onSave({ ...draft, title: draft.title.trim(), subtitle: draft.subtitle.trim() }, owners, tracks))) setBusy(false);
             }}
           >
             Salvar
@@ -293,7 +340,13 @@ export function Item2026Dialog({
               );
             })}
           </div>
-          {lateReason(draft) === "prazo" && editableEnd(draft) !== null && (
+          {autoDone({ ...draft, trackStatus: tracks }) && (
+            <p className="mt-2 flex gap-1.5 rounded-lg bg-[#e6f6ec] px-3 py-2 text-[12.5px] font-semibold text-[#1b6b3a]">
+              <Check size={14} className="mt-0.5 shrink-0" aria-hidden />
+              Design e Engenharia concluídos: a iniciativa conta como Concluída.
+            </p>
+          )}
+          {lateReason({ ...draft, trackStatus: tracks }) === "prazo" && editableEnd(draft) !== null && (
             <p className="mt-2 flex gap-1.5 rounded-lg bg-[#fdecec] px-3 py-2 text-[12.5px] font-semibold text-[#a1262b]">
               <AlertTriangle size={14} className="mt-0.5 shrink-0" aria-hidden />
               O fim projetado ({weekLabel(editableEnd(draft)! - 1)}) já passou: a iniciativa aparece como Atrasada até ser concluída ou ter as semanas estendidas.
@@ -328,10 +381,18 @@ export function Item2026Dialog({
         </div>
 
         <fieldset className="flex flex-col gap-3">
-          <legend className="mb-1 text-sm font-bold text-ink">Responsáveis</legend>
-          <p className="-mt-1 text-xs text-muted">Quem está tocando a iniciativa em cada frente. As pessoas vêm de Times &amp; Squads.</p>
+          <legend className="mb-1 text-sm font-bold text-ink">Frentes e responsáveis</legend>
+          <p className="-mt-1 text-xs text-muted">Andamento de Design e de Engenharia e quem toca cada frente (pessoas de Times &amp; Squads).</p>
           {OWNER_TRACKS_2026.map((track) => (
-            <OwnerPicker key={track} track={track} people={people} value={owners[track]} onChange={(ids) => setOwners((o) => ({ ...o, [track]: ids }))} />
+            <OwnerPicker
+              key={track}
+              track={track}
+              people={people}
+              value={owners[track]}
+              onChange={(ids) => setOwners((o) => ({ ...o, [track]: ids }))}
+              status={track === "qa" ? undefined : tracks[track]}
+              onStatus={track === "qa" ? undefined : (st) => setTracks((t) => ({ ...t, [track]: st }))}
+            />
           ))}
           {sheetText && <p className="text-xs text-subtle">Na planilha: {sheetText}.</p>}
         </fieldset>

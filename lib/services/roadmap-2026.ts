@@ -2,7 +2,7 @@ import "server-only";
 import { seedRoadmap2026 } from "@/data/seed/roadmap-2026";
 import type { Viewer } from "@/lib/auth/session";
 import { canPlanRoadmap2026For } from "@/lib/domain/effort-access";
-import { OWNER_TRACK_LABEL, OWNER_TRACKS_2026, STATUS_2026_LABEL, WORK_2026_LABEL, workPeriod } from "@/lib/domain/roadmap-2026";
+import { OWNER_TRACK_LABEL, OWNER_TRACKS_2026, STATUS_2026_LABEL, TRACK_STATUS_LABEL, TRACK_STATUS_TRACKS, WORK_2026_LABEL, workPeriod } from "@/lib/domain/roadmap-2026";
 import type { Database, Person, Roadmap2026, Roadmap2026Item } from "@/lib/domain/types";
 import { getRepository, storageKind } from "@/lib/repositories";
 import { READ_ONLY_MESSAGE } from "@/lib/repositories/json-file-repository";
@@ -50,6 +50,10 @@ export function describe2026Changes(before: Roadmap2026Item, after: Roadmap2026I
   if (before.title !== after.title) out.push(`Nome alterado de “${before.title}” para “${after.title}”.`);
   if (before.subtitle !== after.subtitle) out.push(after.subtitle ? `Subtítulo: ${quoted(after.subtitle)}.` : "Subtítulo removido.");
   if (before.squad !== after.squad) out.push(`Squad: ${before.squad} → ${after.squad}.`);
+  for (const track of TRACK_STATUS_TRACKS) {
+    if (before.trackStatus[track] !== after.trackStatus[track])
+      out.push(`Andamento de ${OWNER_TRACK_LABEL[track]}: ${TRACK_STATUS_LABEL[before.trackStatus[track]]} → ${TRACK_STATUS_LABEL[after.trackStatus[track]]}.`);
+  }
   const names = (ids: string[]) => (ids.length ? ids.map((id) => people.find((p) => p.id === id)?.name ?? "pessoa removida").join(", ") : "ninguém");
   for (const track of OWNER_TRACKS_2026) {
     const a = before.owners[track];

@@ -83,7 +83,11 @@ export function RoadmapView() {
   };
   const change2026 = (item: Roadmap2026Item) => void save2026(item.id, { segments: item.segments });
   // Responsáveis de cada iniciativa (colaboradores de Times & Squads), para os avatares.
-  const owners2026 = useMemo(() => ({ ownersOf: (item: Roadmap2026Item) => item.owners, people: data.people }), [data.people]);
+  // Responsáveis e andamento por frente de cada iniciativa, para os avatares e as pílulas.
+  const owners2026 = useMemo(
+    () => ({ ownersOf: (item: Roadmap2026Item) => item.owners, trackStatusOf: (item: Roadmap2026Item) => item.trackStatus, people: data.people }),
+    [data.people],
+  );
   const [platform, setPlatform] = useState("todas");
   const [showMilestones, setShowMilestones] = useState(true);
   const [showEffort, setShowEffort] = useState(true);
@@ -384,11 +388,12 @@ export function RoadmapView() {
           item={editingItem2026}
           platforms={data.platforms}
           owners={editingItem2026.owners}
+          trackStatuses={editingItem2026.trackStatus}
           people={data.people}
           onClose={() => setEditing2026(null)}
-          onSave={async (item, owners) => {
+          onSave={async (item, owners, trackStatus) => {
             const { title, subtitle, platformId, backlog, status, segments } = item;
-            const ok = await save2026(item.id, { title, subtitle, platformId, owners, backlog, status, segments }, "Alterações salvas.");
+            const ok = await save2026(item.id, { title, subtitle, platformId, owners, trackStatus, backlog, status, segments }, "Alterações salvas.");
             if (ok) setEditing2026(null);
             return ok;
           }}

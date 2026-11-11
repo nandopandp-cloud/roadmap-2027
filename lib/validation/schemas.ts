@@ -23,6 +23,7 @@ import {
   QUARTERS,
   ROADMAP_2026_PHASES,
   ROADMAP_2026_STATUSES,
+  ROADMAP_2026_TRACK_STATUSES,
   ROADMAP_2026_WAVES,
   ROADMAP_2026_WEEK_COUNT,
   ROADMAP_2026_WORK,
@@ -673,11 +674,18 @@ const ownerIds = z.array(localId).max(10, "Escolha no máximo 10 pessoas por fre
 /** Responsáveis por frente: colaboradores de Times & Squads (ids). */
 export const roadmap2026OwnersSchema = z.object({ design: ownerIds, engineering: ownerIds, qa: ownerIds });
 
+/** Andamento de Design e de Engenharia, separado do status geral. */
+export const roadmap2026TrackStatusSchema = z.object({
+  design: z.enum(ROADMAP_2026_TRACK_STATUSES),
+  engineering: z.enum(ROADMAP_2026_TRACK_STATUSES),
+});
+
 const roadmap2026EditableFields = {
   title: required("O nome", 200),
   subtitle: text(200),
   platformId: localId.nullable(),
   owners: roadmap2026OwnersSchema,
+  trackStatus: roadmap2026TrackStatusSchema,
   backlog: z.boolean(),
   status: z.enum(ROADMAP_2026_STATUSES),
   segments: z.array(roadmap2026WorkSchema).max(ROADMAP_2026_WEEK_COUNT),
