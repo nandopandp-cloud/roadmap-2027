@@ -147,7 +147,7 @@ export function AreaFilter2026({
         onClick={() => {
           const rect = ref.current?.getBoundingClientRect();
           if (rect) {
-            const width = Math.min(560, window.innerWidth - 32);
+            const width = Math.min(640, window.innerWidth - 32);
             const left = Math.min(Math.max(16, rect.left), window.innerWidth - width - 16);
             setPos({ top: rect.bottom + 8, left, width });
           }
