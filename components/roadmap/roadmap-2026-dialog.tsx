@@ -160,7 +160,7 @@ function OwnerPicker({
   people: Person[];
   value: string[];
   onChange: (ids: string[]) => void;
-  /** Andamento da frente (Design e Engenharia). */
+  /** Andamento da frente. */
   status?: TrackStatus2026;
   onStatus?: (status: TrackStatus2026) => void;
 }) {
@@ -247,7 +247,7 @@ export function Item2026Dialog({
   platforms: Platform[];
   /** Responsáveis atuais e o organograma (Times & Squads). */
   owners: Owners2026;
-  /** Andamento de Design e Engenharia. */
+  /** Andamento de Design, Engenharia e QA. */
   trackStatuses: TrackStatuses2026;
   people: Person[];
   onClose: () => void;
@@ -382,7 +382,7 @@ export function Item2026Dialog({
 
         <fieldset className="flex flex-col gap-3">
           <legend className="mb-1 text-sm font-bold text-ink">Frentes e responsáveis</legend>
-          <p className="-mt-1 text-xs text-muted">Andamento de Design e de Engenharia e quem toca cada frente (pessoas de Times &amp; Squads).</p>
+          <p className="-mt-1 text-xs text-muted">Andamento de Design, Engenharia e QA e quem toca cada frente (pessoas de Times &amp; Squads).</p>
           {OWNER_TRACKS_2026.map((track) => (
             <OwnerPicker
               key={track}
@@ -390,8 +390,8 @@ export function Item2026Dialog({
               people={people}
               value={owners[track]}
               onChange={(ids) => setOwners((o) => ({ ...o, [track]: ids }))}
-              status={track === "qa" ? undefined : tracks[track]}
-              onStatus={track === "qa" ? undefined : (st) => setTracks((t) => ({ ...t, [track]: st }))}
+              status={tracks[track]}
+              onStatus={(st) => setTracks((t) => ({ ...t, [track]: st }))}
             />
           ))}
           {sheetText && <p className="text-xs text-subtle">Na planilha: {sheetText}.</p>}

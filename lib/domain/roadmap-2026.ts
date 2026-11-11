@@ -295,16 +295,16 @@ export function lateReason(item: Item2026Status, today = new Date()): "prazo" | 
 
 /* ------------------------------ Status por frente ------------------------------ */
 
-/** Andamento de cada frente (Design e Engenharia), separado do status geral da iniciativa. */
+/** Andamento de cada frente (Design, Engenharia e QA), separado do status geral da iniciativa. */
 export const TRACK_STATUSES_2026 = ROADMAP_2026_TRACK_STATUSES;
 export type TrackStatus2026 = (typeof TRACK_STATUSES_2026)[number];
-export const TRACK_STATUS_TRACKS = ["design", "engineering"] as const;
+export const TRACK_STATUS_TRACKS = ["design", "engineering", "qa"] as const;
 export type TrackStatusTrack = (typeof TRACK_STATUS_TRACKS)[number];
 export type TrackStatuses2026 = Roadmap2026TrackStatus;
 
-/** Andamento das frentes lido dos textos de Design e Engenheiro da planilha. */
-export function trackStatusesFromSheet(item: Pick<Roadmap2026Item, "design" | "engineering">): TrackStatuses2026 {
-  return { design: trackStatusFromSheet(item.design), engineering: trackStatusFromSheet(item.engineering) };
+/** Andamento das frentes lido dos textos de Design, Engenheiro e QA da planilha. */
+export function trackStatusesFromSheet(item: Pick<Roadmap2026Item, "design" | "engineering" | "qa">): TrackStatuses2026 {
+  return { design: trackStatusFromSheet(item.design), engineering: trackStatusFromSheet(item.engineering), qa: trackStatusFromSheet(item.qa) };
 }
 
 export const TRACK_STATUS_LABEL: Record<TrackStatus2026, string> = { nao_iniciado: "Não iniciado", andamento: "Em andamento", concluido: "Concluído" };

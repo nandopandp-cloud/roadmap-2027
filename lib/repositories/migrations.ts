@@ -6,7 +6,7 @@ import { importedItem, ownersFromSheet, trackStatusesFromSheet } from "@/lib/dom
 import { defaultRoadmapOrder } from "@/lib/domain/roadmap-order";
 import type { Database, IllustrationKey, Person, PlatformStrategy, ProposalSection, RepositoryLink, Roadmap2026Item, Squad, StrategyContext } from "@/lib/domain/types";
 
-export const SCHEMA_VERSION = 17;
+export const SCHEMA_VERSION = 18;
 
 /** Ilustrações removidas da biblioteca → equivalentes atuais. */
 const RENAMED_ILLUSTRATIONS: Record<string, IllustrationKey | null> = { cometa: null, lua: null };
@@ -39,6 +39,7 @@ const RENAMED_ILLUSTRATIONS: Record<string, IllustrationKey | null> = { cometa: 
  *            esse nome; o campo de onda (wave) deixa de existir.
  * v16 → v17: andamento de Design e de Engenharia (trackStatus), lido dos textos da planilha
  *            ("Concluído", "Andamento…"; o resto = não iniciado).
+ * v17 → v18: andamento de QA (trackStatus.qa), lido do texto de QA da planilha.
  */
 export function migrateDatabase(db: Database): { db: Database; changed: boolean } {
   if ((db.schemaVersion ?? 1) >= SCHEMA_VERSION) return { db, changed: false };
@@ -84,7 +85,7 @@ export function importedRoadmap2026(people: Person[] = []): Roadmap2026Item[] {
 
 type LegacyRoadmap2026Item = Omit<Roadmap2026Item, "owners" | "trackStatus"> & {
   owners?: Roadmap2026Item["owners"];
-  trackStatus?: Roadmap2026Item["trackStatus"];
+  trackStatus?: Partial<Roadmap2026Item["trackStatus"]>;
   wave?: unknown;
 };
 
@@ -93,7 +94,8 @@ function migrateRoadmap2026(items: LegacyRoadmap2026Item[], people: Person[]): R
   return items.map(({ wave: _wave, ...item }) => ({
     ...item,
     owners: item.owners ?? ownersFromSheet(item, people),
-    trackStatus: item.trackStatus ?? trackStatusesFromSheet(item),
+    // Frentes que ainda não têm andamento gravado (ex.: QA, desde a v18) são lidas da planilha.
+    trackStatus: { ...trackStatusesFromSheet(item), ...item.trackStatus },
   }));
 }
 

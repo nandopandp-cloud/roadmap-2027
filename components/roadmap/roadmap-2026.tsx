@@ -47,7 +47,7 @@ export const Owners2026Context = createContext<{
   people: Person[];
 }>({
   ownersOf: () => ({ design: [], engineering: [], qa: [] }),
-  trackStatusOf: () => ({ design: "nao_iniciado", engineering: "nao_iniciado" }),
+  trackStatusOf: () => ({ design: "nao_iniciado", engineering: "nao_iniciado", qa: "nao_iniciado" }),
   people: [],
 });
 
@@ -69,21 +69,18 @@ function TrackStatusPill({ status, short = false }: { status: TrackStatus2026; s
   );
 }
 
-/**
- * Gantt: uma pílula por frente — Design e Engenharia sempre (com o andamento de cada uma),
- * QA quando há responsável — com os avatares de quem a toca.
- */
+/** Gantt: uma pílula por frente (Design, Engenharia e QA), com o andamento e os avatares de quem a toca. */
 function TrackChips({ item }: { item: Roadmap2026Item }) {
   const { ownersOf, trackStatusOf, people } = useContext(Owners2026Context);
   const owners = ownersOf(item);
   const statuses = trackStatusOf(item);
-  const tracks = OWNER_TRACKS_2026.filter((t) => t !== "qa" || owners.qa.length > 0);
+  const tracks = OWNER_TRACKS_2026;
   return (
     <span className="flex flex-wrap items-center gap-1">
       {tracks.map((track) => {
         const Icon = OWNER_TRACK_ICON[track];
         const list = owners[track].map((id) => people.find((p) => p.id === id)).filter((p): p is Person => !!p);
-        const status = track === "qa" ? null : statuses[track];
+        const status = statuses[track];
         const label = `${OWNER_TRACK_LABEL[track]}${status ? `: ${TRACK_STATUS_LABEL[status]}` : ""}${list.length ? ` · ${list.map((p) => p.name).join(", ")}` : " · sem responsável"}`;
         return (
           <span key={track} title={label} aria-label={label} role="img" className={cn("inline-flex items-center gap-1 rounded-full border border-line bg-surface py-px pl-1.5", list.length ? "pr-px" : "pr-1.5")}>
@@ -122,8 +119,8 @@ function OwnerRows({ item }: { item: Roadmap2026Item }) {
   const { trackStatusOf } = useContext(Owners2026Context);
   const statuses = trackStatusOf(item);
   const withOwners = useOwners(item);
-  // Design e Engenharia sempre aparecem (com o andamento); QA só com responsável.
-  const groups = OWNER_TRACKS_2026.filter((t) => t !== "qa" || withOwners.some((g) => g.track === "qa")).map(
+  // As três frentes sempre aparecem, com o andamento.
+  const groups = OWNER_TRACKS_2026.map(
     (track) => withOwners.find((g) => g.track === track) ?? { track, people: [] as Person[] },
   );
   return (
@@ -136,7 +133,7 @@ function OwnerRows({ item }: { item: Roadmap2026Item }) {
               <Icon size={13} aria-hidden style={{ color: OWNER_TRACK_COLOR[track] }} />
               {OWNER_TRACK_LABEL[track]}
             </span>
-            {track !== "qa" ? <TrackStatusPill status={statuses[track]} /> : <span />}
+            <TrackStatusPill status={statuses[track]} />
             {people.length === 0 ? (
               <span className="truncate text-[12px] text-subtle">—</span>
             ) : (
@@ -200,7 +197,7 @@ export function Roadmap2026Source({ source, editable }: { source: Roadmap2026Sou
 export function Roadmap2026Legend({ canEdit }: { canEdit: boolean }) {
   return (
     <>
-      {ROADMAP_2026_WORK.map((work) => (
+      {ROADMAP_2026_WORK.filter((work) => work !== "indefinido").map((work) => (
         <span key={work} className="flex items-center gap-1.5">
           <span aria-hidden className="h-2.5 w-5 rounded-[3px]" style={{ background: WORK_2026_TONE[work].solid }} />
           {WORK_2026_LABEL[work]}
@@ -416,7 +413,7 @@ export function Roadmap2026Board({
 
 /* ---------------------------------- Gantt ---------------------------------- */
 
-const ROW = "grid grid-cols-[230px_minmax(0,1fr)] sm:grid-cols-[340px_minmax(0,1fr)]";
+const ROW = "grid grid-cols-[230px_minmax(0,1fr)] sm:grid-cols-[380px_minmax(0,1fr)]";
 
 /** Semanas (bem claras), meses e, mais fortes, as divisões entre trimestres (a cada 3 meses = 30%). */
 const TIMELINE_BG: CSSProperties = {
@@ -472,7 +469,9 @@ function GanttRow2026({
   const { trackStatusOf } = useContext(Owners2026Context);
   const trackStatus = trackStatusOf(item);
   const trackDone = (work: Roadmap2026Work["work"]) =>
-    (work === "design" && trackStatus.design === "concluido") || (work === "engenharia" && trackStatus.engineering === "concluido");
+    (work === "design" && trackStatus.design === "concluido") ||
+    (work === "engenharia" && trackStatus.engineering === "concluido") ||
+    (work === "qa" && trackStatus.qa === "concluido");
   const late = shown === "atrasada";
   const autoLate = lateReason(item) === "prazo" && item.status !== "atrasada";
   const end = editableEnd(item);
@@ -740,7 +739,7 @@ export function Roadmap2026Gantt({
         fill ? "min-h-0 overflow-auto overscroll-contain [scrollbar-width:thin]" : "mt-6 overflow-x-auto",
       )}
     >
-      <div className="min-w-[960px]">
+      <div className="min-w-[1000px]">
         <div className={cn(ROW, "bg-[#fbfcff]", fill && "sticky top-0 z-20 shadow-[0_1px_0_#e3e9f4]")}>
           <div className="sticky left-0 z-10 flex items-end border-r border-line bg-[#fbfcff] px-4 pb-2 text-[12.5px] font-extrabold text-muted">Iniciativa</div>
           <div ref={timelineRef}>
