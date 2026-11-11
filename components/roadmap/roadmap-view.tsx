@@ -1,5 +1,6 @@
 "use client";
 
+import { MultiSelect } from "@/components/ui/multi-select";
 import { Select } from "@/components/ui/select";
 import { ChartGantt, Flag, GitFork, GripVertical, LayoutGrid, Maximize2, Minimize2, Plus } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -74,6 +75,22 @@ export function RoadmapView() {
   const canPlan2026 = useCanPlan2026();
   const notify = useToast();
   const [editing2026, setEditing2026] = useState<string | null>(null);
+  // Iniciativa destacada depois de escolhida na lista de atrasadas (rola até ela).
+  const [highlight2026, setHighlight2026] = useState<string | null>(null);
+  const goTo2026 = (id: string) => {
+    // A iniciativa precisa estar visível: um filtro de status que a esconda volta para "Todos".
+    const item = items2026?.find((i) => i.id === id);
+    if (item && status2026.length && !status2026.includes(effectiveStatus(item))) setStatus2026([]);
+    setHighlight2026(id);
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => document.querySelector(`[data-item-2026="${id}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" })),
+    );
+  };
+  useEffect(() => {
+    if (!highlight2026) return;
+    const timer = setTimeout(() => setHighlight2026(null), 2600);
+    return () => clearTimeout(timer);
+  }, [highlight2026]);
   const editingItem2026 = editing2026 ? items2026?.find((i) => i.id === editing2026) : undefined;
 
   /** Salva no servidor; em caso de erro a tela volta ao estado anterior e avisa. */
@@ -113,8 +130,9 @@ export function RoadmapView() {
       trackStatusOf: (item: Roadmap2026Item) => item.trackStatus,
       people: data.people,
       showTracks,
+      highlightId: highlight2026,
     }),
-    [data.people, showTracks],
+    [data.people, showTracks, highlight2026],
   );
   const [platform, setPlatform] = useState("todas");
   const [showMilestones, setShowMilestones] = useState(true);
@@ -159,14 +177,15 @@ export function RoadmapView() {
     () => (items2026 ?? []).filter((i) => platformFilter === "todas" || platformKey2026(i) === platformFilter),
     [items2026, platformFilter],
   );
-  const [status2026, setStatus2026] = useState<"todos" | Status2026>("todos");
+  // Status escolhidos no filtro (vazio = todos).
+  const [status2026, setStatus2026] = useState<Status2026[]>([]);
   const statusCounts2026 = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const i of byPlatform2026) counts[effectiveStatus(i)] = (counts[effectiveStatus(i)] ?? 0) + 1;
     return counts;
   }, [byPlatform2026]);
   const visible2026 = useMemo(
-    () => (status2026 === "todos" ? byPlatform2026 : byPlatform2026.filter((i) => effectiveStatus(i) === status2026)),
+    () => (status2026.length === 0 ? byPlatform2026 : byPlatform2026.filter((i) => status2026.includes(effectiveStatus(i)))),
     [byPlatform2026, status2026],
   );
   const loading2026 = !items2026;
@@ -229,27 +248,25 @@ export function RoadmapView() {
       {is2026 && (
         <div className="flex items-center gap-2 text-[14px] font-semibold text-muted">
           <span aria-hidden>Status</span>
-          <Select
+          <MultiSelect
+            label="Status"
             value={status2026}
-            onChange={(v) => setStatus2026(v as "todos" | Status2026)}
-            aria-label="Status"
-            className="h-10 min-w-[180px] rounded-xl border border-line bg-surface px-3 text-[14px] font-semibold text-ink hover:border-line-strong focus:border-violet focus:outline-none focus:ring-4 focus:ring-[#6045d8]/12"
-          >
-            <option value="todos">Todos ({byPlatform2026.length})</option>
-            {STATUS_FILTER_2026.map((st) => (
-              <option key={st} value={st}>
-                {STATUS_2026_LABEL[st]} ({statusCounts2026[st] ?? 0})
-              </option>
-            ))}
-          </Select>
+            onChange={(v) => setStatus2026(v as Status2026[])}
+            allCount={byPlatform2026.length}
+            options={STATUS_FILTER_2026.map((st) => ({ value: st, label: STATUS_2026_LABEL[st], count: statusCounts2026[st] ?? 0 }))}
+          />
         </div>
       )}
       {!is2026 && <Checkbox label="Mostrar marcos" checked={showMilestones} onChange={setShowMilestones} />}
       {!is2026 && view === "gantt" && <Checkbox label="Mostrar esforço" checked={showEffort} onChange={setShowEffort} />}
-      {is2026 && <TrackToggle expanded={showTracks} onChange={toggleTracks} />}
-      {is2026 && items2026 && (
-        <LateMenu2026 items={byPlatform2026} platforms={data.platforms} canEdit={canPlan2026} onEdit={setEditing2026} onShowOnly={() => setStatus2026("atrasada")} />
-      )}
+    </>
+  );
+
+  /** Ações do 2026 (frentes e atrasadas), alinhadas com a tela cheia. */
+  const actions2026 = is2026 && (
+    <>
+      <TrackToggle expanded={showTracks} onChange={toggleTracks} />
+      {items2026 && <LateMenu2026 items={byPlatform2026} platforms={data.platforms} onSelect={goTo2026} onShowOnly={() => setStatus2026(["atrasada"])} />}
     </>
   );
 
@@ -387,17 +404,19 @@ export function RoadmapView() {
         <>
           <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-3">
             {controls}
-            <Button
-              ref={fullscreenButtonRef}
-              size="sm"
-              className="ml-auto"
-              icon={<Maximize2 size={15} />}
-              disabled={!ready}
-              title="Ver o roadmap ocupando a tela inteira"
-              onClick={() => setFullscreen(true)}
-            >
-              Tela cheia
-            </Button>
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              {actions2026}
+              <Button
+                ref={fullscreenButtonRef}
+                className="h-10"
+                icon={<Maximize2 size={15} />}
+                disabled={!ready}
+                title="Ver o roadmap ocupando a tela inteira"
+                onClick={() => setFullscreen(true)}
+              >
+                Tela cheia
+              </Button>
+            </div>
           </div>
           <div className="mt-3">{legend}</div>
         {!is2026 && load.status === "error" && (
@@ -430,6 +449,7 @@ export function RoadmapView() {
                 <h2 className="text-[16px] font-black text-navy">{title}</h2>
                 <YearSwitch year={year} onChange={setYear} compact />
                 {controls}
+                {actions2026 && <div className="flex items-center gap-2">{actions2026}</div>}
               </div>
               <Button size="sm" variant="primary" className="mt-1.5 shrink-0" icon={<Minimize2 size={15} />} onClick={exitFullscreen} title="Sair da tela cheia (Esc)">
                 Sair

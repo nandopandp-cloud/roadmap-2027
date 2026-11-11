@@ -47,6 +47,8 @@ export const Owners2026Context = createContext<{
   people: Person[];
   /** Mostra as frentes (Design, Engenharia, QA) com andamento e responsáveis ("Expandir todos"). */
   showTracks: boolean;
+  /** Iniciativa em destaque (escolhida na lista de atrasadas). */
+  highlightId?: string | null;
 }>({
   ownersOf: () => ({ design: [], engineering: [], qa: [] }),
   trackStatusOf: () => ({ design: "nao_iniciado", engineering: "nao_iniciado", qa: "nao_iniciado" }),
@@ -212,14 +214,13 @@ export function Roadmap2026Legend() {
 export function LateMenu2026({
   items,
   platforms,
-  canEdit,
-  onEdit,
+  onSelect,
   onShowOnly,
 }: {
   items: Roadmap2026Item[];
   platforms: Platform[];
-  canEdit: boolean;
-  onEdit: (id: string) => void;
+  /** Rola até a iniciativa no roadmap e a destaca. */
+  onSelect: (id: string) => void;
   onShowOnly: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -267,7 +268,7 @@ export function LateMenu2026({
           setOpen((v) => !v);
         }}
         className={cn(
-          "inline-flex h-10 items-center gap-1.5 rounded-xl border px-3 text-[13.5px] font-bold transition-colors",
+          "inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-bold transition-colors",
           open ? "border-[#e25858] bg-[#fdecec] text-[#a1262b]" : "border-[#f3c9c9] bg-surface text-[#a1262b] hover:bg-[#fff6f6]",
         )}
       >
@@ -283,7 +284,7 @@ export function LateMenu2026({
           style={{ top: pos.top, left: pos.left, width: pos.width }}
         >
           <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-2.5">
-            <p className="text-[12.5px] text-muted">Fim projetado vencido sem todas as frentes concluídas.</p>
+            <p className="text-[12.5px] text-muted">Fim projetado vencido sem todas as frentes concluídas. Clique para ir até a iniciativa.</p>
             <button
               type="button"
               onClick={() => {
@@ -298,20 +299,16 @@ export function LateMenu2026({
           <ul className="max-h-[min(420px,60vh)] overflow-y-auto py-1 [scrollbar-width:thin]">
             {late.map((i) => {
               const end = editableEnd(i);
-              const Tag = canEdit ? "button" : "div";
               return (
                 <li key={i.id}>
-                  <Tag
-                    {...(canEdit
-                      ? {
-                          type: "button" as const,
-                          onClick: () => {
-                            setOpen(false);
-                            onEdit(i.id);
-                          },
-                        }
-                      : {})}
-                    className={cn("flex w-full items-center gap-3 px-4 py-2 text-left", canEdit && "transition-colors hover:bg-[#f6f4ff]")}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOpen(false);
+                      onSelect(i.id);
+                    }}
+                    title="Ir até a iniciativa no roadmap"
+                    className="flex w-full items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-[#f6f4ff]"
                   >
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[13.5px] font-bold text-navy">{i.title}</span>
@@ -323,7 +320,7 @@ export function LateMenu2026({
                     <span className="shrink-0 rounded-full bg-[#fdecec] px-2 py-0.5 text-[11.5px] font-bold text-[#a1262b]">
                       há {plural(overdueWeeks(i), "semana", "semanas")}
                     </span>
-                  </Tag>
+                  </button>
                 </li>
               );
             })}
@@ -337,7 +334,7 @@ export function LateMenu2026({
 /* ---------------------------------- Cards ---------------------------------- */
 
 function Card2026({ item, platforms, onEdit }: { item: Roadmap2026Item; platforms: Platform[]; onEdit?: () => void }) {
-  const { showTracks } = useContext(Owners2026Context);
+  const { showTracks, highlightId } = useContext(Owners2026Context);
   const Tag = onEdit ? "button" : "article";
   return (
     <Tag
@@ -345,6 +342,7 @@ function Card2026({ item, platforms, onEdit }: { item: Roadmap2026Item; platform
       className={cn(
         "flex w-full flex-col gap-2.5 rounded-2xl border bg-surface p-4 text-left shadow-[var(--shadow-card)]",
         effectiveStatus(item) === "atrasada" ? "border-[#f0b4b4]" : "border-line",
+        highlightId === item.id && "border-violet shadow-[0_0_0_4px_rgba(96,69,216,0.22)]",
         onEdit && "transition-all hover:-translate-y-px hover:border-line-strong",
       )}
     >
@@ -400,7 +398,7 @@ export function Roadmap2026Board({
 }) {
   const unscheduled = items.filter((i) => editableQuarter(i) === null);
   const card = (item: Roadmap2026Item) => (
-    <li key={item.id}>
+    <li key={item.id} data-item-2026={item.id}>
       <Card2026 item={item} platforms={platforms} onEdit={canEdit ? () => onEdit(item.id) : undefined} />
     </li>
   );
@@ -512,7 +510,7 @@ function GanttRow2026({
   const active = drag;
   const weekPx = timelineWidth / WEEKS || 1;
   const shown = effectiveStatus(item);
-  const { trackStatusOf, showTracks } = useContext(Owners2026Context);
+  const { trackStatusOf, showTracks, highlightId } = useContext(Owners2026Context);
   const trackStatus = trackStatusOf(item);
   const trackDone = (work: Roadmap2026Work["work"]) =>
     (work === "design" && trackStatus.design === "concluido") ||
@@ -551,7 +549,11 @@ function GanttRow2026({
   };
 
   return (
-    <li data-drag-card={item.id} className={cn(ROW, "border-t border-line", late && "bg-[#fff8f8]", hidden && "hidden")}>
+    <li
+      data-drag-card={item.id}
+      data-item-2026={item.id}
+      className={cn(ROW, "border-t border-line transition-shadow duration-500", late && "bg-[#fff8f8]", hidden && "hidden", highlightId === item.id && "relative z-[5] shadow-[inset_0_0_0_2px_#6045d8,0_0_0_4px_rgba(96,69,216,0.18)]")}
+    >
       <div
         className={cn(
           "group/row sticky left-0 z-10 flex flex-col justify-center gap-1 border-r border-line py-2.5 pr-4",
@@ -688,7 +690,7 @@ export function TrackToggle({ expanded, onChange }: { expanded: boolean; onChang
   const Icon = expanded ? Shrink : Expand;
   return (
     <Button
-      size="sm"
+      className="h-10"
       icon={<Icon size={15} />}
       aria-pressed={expanded}
       title={expanded ? "Ocultar Design, Engenharia e QA de cada iniciativa" : "Mostrar o andamento e os responsáveis de Design, Engenharia e QA"}
