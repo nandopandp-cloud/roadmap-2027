@@ -41,6 +41,7 @@ import type {
   roadmap2026TrackStatusSchema,
   roadmap2026SegmentSchema,
   roadmap2026SourceSchema,
+  roadmap2026SyncSchema,
   roadmap2026WorkSchema,
   squadInputSchema,
   squadSchema,
@@ -133,12 +134,15 @@ export type Roadmap2026Source = z.infer<typeof roadmap2026SourceSchema>;
 export type Roadmap2026Work = z.infer<typeof roadmap2026WorkSchema>;
 export type Roadmap2026Owners = z.infer<typeof roadmap2026OwnersSchema>;
 export type Roadmap2026TrackStatus = z.infer<typeof roadmap2026TrackStatusSchema>;
+export type Roadmap2026Sync = z.infer<typeof roadmap2026SyncSchema>;
 /** Iniciativa do Roadmap 2026 (editável, gravada no banco). */
 export type Roadmap2026Item = z.infer<typeof roadmap2026ItemSchema>;
 /** Resposta de GET /api/roadmap/2026. */
 export interface Roadmap2026 {
   source: Roadmap2026Source;
   items: Roadmap2026Item[];
+  /** Última sincronização com a planilha (vazio se nunca ocorreu) e o erro, se houve. */
+  sync: { lastSyncAt: string; lastError: string };
 }
 
 export interface Database {
@@ -150,4 +154,6 @@ export interface Database {
   squads: Squad[];
   /** Roadmap 2026: iniciativas importadas da planilha do time e editadas no app. */
   roadmap2026: Roadmap2026Item[];
+  /** Sincronização do Roadmap 2026 com a planilha do time. */
+  roadmap2026Sync: Roadmap2026Sync;
 }

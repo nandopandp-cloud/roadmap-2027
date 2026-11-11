@@ -7,6 +7,7 @@ import { squadNamesOf } from "@/lib/domain/org";
 import { OWNER_TRACK_LABEL, OWNER_TRACKS_2026, ownerProblem, STATUS_2026_LABEL, TRACK_STATUS_LABEL, TRACK_STATUS_TRACKS, WORK_2026_LABEL, workPeriod } from "@/lib/domain/roadmap-2026";
 import type { Database, Person, Roadmap2026, Roadmap2026Item } from "@/lib/domain/types";
 import { getRepository, storageKind } from "@/lib/repositories";
+import { syncRoadmap2026IfStale } from "@/lib/services/roadmap-2026-sync";
 import { READ_ONLY_MESSAGE } from "@/lib/repositories/json-file-repository";
 import { DomainError, notFound } from "@/lib/services/errors";
 import { historyEntry } from "@/lib/services/history";
@@ -24,9 +25,18 @@ const NO_ACCESS =
 
 const source = roadmap2026SourceSchema.parse(seedRoadmap2026.source);
 
+/**
+ * Iniciativas do Roadmap 2026. Ao abrir, sincroniza com a planilha do time se a última leitura tem
+ * mais de 2 minutos (ver roadmap-2026-sync.ts); se a planilha não responder, mostra o que já está salvo.
+ */
 export async function getRoadmap2026(): Promise<Roadmap2026> {
-  const db = await getRepository().read();
-  return { source, items: db.roadmap2026 };
+  const repo = getRepository();
+  let db = await repo.read();
+  if (await repo.isWritable()) {
+    const result = await syncRoadmap2026IfStale(db.roadmap2026Sync.lastSyncAt);
+    if (result?.ok && (result.updated || result.created)) db = await repo.read();
+  }
+  return { source, items: db.roadmap2026, sync: { lastSyncAt: db.roadmap2026Sync.lastSyncAt, lastError: db.roadmap2026Sync.lastError } };
 }
 
 function assertPlanner(viewer: Viewer, db: Database) {
@@ -178,9 +188,12 @@ export async function removeRoadmap2026Item(id: string, viewer: Viewer): Promise
   return guardStorage(() =>
     getRepository().transaction((db) => {
       assertPlanner(viewer, db);
-      const before = db.roadmap2026.length;
+      const removed = db.roadmap2026.find((i) => i.id === id);
+      if (!removed) throw notFound("Iniciativa do Roadmap 2026");
       db.roadmap2026 = db.roadmap2026.filter((i) => i.id !== id);
-      if (db.roadmap2026.length === before) throw notFound("Iniciativa do Roadmap 2026");
+      // A linha continua na planilha: a sincronização não deve trazê-la de volta.
+      if (removed.sheetKey && !db.roadmap2026Sync.removedKeys.includes(removed.sheetKey))
+        db.roadmap2026Sync = { ...db.roadmap2026Sync, removedKeys: [...db.roadmap2026Sync.removedKeys, removed.sheetKey].slice(-1000) };
       return { ok: true as const };
     }),
   );

@@ -712,6 +712,20 @@ export const roadmap2026ItemSchema = z.object({
   weeks: z.number().positive().max(52).nullable(),
   pricing: z.boolean(),
   history: z.array(historyEntrySchema).max(500),
+  /** Linha da planilha ligada à iniciativa (nome + squad normalizados) — base da sincronização. */
+  sheetKey: z.string().max(500),
+  /** Últimos valores vistos na planilha: a sincronização só aplica o que mudou desde então. */
+  sheet: roadmap2026ImportItemSchema.omit({ id: true }).nullable(),
+});
+
+/** Estado da sincronização com a planilha. */
+export const roadmap2026SyncSchema = z.object({
+  lastSyncAt: z.string(),
+  /** Assinatura do conteúdo lido na última sincronização (evita gravar quando nada mudou). */
+  lastHash: z.string(),
+  /** Linhas removidas pelo app: não voltam na próxima sincronização. */
+  removedKeys: z.array(z.string().max(500)).max(1000),
+  lastError: z.string().max(500),
 });
 
 /** Nova posição de uma iniciativa do 2026 no Gantt: antes de `beforeId` ou depois de `afterId`. */

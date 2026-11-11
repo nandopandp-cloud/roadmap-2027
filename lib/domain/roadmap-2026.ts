@@ -4,6 +4,7 @@
  */
 import { ROADMAP_2026_STATUSES, ROADMAP_2026_TRACK_STATUSES, ROADMAP_2026_WEEK_COUNT, ROADMAP_2026_WORK } from "@/lib/domain/constants";
 import { eligibleOwners } from "@/lib/domain/org";
+import { sheetKey } from "@/lib/domain/roadmap-2026-sheet";
 import type {
   Person,
   Roadmap2026ImportItem,
@@ -179,6 +180,8 @@ export function importedItem(item: Roadmap2026ImportItem, people: Pick<Person, "
     owners: ownersFromSheet(item, people),
     trackStatus: trackStatusesFromSheet(item),
     skippedTracks: [],
+    sheetKey: sheetKey(item.title, item.squad),
+    sheet: (({ id: _id, ...row }) => row)(item),
     weeks: item.weeks,
     design: item.design,
     engineering: item.engineering,
@@ -186,15 +189,27 @@ export function importedItem(item: Roadmap2026ImportItem, people: Pick<Person, "
     backlog: item.backlog,
     pricing: item.pricing,
     status: initialStatus(item),
-    segments: item.segments.map((s, idx) => ({
-      id: `${item.id}-${idx + 1}`,
-      work: s.phase === "design" ? "design" : s.phase === "engenharia" ? "engenharia" : "indefinido",
-      start: s.start,
-      weeks: s.weeks,
-    })),
+    segments: segmentsFromSheet(item.id, item.segments),
     history: [],
   };
 }
+
+/**
+ * Semanas da planilha → fases do app. Cores de Design e "Projetado & Engenharia" viram o tipo de
+ * trabalho; as demais (situação) ficam como "Fase não informada".
+ */
+export function segmentsFromSheet(id: string, segments: Roadmap2026ImportItem["segments"], suffix = ""): Roadmap2026Item["segments"] {
+  return segments.map((s, idx) => ({
+    id: `${id}-${suffix}${idx + 1}`,
+    work: s.phase === "design" ? "design" : s.phase === "engenharia" ? "engenharia" : "indefinido",
+    start: s.start,
+    weeks: s.weeks,
+  }));
+}
+
+/** Pessoas que podem ser responsáveis numa iniciativa da plataforma (squad); a função é conferida por frente. */
+export const ownerCandidatesForPlatform = <P extends Person>(people: P[], squads: Squad[], platformId: string | null) =>
+  eligibleOwners(people, squads, platformId ? [platformId] : []);
 
 /** Semana da projeção (0–39) em que está uma data; S1 = dias 1–7, S4 = dia 22 em diante. */
 export function weekIndexOf(date: Date): number | null {

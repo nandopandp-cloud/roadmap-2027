@@ -28,7 +28,7 @@ import {
 } from "@/lib/validation/schemas";
 
 /** Snapshot exposto ao cliente. */
-export type Snapshot = Omit<Database, "schemaVersion" | "roadmap2026"> & { writable: boolean; storage: StorageKind };
+export type Snapshot = Omit<Database, "schemaVersion" | "roadmap2026" | "roadmap2026Sync"> & { writable: boolean; storage: StorageKind };
 
 function parse<S extends z.ZodType>(schema: S, data: unknown): z.infer<S> {
   const result = schema.safeParse(data);
@@ -91,7 +91,7 @@ function cleanPlatformNotes(input: InitiativeInput): InitiativeInput {
 export async function getSnapshot(): Promise<Snapshot> {
   const repo = getRepository();
   // O Roadmap 2026 tem rota própria (carregado só quando o ano é aberto).
-  const [{ schemaVersion: _v, roadmap2026: _r2026, ...rest }, writable] = await Promise.all([repo.read(), repo.isWritable()]);
+  const [{ schemaVersion: _v, roadmap2026: _r2026, roadmap2026Sync: _sync, ...rest }, writable] = await Promise.all([repo.read(), repo.isWritable()]);
   return { ...rest, writable, storage: storageKind() };
 }
 

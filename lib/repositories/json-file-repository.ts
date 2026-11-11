@@ -4,7 +4,7 @@ import { seedContext } from "@/data/seed/context";
 import { seedInitiatives } from "@/data/seed/initiatives";
 import { seedPlatforms } from "@/data/seed/platforms";
 import type { Database } from "@/lib/domain/types";
-import { importedRoadmap2026, migrateDatabase, SCHEMA_VERSION } from "@/lib/repositories/migrations";
+import { EMPTY_SYNC, importedRoadmap2026, migrateDatabase, SCHEMA_VERSION } from "@/lib/repositories/migrations";
 import type { RoadmapRepository } from "@/lib/repositories/types";
 import { DomainError } from "@/lib/services/errors";
 
@@ -21,6 +21,7 @@ export function buildSeedDatabase(): Database {
     people: [],
     squads: [],
     roadmap2026: importedRoadmap2026(),
+    roadmap2026Sync: EMPTY_SYNC,
   });
 }
 

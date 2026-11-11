@@ -5,7 +5,7 @@ import type { Pool, PoolClient } from "pg";
 import { emptyContext } from "@/lib/domain/context";
 import type { Database, Initiative, Person, Platform, Roadmap2026Item, Squad } from "@/lib/domain/types";
 import { buildSeedDatabase } from "@/lib/repositories/json-file-repository";
-import { importedRoadmap2026, migrateDatabase, SCHEMA_VERSION } from "@/lib/repositories/migrations";
+import { EMPTY_SYNC, importedRoadmap2026, migrateDatabase, SCHEMA_VERSION } from "@/lib/repositories/migrations";
 import { ensureSchema, ROADMAP_LOCK_KEY } from "@/lib/repositories/postgres";
 import type { RoadmapRepository } from "@/lib/repositories/types";
 
@@ -90,6 +90,7 @@ export class PostgresRepository implements RoadmapRepository {
           people: [],
           squads: [],
           roadmap2026: [],
+          roadmap2026Sync: EMPTY_SYNC,
         };
         await this.persistChanges(client, empty, source);
         await this.importDocuments(client);
@@ -145,13 +146,14 @@ export class PostgresRepository implements RoadmapRepository {
   }
 
   private async load(q: Queryable): Promise<Database> {
-    const [initiatives, platforms, context, people, squads, roadmap2026] = await Promise.all([
+    const [initiatives, platforms, context, people, squads, roadmap2026, sync] = await Promise.all([
       q.query<{ data: Initiative }>("SELECT data FROM initiatives ORDER BY id"),
       q.query<{ data: Platform }>("SELECT data FROM platforms ORDER BY position, id"),
       q.query<{ data: Database["context"] }>("SELECT data FROM strategy_context WHERE id = 1"),
       q.query<{ data: Person }>("SELECT data FROM people ORDER BY id"),
       q.query<{ data: Squad }>("SELECT data FROM squads ORDER BY position, id"),
       q.query<{ data: Roadmap2026Item }>("SELECT data FROM roadmap_2026 ORDER BY position, id"),
+      q.query<{ value: Database["roadmap2026Sync"] }>("SELECT value FROM roadmap_meta WHERE key = 'roadmap_2026_sync'"),
     ]);
     const db: Database = {
       schemaVersion: SCHEMA_VERSION,
@@ -161,6 +163,7 @@ export class PostgresRepository implements RoadmapRepository {
       people: people.rows.map((r) => r.data),
       squads: squads.rows.map((r) => r.data),
       roadmap2026: roadmap2026.rows.map((r) => r.data),
+      roadmap2026Sync: { ...EMPTY_SYNC, ...sync.rows[0]?.value },
     };
     // Registros gravados em versões anteriores do esquema são normalizados em memória.
     return migrateDatabase({ ...db, schemaVersion: 1 }).db;
@@ -173,6 +176,13 @@ export class PostgresRepository implements RoadmapRepository {
     await persistCollection(client, "people", before.people, after.people, false);
     await persistCollection(client, "squads", before.squads, after.squads, true);
     await persistCollection(client, "roadmap_2026", before.roadmap2026, after.roadmap2026, true);
+    if (JSON.stringify(before.roadmap2026Sync) !== JSON.stringify(after.roadmap2026Sync)) {
+      await client.query(
+        `INSERT INTO roadmap_meta (key, value, updated_at) VALUES ('roadmap_2026_sync', $1, now())
+         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`,
+        [JSON.stringify(after.roadmap2026Sync)],
+      );
+    }
 
     if (JSON.stringify(before.context) !== JSON.stringify(after.context)) {
       await client.query(

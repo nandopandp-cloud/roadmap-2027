@@ -3,11 +3,12 @@ import { seedRoadmap2026 } from "@/data/seed/roadmap-2026";
 import { ILLUSTRATIONS } from "@/lib/domain/constants";
 import { inferDiscipline } from "@/lib/domain/org";
 import { importedItem, ownersFromSheet, trackStatusesFromSheet } from "@/lib/domain/roadmap-2026";
+import { sheetKey } from "@/lib/domain/roadmap-2026-sheet";
 import { eligibleOwners } from "@/lib/domain/org";
 import { defaultRoadmapOrder } from "@/lib/domain/roadmap-order";
 import type { Database, IllustrationKey, Person, PlatformStrategy, ProposalSection, RepositoryLink, Roadmap2026Item, Squad, StrategyContext } from "@/lib/domain/types";
 
-export const SCHEMA_VERSION = 19;
+export const SCHEMA_VERSION = 20;
 
 /** Ilustrações removidas da biblioteca → equivalentes atuais. */
 const RENAMED_ILLUSTRATIONS: Record<string, IllustrationKey | null> = { cometa: null, lua: null };
@@ -42,6 +43,8 @@ const RENAMED_ILLUSTRATIONS: Record<string, IllustrationKey | null> = { cometa: 
  *            ("Concluído", "Andamento…"; o resto = não iniciado).
  * v17 → v18: andamento de QA (trackStatus.qa), lido do texto de QA da planilha.
  * v18 → v19: frentes que não se aplicam à iniciativa (skippedTracks: Design e/ou QA), vazias.
+ * v19 → v20: sincronização com a planilha — cada iniciativa ganha o vínculo com a linha (sheetKey) e
+ *            os últimos valores vistos nela (sheet, a importação de 10/11); estado em roadmap2026Sync.
  */
 export function migrateDatabase(db: Database): { db: Database; changed: boolean } {
   if ((db.schemaVersion ?? 1) >= SCHEMA_VERSION) return { db, changed: false };
@@ -76,6 +79,7 @@ export function migrateDatabase(db: Database): { db: Database; changed: boolean 
       people,
       squads,
       roadmap2026: migrateRoadmap2026(db.roadmap2026 ?? importedRoadmap2026(people, squads), people, squads),
+      roadmap2026Sync: db.roadmap2026Sync ?? EMPTY_SYNC,
     },
     changed: true,
   };
@@ -90,7 +94,14 @@ export function importedRoadmap2026(people: Person[] = [], squads: Squad[] = [])
 const candidatesFor = (item: { platformId: string | null }, people: Person[], squads: Squad[]) =>
   eligibleOwners(people, squads, item.platformId ? [item.platformId] : []);
 
-type LegacyRoadmap2026Item = Omit<Roadmap2026Item, "owners" | "trackStatus" | "skippedTracks"> & {
+export const EMPTY_SYNC: Database["roadmap2026Sync"] = { lastSyncAt: "", lastHash: "", removedKeys: [], lastError: "" };
+
+/** Linha da importação de 10/11 por ID (base da sincronização das iniciativas já existentes). */
+const seedRowById = new Map(seedRoadmap2026.items.map(({ id, ...row }) => [id, row]));
+
+type LegacyRoadmap2026Item = Omit<Roadmap2026Item, "owners" | "trackStatus" | "skippedTracks" | "sheetKey" | "sheet"> & {
+  sheetKey?: string;
+  sheet?: Roadmap2026Item["sheet"];
   skippedTracks?: Roadmap2026Item["skippedTracks"];
   owners?: Roadmap2026Item["owners"];
   trackStatus?: Partial<Roadmap2026Item["trackStatus"]>;
@@ -105,6 +116,9 @@ function migrateRoadmap2026(items: LegacyRoadmap2026Item[], people: Person[], sq
     // Frentes que ainda não têm andamento gravado (ex.: QA, desde a v18) são lidas da planilha.
     trackStatus: { ...trackStatusesFromSheet(item), ...item.trackStatus },
     skippedTracks: item.skippedTracks ?? [],
+    // v20: vínculo com a linha da planilha (pelo nome e squad da importação) e os valores vistos nela.
+    sheetKey: item.sheetKey ?? sheetKey(seedRowById.get(item.id)?.title ?? item.title, seedRowById.get(item.id)?.squad ?? item.squad),
+    sheet: item.sheet !== undefined ? item.sheet : (seedRowById.get(item.id) ?? null),
   }));
 }
 
