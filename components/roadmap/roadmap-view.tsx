@@ -61,7 +61,7 @@ export function RoadmapView() {
   const { selectedId, open } = useInitiativeSelection();
   const { view, setView, year, setYear } = useRoadmapView();
   const is2026 = year === 2026;
-  const { load: load2026, retry: retry2026, update: update2026, remove: remove2026 } = useRoadmap2026(is2026);
+  const { load: load2026, retry: retry2026, update: update2026, remove: remove2026, move: move2026 } = useRoadmap2026(is2026);
   const roadmap2026 = load2026.status === "ready" ? load2026.data : null;
   const items2026 = roadmap2026?.items ?? null;
   // Roadmap 2026: Head de Produto, Head de Engenharia, tech leads e coordenação de design.
@@ -266,6 +266,11 @@ export function RoadmapView() {
             canEdit={canPlan2026}
             onEdit={setEditing2026}
             onChange={change2026}
+            onMove={(id, beforeId, afterId) =>
+              void move2026(id, beforeId, afterId).catch((error) =>
+                notify("error", error instanceof ApiError ? error.message : "Não foi possível mudar a ordem."),
+              )
+            }
             fill={fullscreen}
           />
         )

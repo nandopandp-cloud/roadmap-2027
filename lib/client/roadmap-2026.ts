@@ -75,7 +75,30 @@ export function useRoadmap2026(enabled: boolean) {
     [apply],
   );
 
-  return { load, retry: fetchData, update, remove };
+  /** Nova posição no Gantt (otimista); o histórico do item é atualizado na próxima carga. */
+  const move = useCallback(
+    async (id: string, beforeId: string | null, afterId: string | null) => {
+      const previous = cache?.items;
+      const item = previous?.find((i) => i.id === id);
+      if (!previous || !item) return;
+      apply((items) => {
+        const rest = items.filter((i) => i.id !== id);
+        const neighbor = rest.findIndex((i) => i.id === (beforeId ?? afterId));
+        if (neighbor < 0) return items;
+        rest.splice(neighbor + (beforeId ? 0 : 1), 0, item);
+        return rest;
+      });
+      try {
+        await api.moveRoadmap2026Item(id, { beforeId, afterId });
+      } catch (error) {
+        apply(() => previous);
+        throw new ApiError(message(error, "Não foi possível mudar a ordem."), error instanceof ApiError ? error.status : 0);
+      }
+    },
+    [apply],
+  );
+
+  return { load, retry: fetchData, update, remove, move };
 }
 
 /**

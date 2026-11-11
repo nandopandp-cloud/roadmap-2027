@@ -67,6 +67,8 @@ export const api = {
   patchRoadmap2026Item: (id: string, data: Partial<Roadmap2026Item>) =>
     request<Roadmap2026Item>(`/api/roadmap/2026/${id}`, { method: "PATCH", body: json(data) }),
   removeRoadmap2026Item: (id: string) => request<{ ok: true }>(`/api/roadmap/2026/${id}`, { method: "DELETE" }),
+  moveRoadmap2026Item: (id: string, position: { beforeId: string | null; afterId: string | null }) =>
+    request<{ ok: true }>(`/api/roadmap/2026/${id}/ordem`, { method: "POST", body: json(position) }),
   githubBranches: (repositoryUrl: string) =>
     request<GithubBranchList>(`/api/github/branches?repositorio=${encodeURIComponent(repositoryUrl)}`),
   fetchRemoteImage: (url: string) => request<{ dataUrl: string }>("/api/images/remote", { method: "POST", body: json({ url }) }),

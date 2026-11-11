@@ -29,6 +29,7 @@ const LEAD_ROUTES: { method: string; path: RegExp }[] = [
   // Roadmap 2026: Head de Produto, Head de Engenharia, tech leads e coordenação de design (checado no serviço).
   { method: "PATCH", path: /^\/api\/roadmap\/2026\/R26-\d{3}$/ },
   { method: "DELETE", path: /^\/api\/roadmap\/2026\/R26-\d{3}$/ },
+  { method: "POST", path: /^\/api\/roadmap\/2026\/R26-\d{3}\/ordem$/ },
 ];
 
 function jsonError(status: number, error: string) {

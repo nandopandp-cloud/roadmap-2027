@@ -251,3 +251,22 @@ export function ownersFromSheet(item: Pick<Roadmap2026Item, "design" | "engineer
   };
   return { design: pick(item.design), engineering: pick(item.engineering), qa: pick(item.qa) };
 }
+
+/* ------------------------------ Atraso automático ------------------------------ */
+
+/**
+ * Status exibido: a iniciativa cujo fim projetado já passou (e que não está concluída) aparece
+ * como Atrasada automaticamente, até ser concluída ou ter as semanas estendidas. O status
+ * gravado continua o escolhido pelo time.
+ */
+export function effectiveStatus(item: Pick<Roadmap2026Item, "segments" | "status">, today = new Date()): Status2026 {
+  if (item.status === "concluida") return "concluida";
+  return overdueWeeks(item, today) > 0 ? "atrasada" : item.status;
+}
+
+/** Por que a iniciativa está atrasada: prazo vencido (automático) ou status escolhido pelo time. */
+export function lateReason(item: Pick<Roadmap2026Item, "segments" | "status">, today = new Date()): "prazo" | "manual" | null {
+  if (item.status === "concluida") return null;
+  if (overdueWeeks(item, today) > 0) return "prazo";
+  return item.status === "atrasada" ? "manual" : null;
+}

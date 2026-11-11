@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, Minus, Plus, Trash2, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Minus, Plus, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Modal, useConfirm } from "@/components/ui/dialog";
@@ -16,6 +16,9 @@ import {
   OWNER_TRACKS_2026,
   STATUS_2026_LABEL,
   WEEKS_PER_MONTH,
+  editableEnd,
+  lateReason,
+  weekLabel,
   WORK_2026_LABEL,
   weekPosition,
   workPeriod,
@@ -290,6 +293,12 @@ export function Item2026Dialog({
               );
             })}
           </div>
+          {lateReason(draft) === "prazo" && editableEnd(draft) !== null && (
+            <p className="mt-2 flex gap-1.5 rounded-lg bg-[#fdecec] px-3 py-2 text-[12.5px] font-semibold text-[#a1262b]">
+              <AlertTriangle size={14} className="mt-0.5 shrink-0" aria-hidden />
+              O fim projetado ({weekLabel(editableEnd(draft)! - 1)}) já passou: a iniciativa aparece como Atrasada até ser concluída ou ter as semanas estendidas.
+            </p>
+          )}
         </fieldset>
 
         <div className="grid gap-4 sm:grid-cols-2">

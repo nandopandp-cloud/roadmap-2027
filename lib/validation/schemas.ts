@@ -702,6 +702,14 @@ export const roadmap2026ItemSchema = z.object({
   history: z.array(historyEntrySchema).max(500),
 });
 
+/** Nova posição de uma iniciativa do 2026 no Gantt: antes de `beforeId` ou depois de `afterId`. */
+export const roadmap2026MoveSchema = z
+  .object({
+    beforeId: z.string().regex(/^R26-\d{3}$/).nullable().default(null),
+    afterId: z.string().regex(/^R26-\d{3}$/).nullable().default(null),
+  })
+  .refine((v) => !!v.beforeId !== !!v.afterId, "Informe a iniciativa vizinha.");
+
 /** Alteração de uma iniciativa do Roadmap 2026: só os campos enviados mudam (o Gantt envia só as semanas). */
 export const roadmap2026PatchSchema = z.object(roadmap2026EditableFields).partial();
 

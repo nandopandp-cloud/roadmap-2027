@@ -1,8 +1,9 @@
 "use client";
 
-import { AlertTriangle, Check, ChevronDown, CircleDashed, Code2, ExternalLink, GripVertical, Layers, PenTool, Pencil, ShieldCheck, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowDownToLine, Check, CircleDashed, Code2, ExternalLink, GripVertical, Layers, PenTool, Pencil, ShieldCheck, type LucideIcon } from "lucide-react";
 import { createContext, useContext, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
 import { Avatar } from "@/components/org/avatar";
+import { useCardDrag, type DropTarget } from "@/components/ui/use-card-drag";
 import { PLATFORM_GLYPHS } from "@/components/platforms/platform-icon";
 import { Badge } from "@/components/ui/badges";
 import { Skeleton } from "@/components/ui/feedback";
@@ -19,6 +20,8 @@ import {
   cycle2026DatePosition,
   editableEnd,
   editableQuarter,
+  effectiveStatus,
+  lateReason,
   overdueWeeks,
   weekLabel,
   weekPosition,
@@ -177,7 +180,10 @@ export function Roadmap2026Legend({ canEdit }: { canEdit: boolean }) {
 
 /* ------------------------------ Atrasadas ------------------------------ */
 
-/** Destaque das iniciativas atrasadas e das que passaram do fim projetado sem conclusão. */
+/**
+ * Destaque das iniciativas atrasadas: as que passaram do fim projetado sem conclusão (automático)
+ * e as que o time marcou como Atrasada.
+ */
 export function Delayed2026({
   items,
   platforms,
@@ -189,10 +195,8 @@ export function Delayed2026({
   canEdit: boolean;
   onEdit: (id: string) => void;
 }) {
-  const [showOverdue, setShowOverdue] = useState(false);
-  const late = items.filter((i) => i.status === "atrasada");
-  const overdue = items.filter((i) => i.status !== "atrasada" && overdueWeeks(i) > 0);
-  if (!late.length && !overdue.length) return null;
+  const late = items.filter((i) => effectiveStatus(i) === "atrasada");
+  if (!late.length) return null;
 
   const row = (i: Roadmap2026Item) => {
     const end = editableEnd(i);
@@ -211,10 +215,13 @@ export function Delayed2026({
             <span className="line-clamp-2 text-[13.5px] font-extrabold leading-snug text-navy">{i.title}</span>
             <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <SquadPill item={i} platforms={platforms} />
-              {i.status !== "atrasada" && <StatusBadge2026 status={i.status} />}
               <span className="text-[12px] font-semibold text-muted">
-                {end === null ? "Sem semanas projetadas" : `Fim projetado: ${weekLabel(end - 1)}`}
-                {past > 0 && <span className="font-bold text-[#a1262b]"> · há {plural(past, "semana", "semanas")}</span>}
+                {lateReason(i) === "prazo" ? (
+                  <span className="font-bold text-[#a1262b]">Prazo vencido há {plural(past, "semana", "semanas")}</span>
+                ) : (
+                  <span className="font-bold text-[#a1262b]">Marcada como atrasada</span>
+                )}
+                {end !== null && ` · fim projetado: ${weekLabel(end - 1)}`}
               </span>
             </span>
           </span>
@@ -233,27 +240,11 @@ export function Delayed2026({
         <h2 id="atrasadas-2026" className="text-[17px] font-black text-navy">
           Atrasadas <span className="text-[#c9363b]">· {late.length}</span>
         </h2>
-        <p className="text-[13px] text-muted">Iniciativas com o status Atrasada.{canEdit ? " Clique para ajustar status e prazos." : ""}</p>
+        <p className="text-[13px] text-muted">
+          Passaram do fim projetado sem conclusão ou foram marcadas como atrasadas.{canEdit ? " Clique para ajustar status e prazos." : ""}
+        </p>
       </header>
-      {late.length > 0 ? (
-        <ul className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">{late.map(row)}</ul>
-      ) : (
-        <p className="mt-3 text-[13px] text-muted">Nenhuma iniciativa com o status Atrasada.</p>
-      )}
-      {overdue.length > 0 && (
-        <div className="mt-3 border-t border-[#f3d6d6] pt-3">
-          <button
-            type="button"
-            aria-expanded={showOverdue}
-            onClick={() => setShowOverdue((v) => !v)}
-            className="flex items-center gap-1.5 text-[13px] font-bold text-[#8a4b00] hover:underline"
-          >
-            <ChevronDown size={15} className={cn("transition-transform", showOverdue && "rotate-180")} aria-hidden />
-            {plural(overdue.length, "iniciativa passou", "iniciativas passaram")} do fim projetado sem estar concluída
-          </button>
-          {showOverdue && <ul className="mt-2 grid gap-2 md:grid-cols-2 xl:grid-cols-3">{overdue.map(row)}</ul>}
-        </div>
-      )}
+      <ul className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">{late.map(row)}</ul>
     </section>
   );
 }
@@ -267,7 +258,7 @@ function Card2026({ item, platforms, onEdit }: { item: Roadmap2026Item; platform
       {...(onEdit ? { type: "button" as const, onClick: onEdit } : {})}
       className={cn(
         "flex w-full flex-col gap-2.5 rounded-2xl border bg-surface p-4 text-left shadow-[var(--shadow-card)]",
-        item.status === "atrasada" ? "border-[#f0b4b4]" : "border-line",
+        effectiveStatus(item) === "atrasada" ? "border-[#f0b4b4]" : "border-line",
         onEdit && "transition-all hover:-translate-y-px hover:border-line-strong",
       )}
     >
@@ -280,7 +271,7 @@ function Card2026({ item, platforms, onEdit }: { item: Roadmap2026Item; platform
         {item.subtitle && <span className="mt-0.5 block text-[12.5px] leading-snug text-muted">{item.subtitle}</span>}
       </span>
       <span className="flex flex-wrap gap-1.5">
-        <StatusBadge2026 status={item.status} />
+        <StatusBadge2026 status={effectiveStatus(item)} />
         {item.backlog && (
           <Badge tone={{ bg: "#F3F1EE", fg: "#665947", dot: "#A8987F" }} size="sm">
             Backlog
@@ -415,17 +406,29 @@ function GanttRow2026({
   canEdit,
   onEdit,
   onChange,
+  onGrab,
+  onReorderKey,
+  hidden = false,
 }: {
   item: Roadmap2026Item;
   timelineWidth: number;
   canEdit: boolean;
   onEdit: () => void;
   onChange: (item: Roadmap2026Item) => void;
+  /** Alça de ordem: começa o arraste da linha (só para quem edita). */
+  onGrab?: (e: PointerEvent<HTMLElement>) => void;
+  /** Setas na alça: sobe (-1) ou desce (+1) uma posição. */
+  onReorderKey?: (step: -1 | 1) => void;
+  /** Linha sendo arrastada (continua no DOM para o toque seguir funcionando). */
+  hidden?: boolean;
 }) {
   const [drag, setDrag] = useState<DragState | null>(null);
   const active = drag;
   const weekPx = timelineWidth / WEEKS || 1;
-  const late = item.status === "atrasada";
+  const shown = effectiveStatus(item);
+  const late = shown === "atrasada";
+  const autoLate = lateReason(item) === "prazo" && item.status !== "atrasada";
+  const end = editableEnd(item);
   const done = item.status === "concluida";
 
   const commit = (segId: string, mode: DragState["mode"], delta: number) => {
@@ -458,25 +461,63 @@ function GanttRow2026({
   };
 
   return (
-    <li className={cn(ROW, "border-t border-line", late && "bg-[#fff8f8]")}>
-      <div className={cn("sticky left-0 z-10 flex flex-col justify-center gap-1 border-r border-line px-4 py-2.5", late ? "bg-[#fff8f8] shadow-[inset_3px_0_0_#e25858]" : "bg-surface")}>
-        <span className="line-clamp-2 text-[13.5px] font-extrabold leading-snug text-navy" title={item.title}>
-          {item.title}
-        </span>
-        {item.subtitle && <span className="line-clamp-1 text-[12px] text-muted">{item.subtitle}</span>}
-        <span className="flex flex-wrap items-center gap-1.5">
-          {canEdit ? (
-            <button type="button" onClick={onEdit} className="rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet" title="Editar status, nome e prazos">
-              <StatusBadge2026 status={item.status} />
+    <li data-drag-card={item.id} className={cn(ROW, "border-t border-line", late && "bg-[#fff8f8]", hidden && "hidden")}>
+      <div
+        className={cn(
+          "group/row sticky left-0 z-10 flex flex-col justify-center gap-1 border-r border-line py-2.5 pr-4",
+          onGrab ? "pl-8" : "pl-4",
+          late ? "bg-[#fff8f8] shadow-[inset_3px_0_0_#e25858]" : "bg-surface",
+        )}
+      >
+        {onGrab && (
+          <button
+            type="button"
+            onPointerDown={onGrab}
+            onKeyDown={(e) => {
+              if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+              e.preventDefault();
+              onReorderKey?.(e.key === "ArrowUp" ? -1 : 1);
+            }}
+            aria-label={`Mudar a ordem de ${item.title}: arraste ou use as setas para cima e para baixo`}
+            title="Arraste para mudar a ordem"
+            className="absolute inset-y-0 left-0 flex w-7 cursor-grab touch-none items-center justify-center text-[#b4bcd3] transition-colors hover:bg-[#f3f1fd] hover:text-brand focus-visible:text-brand active:cursor-grabbing"
+          >
+            <GripVertical size={16} aria-hidden />
+          </button>
+        )}
+        {/* Para quem edita, a coluna inteira (nome, status e responsáveis) abre a edição. */}
+        {(() => {
+          const lateTitle = autoLate && end !== null ? `Atrasada automaticamente: o fim projetado (${weekLabel(end - 1)}) já passou.` : undefined;
+          const body = (
+            <>
+              <span className="line-clamp-2 text-[13.5px] font-extrabold leading-snug text-navy" title={item.title}>
+                {item.title}
+              </span>
+              {item.subtitle && <span className="line-clamp-1 text-[12px] text-muted">{item.subtitle}</span>}
+              <span className="flex flex-wrap items-center gap-1.5">
+                <span title={lateTitle}>
+                  <StatusBadge2026 status={shown} />
+                </span>
+                {item.backlog && <span className="text-[11.5px] font-semibold text-muted">Backlog</span>}
+                <span className="ml-auto">
+                  <OwnerAvatars item={item} />
+                </span>
+              </span>
+            </>
+          );
+          return canEdit ? (
+            <button
+              type="button"
+              onClick={onEdit}
+              title={lateTitle ? `${lateTitle} Clique para editar.` : "Editar status, nome, responsáveis e prazos"}
+              className="-my-1 -mr-2 flex flex-col gap-1 rounded-lg py-1 pr-2 text-left transition-colors hover:bg-[#f6f4ff] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-violet"
+            >
+              {body}
             </button>
           ) : (
-            <StatusBadge2026 status={item.status} />
-          )}
-          {item.backlog && <span className="text-[11.5px] font-semibold text-muted">Backlog</span>}
-          <span className="ml-auto">
-            <OwnerAvatars item={item} />
-          </span>
-        </span>
+            body
+          );
+        })()}
       </div>
       <div className="relative min-h-[72px]" style={TIMELINE_BG}>
         <TodayLine />
@@ -554,6 +595,29 @@ function GanttRow2026({
   );
 }
 
+/** Lugar exato onde a linha arrastada será solta. */
+function DropRow({ height, position }: { height: number; position: number }) {
+  return (
+    <li
+      aria-hidden
+      className="flex animate-fade-in items-center gap-2 border-y-2 border-dashed border-violet bg-brand-soft/70 px-4 text-[13px] font-bold text-brand"
+      style={{ height: Math.max(48, Math.min(height, 72)) }}
+    >
+      <ArrowDownToLine size={16} className="shrink-0" />
+      Soltar aqui · posição {position}
+    </li>
+  );
+}
+
+function GanttRowSlot({ show, height, position, children }: { show: boolean; height: number; position: number; children: React.ReactNode }) {
+  return (
+    <>
+      {show && <DropRow height={height} position={position} />}
+      {children}
+    </>
+  );
+}
+
 /** Linha do tempo de julho/2026 a abril/2027, semana a semana, agrupada por squad. */
 export function Roadmap2026Gantt({
   items,
@@ -562,6 +626,7 @@ export function Roadmap2026Gantt({
   canEdit,
   onEdit,
   onChange,
+  onMove,
   fill = false,
 }: {
   items: Roadmap2026Item[];
@@ -570,6 +635,8 @@ export function Roadmap2026Gantt({
   canEdit: boolean;
   onEdit: (id: string) => void;
   onChange: (item: Roadmap2026Item) => void;
+  /** Nova posição: antes de `beforeId` (ou depois de `afterId`), entre as linhas visíveis do mesmo squad. */
+  onMove?: (id: string, beforeId: string | null, afterId: string | null) => void;
   /** Tela cheia: rola por dentro e fixa o cabeçalho dos meses. */
   fill?: boolean;
 }) {
@@ -590,6 +657,30 @@ export function Roadmap2026Gantt({
     if (group) group.items.push(item);
     else groups.push({ squad: item.squad, items: [item] });
   }
+  /** Linhas visíveis do squad, sem a que está sendo arrastada. */
+  const zoneItems = (squad: string, exceptId?: string) => items.filter((i) => i.squad === squad && i.id !== exceptId);
+  const moveTo = (id: string, squad: string, index: number) => {
+    const rows = zoneItems(squad, id);
+    const beforeId = rows[index]?.id ?? null;
+    onMove?.(id, beforeId, beforeId ? null : (rows[index - 1]?.id ?? null));
+  };
+  const { drag, onPointerDown } = useCardDrag({
+    enabled: canEdit && !!onMove && !loading,
+    // A ordem vale dentro do squad: soltar em outro grupo não muda nada.
+    onDrop: (id, target: DropTarget, origin: DropTarget) => {
+      if (target.zone !== origin.zone || target.index === origin.index) return;
+      moveTo(id, target.zone, target.index);
+    },
+  });
+  const dragged = drag ? items.find((i) => i.id === drag.id) : undefined;
+  const reorderKey = (item: Roadmap2026Item, step: -1 | 1) => {
+    const rows = zoneItems(item.squad);
+    const index = rows.findIndex((i) => i.id === item.id) + step;
+    if (index < 0 || index >= rows.length) return;
+    moveTo(item.id, item.squad, index);
+    requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-drag-card="${item.id}"] button[aria-label^="Mudar a ordem"]`)?.focus());
+  };
+
   const groupName = (squad: string, sample: Roadmap2026Item) => (sample.platformId && platforms.find((p) => p.id === sample.platformId)?.name) || squad;
 
   return (
@@ -632,20 +723,40 @@ export function Roadmap2026Gantt({
         ) : (
           groups.map((g) => (
             <section key={g.squad} aria-label={groupName(g.squad, g.items[0])}>
+              {drag && dragged && dragged.squad === g.squad && (
+                <div
+                  aria-hidden
+                  className="pointer-events-none fixed left-0 top-0 z-[60] w-[280px] rounded-xl border border-violet bg-surface px-4 py-2.5 shadow-[0_18px_40px_rgba(23,27,77,0.22)]"
+                  style={{ transform: `translate(${drag.x - 18}px, ${drag.y - 22}px) rotate(1deg)` }}
+                >
+                  <span className="line-clamp-2 text-[13.5px] font-extrabold text-navy">{dragged.title}</span>
+                  <StatusBadge2026 status={effectiveStatus(dragged)} />
+                </div>
+              )}
               <h3 className="sticky left-0 border-t border-line bg-[#fbfcff] px-4 py-2 text-[12.5px] font-extrabold text-muted">
                 {groupName(g.squad, g.items[0])} · {plural(g.items.length, "iniciativa", "iniciativas")}
               </h3>
-              <ul>
-                {g.items.map((item) => (
-                  <GanttRow2026
-                    key={item.id}
-                    item={item}
-                    timelineWidth={timelineWidth}
-                    canEdit={canEdit}
-                    onEdit={() => onEdit(item.id)}
-                    onChange={onChange}
-                  />
-                ))}
+              <ul data-drop-zone={g.squad}>
+                {g.items.map((item, idx) => {
+                  const slotHere = drag && drag.origin.zone === g.squad && drag.target.zone === g.squad;
+                  const position = slotHere ? zoneItems(g.squad, drag.id).findIndex((i) => i.id === item.id) : -1;
+                  return (
+                    <GanttRowSlot key={item.id} show={!!slotHere && position === drag!.target.index && item.id !== drag!.id} height={drag?.height ?? 0} position={drag ? drag.target.index + 1 : 0}>
+                      <GanttRow2026
+                        item={item}
+                        timelineWidth={timelineWidth}
+                        canEdit={canEdit}
+                        onEdit={() => onEdit(item.id)}
+                        onChange={onChange}
+                        onGrab={canEdit && onMove ? (e) => onPointerDown(item.id, e) : undefined}
+                        onReorderKey={(step) => reorderKey(item, step)}
+                        hidden={drag?.id === item.id}
+                      />
+                      {/* Espaço de soltura no fim do grupo. */}
+                      {slotHere && idx === g.items.length - 1 && drag!.target.index >= zoneItems(g.squad, drag!.id).length && <DropRow height={drag!.height} position={drag!.target.index + 1} />}
+                    </GanttRowSlot>
+                  );
+                })}
               </ul>
             </section>
           ))
