@@ -92,7 +92,8 @@ export function AreaFilter2026({
   onChange: (value: AreaCell[]) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  // Posição relativa ao botão: a caixa acompanha a página ao rolar (não fica presa na tela).
+  const [pos, setPos] = useState<{ left: number; width: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -106,14 +107,12 @@ export function AreaFilter2026({
       setOpen(false);
       ref.current?.querySelector<HTMLButtonElement>("button")?.focus();
     };
-    const onScroll = (e: Event) => !inside(e.target as Node) && setOpen(false);
+    // Rolar a página não fecha a caixa: ela fica aberta para ser vista por inteiro.
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey, true);
-    window.addEventListener("scroll", onScroll, true);
     return () => {
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("keydown", onKey, true);
-      window.removeEventListener("scroll", onScroll, true);
     };
   }, [open]);
 
@@ -138,7 +137,7 @@ export function AreaFilter2026({
   const filtering = !allSelected;
 
   return (
-    <div ref={ref}>
+    <div ref={ref} className="relative">
       <button
         type="button"
         aria-haspopup="dialog"
@@ -149,7 +148,7 @@ export function AreaFilter2026({
           if (rect) {
             const width = Math.min(640, window.innerWidth - 32);
             const left = Math.min(Math.max(16, rect.left), window.innerWidth - width - 16);
-            setPos({ top: rect.bottom + 8, left, width });
+            setPos({ left: left - rect.left, width });
           }
           setOpen((v) => !v);
         }}
@@ -168,8 +167,8 @@ export function AreaFilter2026({
           ref={panelRef}
           role="dialog"
           aria-label="Filtrar por área"
-          className="fixed z-[45] rounded-2xl border border-line bg-surface p-4 shadow-[0_18px_40px_rgba(23,27,77,0.18)]"
-          style={{ top: pos.top, left: pos.left, width: pos.width }}
+          className="absolute top-full z-[45] mt-2 max-h-[calc(100vh-32px)] overflow-y-auto overscroll-contain rounded-2xl border border-line bg-surface p-4 shadow-[0_18px_40px_rgba(23,27,77,0.18)] [scrollbar-width:thin]"
+          style={{ left: pos.left, width: pos.width }}
         >
           <p className="text-[15px] font-black text-navy">Filtrar por área</p>
           <p className="mt-0.5 text-[12.5px] text-muted">
@@ -281,11 +280,15 @@ export function AreaFilter2026({
           </div>
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3 text-[12.5px] text-muted">
             <span>Mais de uma célula marcada: aparece quem atende a qualquer uma. Clique na área ou no status para marcar a linha ou a coluna.</span>
-            {value.length > 0 && (
-              <button type="button" onClick={() => onChange([])} className="font-bold text-brand hover:underline">
-                Desmarcar todos
-              </button>
-            )}
+            {/* Sempre visível (não some ao desmarcar tudo). */}
+            <button
+              type="button"
+              onClick={() => onChange([])}
+              disabled={!value.length}
+              className="font-bold text-brand hover:underline disabled:cursor-default disabled:text-subtle disabled:no-underline"
+            >
+              Desmarcar todos
+            </button>
           </div>
         </div>
       )}
