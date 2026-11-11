@@ -22,6 +22,7 @@ import {
   PROTOTYPE_STATUSES,
   QUARTERS,
   ROADMAP_2026_PHASES,
+  ROADMAP_2026_OPTIONAL_TRACKS,
   ROADMAP_2026_STATUSES,
   ROADMAP_2026_TRACK_STATUSES,
   ROADMAP_2026_WAVES,
@@ -687,6 +688,8 @@ const roadmap2026EditableFields = {
   platformId: localId.nullable(),
   owners: roadmap2026OwnersSchema,
   trackStatus: roadmap2026TrackStatusSchema,
+  /** Frentes que não se aplicam à iniciativa (Design e/ou QA): sem responsáveis e fora da conclusão. */
+  skippedTracks: z.array(z.enum(ROADMAP_2026_OPTIONAL_TRACKS)).max(2),
   backlog: z.boolean(),
   status: z.enum(ROADMAP_2026_STATUSES),
   segments: z.array(roadmap2026WorkSchema).max(ROADMAP_2026_WEEK_COUNT),

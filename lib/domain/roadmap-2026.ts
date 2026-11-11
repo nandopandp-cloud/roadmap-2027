@@ -178,6 +178,7 @@ export function importedItem(item: Roadmap2026ImportItem, people: Pick<Person, "
     platformId: item.platformId,
     owners: ownersFromSheet(item, people),
     trackStatus: trackStatusesFromSheet(item),
+    skippedTracks: [],
     weeks: item.weeks,
     design: item.design,
     engineering: item.engineering,
@@ -288,13 +289,21 @@ export function ownerProblem(person: Person, people: Person[], squads: Squad[], 
 /* ------------------------------ Status calculado ------------------------------ */
 
 /** O que as regras de status precisam de uma iniciativa. */
-type Item2026Status = Pick<Roadmap2026Item, "segments" | "status"> & { trackStatus?: Roadmap2026TrackStatus; owners?: Roadmap2026Owners };
+type Item2026Status = Pick<Roadmap2026Item, "segments" | "status"> & {
+  trackStatus?: Roadmap2026TrackStatus;
+  owners?: Roadmap2026Owners;
+  skippedTracks?: Roadmap2026Item["skippedTracks"];
+};
+
+/** Frentes que valem para a iniciativa (sem as retiradas: Design e/ou QA que não se aplicam). */
+export const activeTracks = (item: { skippedTracks?: readonly string[] }) =>
+  TRACK_STATUS_TRACKS.filter((t) => !(item.skippedTracks ?? []).includes(t));
 
 /** Frentes envolvidas: as que têm responsável ou que já começaram. */
 export function involvedTracks(item: Item2026Status): TrackStatusTrack[] {
   const statuses = item.trackStatus;
   if (!statuses) return [];
-  return TRACK_STATUS_TRACKS.filter((t) => (item.owners?.[t]?.length ?? 0) > 0 || statuses[t] !== "nao_iniciado");
+  return activeTracks(item).filter((t) => (item.owners?.[t]?.length ?? 0) > 0 || statuses[t] !== "nao_iniciado");
 }
 
 /**
@@ -314,7 +323,7 @@ export function isDone(item: Item2026Status): boolean {
 export function effectiveStatus(item: Item2026Status, today = new Date()): Status2026 {
   if (isDone(item)) return "concluida";
   if (overdueWeeks(item, today) > 0) return "atrasada";
-  const started = item.trackStatus ? TRACK_STATUS_TRACKS.some((t) => item.trackStatus![t] !== "nao_iniciado") : false;
+  const started = item.trackStatus ? activeTracks(item).some((t) => item.trackStatus![t] !== "nao_iniciado") : false;
   return started ? "andamento" : "planejada";
 }
 

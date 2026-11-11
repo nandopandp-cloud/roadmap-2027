@@ -1,6 +1,7 @@
 import "server-only";
 import { seedRoadmap2026 } from "@/data/seed/roadmap-2026";
 import type { Viewer } from "@/lib/auth/session";
+import { ROADMAP_2026_OPTIONAL_TRACKS } from "@/lib/domain/constants";
 import { canPlanRoadmap2026For } from "@/lib/domain/effort-access";
 import { squadNamesOf } from "@/lib/domain/org";
 import { OWNER_TRACK_LABEL, OWNER_TRACKS_2026, ownerProblem, STATUS_2026_LABEL, TRACK_STATUS_LABEL, TRACK_STATUS_TRACKS, WORK_2026_LABEL, workPeriod } from "@/lib/domain/roadmap-2026";
@@ -51,12 +52,19 @@ export function describe2026Changes(before: Roadmap2026Item, after: Roadmap2026I
   if (before.title !== after.title) out.push(`Nome alterado de “${before.title}” para “${after.title}”.`);
   if (before.subtitle !== after.subtitle) out.push(after.subtitle ? `Subtítulo: ${quoted(after.subtitle)}.` : "Subtítulo removido.");
   if (before.squad !== after.squad) out.push(`Squad: ${before.squad} → ${after.squad}.`);
+  for (const track of ROADMAP_2026_OPTIONAL_TRACKS) {
+    const was = before.skippedTracks.includes(track);
+    const now = after.skippedTracks.includes(track);
+    if (was !== now) out.push(now ? `Frente de ${OWNER_TRACK_LABEL[track]} retirada: não se aplica à iniciativa.` : `Frente de ${OWNER_TRACK_LABEL[track]} incluída de novo.`);
+  }
   for (const track of TRACK_STATUS_TRACKS) {
+    if (after.skippedTracks.includes(track as never)) continue;
     if (before.trackStatus[track] !== after.trackStatus[track])
       out.push(`Andamento de ${OWNER_TRACK_LABEL[track]}: ${TRACK_STATUS_LABEL[before.trackStatus[track]]} → ${TRACK_STATUS_LABEL[after.trackStatus[track]]}.`);
   }
   const names = (ids: string[]) => (ids.length ? ids.map((id) => people.find((p) => p.id === id)?.name ?? "pessoa removida").join(", ") : "ninguém");
   for (const track of OWNER_TRACKS_2026) {
+    if (after.skippedTracks.includes(track as never)) continue;
     const a = before.owners[track];
     const b = after.owners[track];
     if (a.length !== b.length || a.some((id, i) => id !== b[i])) out.push(`Responsáveis de ${OWNER_TRACK_LABEL[track]}: ${names(a)} → ${names(b)}.`);
@@ -92,12 +100,18 @@ export async function patchRoadmap2026Item(id: string, data: unknown, viewer: Vi
       if (idx < 0) throw notFound("Iniciativa do Roadmap 2026");
       const before = db.roadmap2026[idx];
       const next: Roadmap2026Item = { ...before, ...patch };
+      if (patch.skippedTracks) next.skippedTracks = [...new Set(patch.skippedTracks)];
       if (patch.owners) {
         // Só colaboradores de Times & Squads, sem repetição na mesma frente.
         const known = new Set(db.people.map((p) => p.id));
         const unknown = OWNER_TRACKS_2026.flatMap((t) => patch.owners![t]).filter((pid) => !known.has(pid));
         if (unknown.length) throw new DomainError(400, "Escolha pessoas cadastradas em Times & Squads.", { owners: "Pessoa não encontrada no organograma." });
         next.owners = { design: [...new Set(patch.owners.design)], engineering: [...new Set(patch.owners.engineering)], qa: [...new Set(patch.owners.qa)] };
+      }
+      // Frente que não se aplica fica sem responsáveis e volta a "não iniciado".
+      for (const track of next.skippedTracks) {
+        next.owners = { ...next.owners, [track]: [] };
+        next.trackStatus = { ...next.trackStatus, [track]: "nao_iniciado" };
       }
       // Novos responsáveis: do squad da iniciativa e com a função da frente (quem já estava pode continuar).
       for (const track of OWNER_TRACKS_2026) {

@@ -393,8 +393,8 @@ export function RoadmapView() {
           squads={data.squads}
           onClose={() => setEditing2026(null)}
           onSave={async (item, owners, trackStatus) => {
-            const { title, subtitle, platformId, backlog, status, segments } = item;
-            const ok = await save2026(item.id, { title, subtitle, platformId, owners, trackStatus, backlog, status, segments }, "Alterações salvas.");
+            const { title, subtitle, platformId, backlog, status, segments, skippedTracks } = item;
+            const ok = await save2026(item.id, { title, subtitle, platformId, owners, trackStatus, skippedTracks, backlog, status, segments }, "Alterações salvas.");
             if (ok) setEditing2026(null);
             return ok;
           }}

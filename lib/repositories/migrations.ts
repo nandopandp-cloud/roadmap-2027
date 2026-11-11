@@ -7,7 +7,7 @@ import { eligibleOwners } from "@/lib/domain/org";
 import { defaultRoadmapOrder } from "@/lib/domain/roadmap-order";
 import type { Database, IllustrationKey, Person, PlatformStrategy, ProposalSection, RepositoryLink, Roadmap2026Item, Squad, StrategyContext } from "@/lib/domain/types";
 
-export const SCHEMA_VERSION = 18;
+export const SCHEMA_VERSION = 19;
 
 /** Ilustrações removidas da biblioteca → equivalentes atuais. */
 const RENAMED_ILLUSTRATIONS: Record<string, IllustrationKey | null> = { cometa: null, lua: null };
@@ -41,6 +41,7 @@ const RENAMED_ILLUSTRATIONS: Record<string, IllustrationKey | null> = { cometa: 
  * v16 → v17: andamento de Design e de Engenharia (trackStatus), lido dos textos da planilha
  *            ("Concluído", "Andamento…"; o resto = não iniciado).
  * v17 → v18: andamento de QA (trackStatus.qa), lido do texto de QA da planilha.
+ * v18 → v19: frentes que não se aplicam à iniciativa (skippedTracks: Design e/ou QA), vazias.
  */
 export function migrateDatabase(db: Database): { db: Database; changed: boolean } {
   if ((db.schemaVersion ?? 1) >= SCHEMA_VERSION) return { db, changed: false };
@@ -89,7 +90,8 @@ export function importedRoadmap2026(people: Person[] = [], squads: Squad[] = [])
 const candidatesFor = (item: { platformId: string | null }, people: Person[], squads: Squad[]) =>
   eligibleOwners(people, squads, item.platformId ? [item.platformId] : []);
 
-type LegacyRoadmap2026Item = Omit<Roadmap2026Item, "owners" | "trackStatus"> & {
+type LegacyRoadmap2026Item = Omit<Roadmap2026Item, "owners" | "trackStatus" | "skippedTracks"> & {
+  skippedTracks?: Roadmap2026Item["skippedTracks"];
   owners?: Roadmap2026Item["owners"];
   trackStatus?: Partial<Roadmap2026Item["trackStatus"]>;
   wave?: unknown;
@@ -102,6 +104,7 @@ function migrateRoadmap2026(items: LegacyRoadmap2026Item[], people: Person[], sq
     owners: item.owners ?? ownersFromSheet(item, candidatesFor(item, people, squads)),
     // Frentes que ainda não têm andamento gravado (ex.: QA, desde a v18) são lidas da planilha.
     trackStatus: { ...trackStatusesFromSheet(item), ...item.trackStatus },
+    skippedTracks: item.skippedTracks ?? [],
   }));
 }
 

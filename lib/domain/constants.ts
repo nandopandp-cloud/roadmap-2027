@@ -79,5 +79,7 @@ export const ROADMAP_2026_WAVES = ["primeira", "segunda", "terceira"] as const;
 export const ROADMAP_2026_STATUSES = ["planejada", "andamento", "qa", "atrasada", "concluida"] as const;
 /** Andamento de cada frente (Design e Engenharia) de uma iniciativa do Roadmap 2026. */
 export const ROADMAP_2026_TRACK_STATUSES = ["nao_iniciado", "andamento", "concluido"] as const;
+/** Frentes que podem ser retiradas de uma iniciativa do Roadmap 2026 (Engenharia é obrigatória). */
+export const ROADMAP_2026_OPTIONAL_TRACKS = ["design", "qa"] as const;
 /** Tipo de trabalho de cada sequência de semanas do Roadmap 2026 (editável). */
 export const ROADMAP_2026_WORK = ["design", "engenharia", "qa", "indefinido"] as const;

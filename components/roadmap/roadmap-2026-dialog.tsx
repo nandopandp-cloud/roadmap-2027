@@ -8,7 +8,7 @@ import { Checkbox, SelectField, TextField } from "@/components/ui/fields";
 import { Select } from "@/components/ui/select";
 import { cn, formatDateTime, plural } from "@/lib/client/cn";
 import { STATUS_2026_TONE, WORK_2026_TONE } from "@/lib/client/tones";
-import { ROADMAP_2026_WEEK_COUNT, ROADMAP_2026_WORK } from "@/lib/domain/constants";
+import { ROADMAP_2026_OPTIONAL_TRACKS, ROADMAP_2026_WEEK_COUNT, ROADMAP_2026_WORK } from "@/lib/domain/constants";
 import {
   CYCLE_2026_MONTHS,
   OWNER_TRACK_LABEL,
@@ -146,6 +146,8 @@ function SegmentRow({
   );
 }
 
+type Skippable = (typeof ROADMAP_2026_OPTIONAL_TRACKS)[number];
+
 /** Pessoas responsáveis por uma frente: escolhidas no organograma, com avatar. */
 function OwnerPicker({
   track,
@@ -157,6 +159,7 @@ function OwnerPicker({
   onChange,
   status,
   onStatus,
+  onSkip,
 }: {
   track: OwnerTrack2026;
   people: Person[];
@@ -171,6 +174,8 @@ function OwnerPicker({
   /** Andamento da frente. */
   status?: TrackStatus2026;
   onStatus?: (status: TrackStatus2026) => void;
+  /** Retira a frente da iniciativa (Design e QA). */
+  onSkip?: () => void;
 }) {
   const Icon = OWNER_TRACK_ICON[track];
   const chosen = value.map((id) => people.find((p) => p.id === id)).filter((p): p is Person => !!p);
@@ -246,6 +251,17 @@ function OwnerPicker({
           {people.length ? `Ninguém mais com a função ${OWNER_TRACK_LABEL[track]} em ${squadLabel}.` : "Cadastre as pessoas em Times & Squads."}
         </span>
       )}
+      {onSkip && (
+        <button
+          type="button"
+          onClick={onSkip}
+          title={`Retirar ${OWNER_TRACK_LABEL[track]} desta iniciativa (não se aplica)`}
+          className="ml-auto inline-flex h-8 items-center gap-1 rounded-lg px-2 text-[12px] font-bold text-subtle transition-colors hover:bg-[#fdecec] hover:text-[#c42b3a]"
+        >
+          <X size={13} aria-hidden />
+          Não se aplica
+        </button>
+      )}
     </div>
   );
 }
@@ -288,8 +304,10 @@ export function Item2026Dialog({
   });
   const [owners, setOwners] = useState(start);
   const [tracks, setTracks] = useState(initialTracks);
+  const [skipped, setSkipped] = useState<Skippable[]>(item.skippedTracks);
   const dirty =
-    JSON.stringify(draft) !== JSON.stringify(item) || JSON.stringify(owners) !== JSON.stringify(start) || JSON.stringify(tracks) !== JSON.stringify(initialTracks);
+    JSON.stringify(draft) !== JSON.stringify(item) || JSON.stringify(owners) !== JSON.stringify(start) || JSON.stringify(tracks) !== JSON.stringify(initialTracks) ||
+    JSON.stringify(skipped) !== JSON.stringify(item.skippedTracks);
   const sheetText = OWNER_TRACKS_2026.filter((t) => item[t])
     .map((t) => `${OWNER_TRACK_LABEL[t]} “${item[t]}”`)
     .join(" · ");
@@ -330,7 +348,7 @@ export function Item2026Dialog({
             disabled={!dirty || !draft.title.trim()}
             onClick={async () => {
               setBusy(true);
-              if (!(await onSave({ ...draft, title: draft.title.trim(), subtitle: draft.subtitle.trim() }, owners, tracks))) setBusy(false);
+              if (!(await onSave({ ...draft, title: draft.title.trim(), subtitle: draft.subtitle.trim(), skippedTracks: skipped }, owners, tracks))) setBusy(false);
             }}
           >
             Salvar
@@ -341,7 +359,7 @@ export function Item2026Dialog({
       <div className="flex flex-col gap-5">
         {(() => {
           // Status calculado com o que está na janela (andamento e responsáveis ainda não salvos).
-          const preview = { ...draft, owners, trackStatus: tracks };
+          const preview = { ...draft, owners, trackStatus: tracks, skippedTracks: skipped };
           const shown = effectiveStatus(preview);
           const tone = STATUS_2026_TONE[shown];
           return (
@@ -393,7 +411,16 @@ export function Item2026Dialog({
         <fieldset className="flex flex-col gap-3">
           <legend className="mb-1 text-sm font-bold text-ink">Frentes e responsáveis</legend>
           <p className="-mt-1 text-xs text-muted">Andamento de Design, Engenharia e QA e quem toca cada frente (pessoas de Times &amp; Squads).</p>
-          {OWNER_TRACKS_2026.map((track) => (
+          {OWNER_TRACKS_2026.map((track) =>
+            skipped.includes(track as Skippable) ? (
+              <div key={track} className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed border-line-strong bg-canvas px-3 py-2.5 text-[13px]">
+                <span className="font-bold text-muted">{OWNER_TRACK_LABEL[track]}</span>
+                <span className="text-muted">não se aplica a esta iniciativa.</span>
+                <Button size="sm" variant="ghost" icon={<Plus size={14} />} onClick={() => setSkipped((s) => s.filter((t) => t !== track))}>
+                  Incluir {OWNER_TRACK_LABEL[track]}
+                </Button>
+              </div>
+            ) : (
             <OwnerPicker
               key={track}
               track={track}
@@ -405,8 +432,18 @@ export function Item2026Dialog({
               onChange={(ids) => setOwners((o) => ({ ...o, [track]: ids }))}
               status={tracks[track]}
               onStatus={(st) => setTracks((t) => ({ ...t, [track]: st }))}
+              onSkip={
+                (ROADMAP_2026_OPTIONAL_TRACKS as readonly string[]).includes(track)
+                  ? () => {
+                      setSkipped((s) => [...s, track as Skippable]);
+                      setOwners((o) => ({ ...o, [track]: [] }));
+                      setTracks((t) => ({ ...t, [track]: "nao_iniciado" }));
+                    }
+                  : undefined
+              }
             />
-          ))}
+            ),
+          )}
           {sheetText && <p className="text-xs text-subtle">Na planilha: {sheetText}.</p>}
         </fieldset>
         <Checkbox label="Backlog" hint="Ainda não priorizada para execução." checked={draft.backlog} onChange={(v) => set("backlog", v)} />

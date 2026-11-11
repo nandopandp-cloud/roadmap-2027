@@ -74,7 +74,8 @@ function TrackChips({ item }: { item: Roadmap2026Item }) {
   const { ownersOf, trackStatusOf, people } = useContext(Owners2026Context);
   const owners = ownersOf(item);
   const statuses = trackStatusOf(item);
-  const tracks = OWNER_TRACKS_2026;
+  // Frentes retiradas (não se aplicam) não aparecem.
+  const tracks = OWNER_TRACKS_2026.filter((t) => !(item.skippedTracks as string[]).includes(t));
   return (
     <span className="flex flex-wrap items-center gap-1">
       {tracks.map((track) => {
@@ -120,7 +121,7 @@ function OwnerRows({ item }: { item: Roadmap2026Item }) {
   const statuses = trackStatusOf(item);
   const withOwners = useOwners(item);
   // As três frentes sempre aparecem, com o andamento.
-  const groups = OWNER_TRACKS_2026.map(
+  const groups = OWNER_TRACKS_2026.filter((t) => !(item.skippedTracks as string[]).includes(t)).map(
     (track) => withOwners.find((g) => g.track === track) ?? { track, people: [] as Person[] },
   );
   return (
