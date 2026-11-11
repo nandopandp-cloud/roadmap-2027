@@ -3,6 +3,7 @@
  * semanas S1–S4 de julho/2026 a abril/2027, períodos, situação e trimestre de entrega.
  */
 import { ROADMAP_2026_STATUSES, ROADMAP_2026_TRACK_STATUSES, ROADMAP_2026_WEEK_COUNT, ROADMAP_2026_WORK } from "@/lib/domain/constants";
+import { eligibleOwners } from "@/lib/domain/org";
 import type {
   Person,
   Roadmap2026ImportItem,
@@ -13,6 +14,7 @@ import type {
   Roadmap2026TrackStatus,
   Roadmap2026Wave,
   Roadmap2026Work,
+  Squad,
 } from "@/lib/domain/types";
 
 /** Meses da planilha, na ordem das colunas (quatro semanas cada). */
@@ -167,7 +169,7 @@ export function initialStatus(item: Roadmap2026ImportItem): Status2026 {
  * viram o tipo de trabalho; verde, azul, vermelho e cinza diziam a situação (agora no status),
  * não o tipo — ficam como "Fase não informada".
  */
-export function importedItem(item: Roadmap2026ImportItem, people: Pick<Person, "id" | "name">[] = []): Roadmap2026Item {
+export function importedItem(item: Roadmap2026ImportItem, people: Pick<Person, "id" | "name" | "discipline">[] = []): Roadmap2026Item {
   return {
     id: item.id,
     title: item.title,
@@ -254,13 +256,33 @@ export function matchSheetPerson(text: string, people: Pick<Person, "id" | "name
   return found.length === 1 ? found[0].id : null;
 }
 
-/** Responsáveis lidos dos textos da planilha (Design, Engenharia, QA). */
-export function ownersFromSheet(item: Pick<Roadmap2026Item, "design" | "engineering" | "qa">, people: Pick<Person, "id" | "name">[]): Owners2026 {
-  const pick = (text: string) => {
-    const id = matchSheetPerson(text, people);
+/** Responsáveis lidos dos textos da planilha (Design, Engenharia, QA), só entre quem tem a função da frente. */
+export function ownersFromSheet(
+  item: Pick<Roadmap2026Item, "design" | "engineering" | "qa">,
+  people: Pick<Person, "id" | "name" | "discipline">[],
+): Owners2026 {
+  const pick = (text: string, track: OwnerTrack2026) => {
+    const id = matchSheetPerson(
+      text,
+      people.filter((p) => p.discipline === OWNER_TRACK_DISCIPLINE[track]),
+    );
     return id ? [id] : [];
   };
-  return { design: pick(item.design), engineering: pick(item.engineering), qa: pick(item.qa) };
+  return { design: pick(item.design, "design"), engineering: pick(item.engineering, "engineering"), qa: pick(item.qa, "qa") };
+}
+
+/**
+ * Quem pode ser responsável por uma frente de uma iniciativa do 2026: pessoas dos squads da
+ * plataforma (ver `eligibleOwners`) com a função da frente em Times & Squads (Design, Engenharia, QA).
+ */
+export function ownerCandidates<P extends Person>(people: P[], squads: Squad[], platformId: string | null, track: OwnerTrack2026): P[] {
+  return eligibleOwners(people, squads, platformId ? [platformId] : []).filter((p) => p.discipline === OWNER_TRACK_DISCIPLINE[track]);
+}
+
+/** Por que a pessoa não pode ser responsável pela frente (null = pode). */
+export function ownerProblem(person: Person, people: Person[], squads: Squad[], platformId: string | null, track: OwnerTrack2026): "squad" | "funcao" | null {
+  if (!eligibleOwners(people, squads, platformId ? [platformId] : []).some((p) => p.id === person.id)) return "squad";
+  return person.discipline === OWNER_TRACK_DISCIPLINE[track] ? null : "funcao";
 }
 
 /* ------------------------------ Status calculado ------------------------------ */

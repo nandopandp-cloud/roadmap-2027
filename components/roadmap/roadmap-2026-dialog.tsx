@@ -11,9 +11,10 @@ import { STATUS_2026_TONE, WORK_2026_TONE } from "@/lib/client/tones";
 import { ROADMAP_2026_WEEK_COUNT, ROADMAP_2026_WORK } from "@/lib/domain/constants";
 import {
   CYCLE_2026_MONTHS,
-  OWNER_TRACK_DISCIPLINE,
   OWNER_TRACK_LABEL,
   OWNER_TRACKS_2026,
+  ownerCandidates,
+  ownerProblem,
   STATUS_2026_LABEL,
   TRACK_STATUS_LABEL,
   TRACK_STATUSES_2026,
@@ -30,7 +31,6 @@ import {
   type Work2026,
 } from "@/lib/domain/roadmap-2026";
 import type { Person, Platform, Roadmap2026Item, Roadmap2026Work, Squad } from "@/lib/domain/types";
-import { eligibleOwners } from "@/lib/domain/org";
 import { Avatar } from "@/components/org/avatar";
 import { OWNER_TRACK_ICON, TRACK_STATUS_TONE } from "@/components/roadmap/roadmap-2026";
 
@@ -151,6 +151,7 @@ function OwnerPicker({
   track,
   people,
   eligible,
+  problemOf,
   squadLabel,
   value,
   onChange,
@@ -159,8 +160,10 @@ function OwnerPicker({
 }: {
   track: OwnerTrack2026;
   people: Person[];
-  /** Pessoas dos squads da iniciativa (as opções da lista). */
+  /** Pessoas do squad da iniciativa com a função da frente (as opções da lista). */
   eligible: Person[];
+  /** Motivo de quem já está na frente não poder ser escolhido de novo (squad ou função). */
+  problemOf: (person: Person) => "squad" | "funcao" | null;
   /** Squad da iniciativa, para a mensagem de quem está fora dele. */
   squadLabel: string;
   value: string[];
@@ -171,12 +174,8 @@ function OwnerPicker({
 }) {
   const Icon = OWNER_TRACK_ICON[track];
   const chosen = value.map((id) => people.find((p) => p.id === id)).filter((p): p is Person => !!p);
-  const discipline = OWNER_TRACK_DISCIPLINE[track];
-  const inSquad = new Set(eligible.map((p) => p.id));
-  // Só pessoas do squad da iniciativa; quem tem a função da frente aparece primeiro.
-  const options = eligible
-    .filter((p) => !value.includes(p.id))
-    .sort((a, b) => Number(b.discipline === discipline) - Number(a.discipline === discipline) || a.name.localeCompare(b.name, "pt-BR"));
+  // Só pessoas do squad da iniciativa com a função da frente.
+  const options = eligible.filter((p) => !value.includes(p.id)).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-surface p-2.5">
       <span className="flex w-[104px] shrink-0 items-center gap-1.5 text-[13px] font-bold text-ink">
@@ -205,18 +204,20 @@ function OwnerPicker({
           })}
         </span>
       )}
-      {chosen.map((p) => (
+      {chosen.map((p) => {
+        const problem = problemOf(p);
+        return (
         <span
           key={p.id}
-          title={inSquad.has(p.id) ? undefined : `${p.name} não faz parte do squad ${squadLabel}.`}
+          title={problem === "squad" ? `${p.name} não faz parte do squad ${squadLabel}.` : problem === "funcao" ? `${p.name} não tem a função ${OWNER_TRACK_LABEL[track]} em Times & Squads.` : undefined}
           className={cn(
             "inline-flex items-center gap-1.5 rounded-full border py-0.5 pl-0.5 pr-1 text-[13px] font-semibold text-ink",
-            inSquad.has(p.id) ? "border-line bg-canvas" : "border-[#f3c58a] bg-[#fff6ea]",
+            problem ? "border-[#f3c58a] bg-[#fff6ea]" : "border-line bg-canvas",
           )}
         >
           <Avatar person={p} size={24} />
           {p.name}
-          {!inSquad.has(p.id) && <span className="text-[11.5px] font-bold text-[#8a4b00]">fora do squad</span>}
+          {problem && <span className="text-[11.5px] font-bold text-[#8a4b00]">{problem === "squad" ? "fora do squad" : "outra função"}</span>}
           <button
             type="button"
             onClick={() => onChange(value.filter((id) => id !== p.id))}
@@ -226,7 +227,8 @@ function OwnerPicker({
             <X size={13} />
           </button>
         </span>
-      ))}
+        );
+      })}
       {options.length > 0 ? (
         <span className="w-[210px]">
           <Select value="" onChange={(id) => id && onChange([...value, id])} aria-label={`Adicionar responsável de ${OWNER_TRACK_LABEL[track]}`} className={control}>
@@ -240,7 +242,9 @@ function OwnerPicker({
           </Select>
         </span>
       ) : (
-        <span className="text-[12.5px] text-muted">{people.length ? `Ninguém mais em ${squadLabel}.` : "Cadastre as pessoas em Times & Squads."}</span>
+        <span className="text-[12.5px] text-muted">
+          {people.length ? `Ninguém mais com a função ${OWNER_TRACK_LABEL[track]} em ${squadLabel}.` : "Cadastre as pessoas em Times & Squads."}
+        </span>
       )}
     </div>
   );
@@ -290,8 +294,6 @@ export function Item2026Dialog({
     .map((t) => `${OWNER_TRACK_LABEL[t]} “${item[t]}”`)
     .join(" · ");
   const squads = [...platforms.map((p) => ({ value: p.id, label: p.name })), { value: "", label: "Transversais" }];
-  // Responsáveis possíveis: pessoas dos squads da plataforma da iniciativa (transversal: todos).
-  const eligible = eligibleOwners(people, orgSquads, draft.platformId ? [draft.platformId] : []);
 
   const close = async () => {
     if (dirty && !(await confirm({ title: "Descartar alterações?", message: "As mudanças nesta iniciativa ainda não foram salvas.", confirmLabel: "Descartar", tone: "danger" }))) return;
@@ -396,7 +398,8 @@ export function Item2026Dialog({
               key={track}
               track={track}
               people={people}
-              eligible={eligible}
+              eligible={ownerCandidates(people, orgSquads, draft.platformId, track)}
+              problemOf={(person) => ownerProblem(person, people, orgSquads, draft.platformId, track)}
               squadLabel={draft.squad}
               value={owners[track]}
               onChange={(ids) => setOwners((o) => ({ ...o, [track]: ids }))}

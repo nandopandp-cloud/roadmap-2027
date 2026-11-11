@@ -2,8 +2,8 @@ import "server-only";
 import { seedRoadmap2026 } from "@/data/seed/roadmap-2026";
 import type { Viewer } from "@/lib/auth/session";
 import { canPlanRoadmap2026For } from "@/lib/domain/effort-access";
-import { eligibleOwners, squadNamesOf } from "@/lib/domain/org";
-import { OWNER_TRACK_LABEL, OWNER_TRACKS_2026, STATUS_2026_LABEL, TRACK_STATUS_LABEL, TRACK_STATUS_TRACKS, WORK_2026_LABEL, workPeriod } from "@/lib/domain/roadmap-2026";
+import { squadNamesOf } from "@/lib/domain/org";
+import { OWNER_TRACK_LABEL, OWNER_TRACKS_2026, ownerProblem, STATUS_2026_LABEL, TRACK_STATUS_LABEL, TRACK_STATUS_TRACKS, WORK_2026_LABEL, workPeriod } from "@/lib/domain/roadmap-2026";
 import type { Database, Person, Roadmap2026, Roadmap2026Item } from "@/lib/domain/types";
 import { getRepository, storageKind } from "@/lib/repositories";
 import { READ_ONLY_MESSAGE } from "@/lib/repositories/json-file-repository";
@@ -99,13 +99,18 @@ export async function patchRoadmap2026Item(id: string, data: unknown, viewer: Vi
         if (unknown.length) throw new DomainError(400, "Escolha pessoas cadastradas em Times & Squads.", { owners: "Pessoa não encontrada no organograma." });
         next.owners = { design: [...new Set(patch.owners.design)], engineering: [...new Set(patch.owners.engineering)], qa: [...new Set(patch.owners.qa)] };
       }
-      // Novos responsáveis precisam ser do squad da iniciativa (quem já estava pode continuar).
-      const eligible = new Set(eligibleOwners(db.people, db.squads, next.platformId ? [next.platformId] : []).map((p) => p.id));
-      const outside = OWNER_TRACKS_2026.flatMap((t) => next.owners[t].filter((pid) => !before.owners[t].includes(pid) && !eligible.has(pid)));
-      if (outside.length) {
-        const names = [...new Set(outside)].map((pid) => db.people.find((p) => p.id === pid)?.name ?? pid).join(", ");
-        const squadsText = squadNamesOf(db.squads, next.platformId ? [next.platformId] : []).join(" ou ") || next.squad;
-        throw new DomainError(400, `${names} não faz parte do squad ${squadsText}.`, { owners: "Escolha pessoas do squad da iniciativa." });
+      // Novos responsáveis: do squad da iniciativa e com a função da frente (quem já estava pode continuar).
+      for (const track of OWNER_TRACKS_2026) {
+        for (const pid of next.owners[track].filter((x) => !before.owners[track].includes(x))) {
+          const person = db.people.find((p) => p.id === pid)!;
+          const problem = ownerProblem(person, db.people, db.squads, next.platformId, track);
+          if (problem === "squad") {
+            const squadsText = squadNamesOf(db.squads, next.platformId ? [next.platformId] : []).join(" ou ") || next.squad;
+            throw new DomainError(400, `${person.name} não faz parte do squad ${squadsText}.`, { owners: "Escolha pessoas do squad da iniciativa." });
+          }
+          if (problem === "funcao")
+            throw new DomainError(400, `${person.name} não tem a função ${OWNER_TRACK_LABEL[track]} em Times & Squads.`, { owners: "Escolha pessoas com a função da frente." });
+        }
       }
       if (patch.platformId !== undefined && patch.platformId !== before.platformId) {
         const platform = patch.platformId ? db.platforms.find((p) => p.id === patch.platformId) : null;
