@@ -27,7 +27,7 @@ export const cellLabel = (cell: AreaCell) => {
   return `${OWNER_TRACK_LABEL[track]} ${TRACK_STATUS_LABEL[status].toLowerCase()}`;
 };
 
-/** Status da iniciativa como botões coloridos (liga/desliga), cada um com a contagem. */
+/** Status da iniciativa como botões coloridos (liga/desliga), cada um com a contagem. Oculto na barra por ora. */
 export function StatusChips2026({
   statuses,
   value,
@@ -120,6 +120,13 @@ export function AreaFilter2026({
     const all = row.every((c) => value.includes(c));
     onChange(all ? value.filter((c) => !row.includes(c)) : [...new Set([...value, ...row])]);
   };
+  const toggleColumn = (status: TrackStatus2026) => {
+    const column = TRACK_STATUS_TRACKS.map((t) => areaCell(t, status));
+    const all = column.every((c) => value.includes(c));
+    onChange(all ? value.filter((c) => !column.includes(c)) : [...new Set([...value, ...column])]);
+  };
+  const allCells = TRACK_STATUS_TRACKS.flatMap((t) => TRACK_STATUSES_2026.map((st) => areaCell(t, st)));
+  const allSelected = allCells.every((c) => value.includes(c));
   // O detalhe de cada combinação aparece nas etiquetas de "Filtrando"; aqui fica o resumo curto.
   const summary = value.length ? "Selecionadas" : "Todas";
 
@@ -157,7 +164,22 @@ export function AreaFilter2026({
           className="fixed z-[45] rounded-2xl border border-line bg-surface p-4 shadow-[0_18px_40px_rgba(23,27,77,0.18)]"
           style={{ top: pos.top, left: pos.left, width: pos.width }}
         >
-          <p className="text-[15px] font-black text-navy">Filtrar por área</p>
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-[15px] font-black text-navy">Filtrar por área</p>
+            <button
+              type="button"
+              onClick={() => onChange(allSelected ? [] : allCells)}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 text-[13px] font-extrabold text-brand hover:bg-[#f3f1fd]"
+            >
+              <span
+                aria-hidden
+                className={cn("flex h-4 w-4 items-center justify-center rounded-[4px] border-2", allSelected ? "border-violet bg-violet text-white" : "border-line-strong")}
+              >
+                {allSelected && <Check size={11} strokeWidth={3.2} />}
+              </span>
+              {allSelected ? "Desmarcar todos" : "Selecionar todos"}
+            </button>
+          </div>
           <p className="mt-0.5 text-[12.5px] text-muted">
             Marque o status de cada área. Ex.: “Engenharia · Não iniciado” mostra as iniciativas em que a engenharia ainda não começou.
           </p>
@@ -167,8 +189,15 @@ export function AreaFilter2026({
                 <tr>
                   <th className="w-[130px] text-left text-[12.5px] font-extrabold text-muted">Área</th>
                   {TRACK_STATUSES_2026.map((st) => (
-                    <th key={st} className="text-center text-[12.5px] font-extrabold text-muted">
-                      {TRACK_STATUS_LABEL[st]}
+                    <th key={st} className="text-center">
+                      <button
+                        type="button"
+                        onClick={() => toggleColumn(st)}
+                        title={`Marcar ${TRACK_STATUS_LABEL[st].toLowerCase()} em todas as áreas`}
+                        className="rounded-lg px-2 py-0.5 text-[12.5px] font-extrabold text-muted hover:bg-[#f3f1fd] hover:text-brand"
+                      >
+                        {TRACK_STATUS_LABEL[st]}
+                      </button>
                     </th>
                   ))}
                 </tr>
@@ -226,7 +255,7 @@ export function AreaFilter2026({
             </table>
           </div>
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3 text-[12.5px] text-muted">
-            <span>Mais de uma célula marcada: aparece quem atende a qualquer uma. Clique na área para marcar a linha toda.</span>
+            <span>Mais de uma célula marcada: aparece quem atende a qualquer uma. Clique na área ou no status para marcar a linha ou a coluna.</span>
             {value.length > 0 && (
               <button type="button" onClick={() => onChange([])} className="font-bold text-brand hover:underline">
                 Limpar áreas
@@ -274,4 +303,30 @@ export function ActiveFilters2026({
       )}
     </div>
   );
+}
+
+/**
+ * Agrupa as combinações marcadas para as etiquetas de "Filtrando": tudo marcado vira "todas",
+ * uma linha inteira vira "Design (todos os status)" e uma coluna inteira "Em andamento (todas as áreas)".
+ */
+export function groupAreaCells(cells: AreaCell[]): { key: string; label: string; cells: AreaCell[] }[] {
+  const all = TRACK_STATUS_TRACKS.flatMap((t) => TRACK_STATUSES_2026.map((st) => areaCell(t, st)));
+  if (all.every((c) => cells.includes(c))) return [{ key: "todas", label: "todas", cells: all }];
+  let rest = [...cells];
+  const groups: { key: string; label: string; cells: AreaCell[] }[] = [];
+  for (const t of TRACK_STATUS_TRACKS) {
+    const row = TRACK_STATUSES_2026.map((st) => areaCell(t, st));
+    if (row.every((c) => rest.includes(c))) {
+      groups.push({ key: `linha-${t}`, label: `${OWNER_TRACK_LABEL[t]} (todos os status)`, cells: row });
+      rest = rest.filter((c) => !row.includes(c));
+    }
+  }
+  for (const st of TRACK_STATUSES_2026) {
+    const column = TRACK_STATUS_TRACKS.map((t) => areaCell(t, st));
+    if (column.every((c) => rest.includes(c))) {
+      groups.push({ key: `coluna-${st}`, label: `${TRACK_STATUS_LABEL[st]} (todas as áreas)`, cells: column });
+      rest = rest.filter((c) => !column.includes(c));
+    }
+  }
+  return [...groups, ...rest.map((c) => ({ key: c, label: cellLabel(c), cells: [c] }))];
 }

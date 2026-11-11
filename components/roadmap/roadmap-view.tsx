@@ -11,7 +11,7 @@ import { RoadmapGantt } from "@/components/roadmap/roadmap-gantt";
 import { LateMenu2026, Owners2026Context, Roadmap2026Board, Roadmap2026Gantt, Roadmap2026Legend, TrackToggle } from "@/components/roadmap/roadmap-2026";
 import { Item2026Dialog } from "@/components/roadmap/roadmap-2026-dialog";
 import { YearSwitch } from "@/components/roadmap/year-switch";
-import { ActiveFilters2026, AreaFilter2026, areaCell, cellLabel, splitCell, StatusChips2026, type AreaCell } from "@/components/roadmap/roadmap-2026-filters";
+import { ActiveFilters2026, AreaFilter2026, areaCell, groupAreaCells, splitCell, type AreaCell } from "@/components/roadmap/roadmap-2026-filters";
 import { EFFORT_TONE } from "@/lib/client/tones";
 import { Button } from "@/components/ui/button";
 import { useFocusTrap } from "@/components/ui/dialog";
@@ -38,9 +38,6 @@ import type { Roadmap2026Item, RoadmapYear } from "@/lib/domain/types";
 
 /** Preferência "Expandir todos" do Roadmap 2026 (por navegador). */
 const TRACKS_KEY = "jg-roadmap:2026-frentes";
-
-/** Status que o filtro do 2026 oferece (os que o cálculo produz). */
-const STATUS_FILTER_2026 = ["planejada", "andamento", "atrasada", "concluida"] as const;
 
 const VIEWS = [
   { key: "cards", label: "Cards", icon: LayoutGrid },
@@ -201,13 +198,7 @@ export function RoadmapView() {
       return active.includes(track) && i.trackStatus[track] === status;
     });
   };
-  // Contagens de cada opção considerando os demais filtros.
-  const statusCounts2026 = useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const i of byPlatform2026.filter((x) => matchesCells(x, areaCells2026))) counts[effectiveStatus(i)] = (counts[effectiveStatus(i)] ?? 0) + 1;
-    return counts;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [byPlatform2026, areaCells2026]);
+  // Contagens de cada célula da grade de áreas considerando os demais filtros.
   const cellCounts2026 = useMemo(() => {
     const base = byPlatform2026.filter((x) => matchesStatus(x, status2026));
     const counts: Record<string, number> = {};
@@ -297,12 +288,7 @@ export function RoadmapView() {
           ))}
         </Select>
       </div>
-      {is2026 && (
-        <div className="flex flex-col gap-1.5 text-[14px] font-semibold text-muted">
-          <span aria-hidden className="text-[13px]">Status da iniciativa</span>
-          <StatusChips2026 statuses={STATUS_FILTER_2026} value={status2026} counts={statusCounts2026} onChange={setStatus2026} />
-        </div>
-      )}
+      {/* Status da iniciativa: oculto por ora (o filtro segue ativo pelo atalho "Mostrar só as atrasadas"). */}
       {is2026 && (
         <div className="flex flex-col gap-1.5 text-[14px] font-semibold text-muted">
           <span aria-hidden className="text-[13px]">Áreas</span>
@@ -486,26 +472,31 @@ export function RoadmapView() {
             );
             return is2026 ? (
               <>
-                {/* 2026: filtros; depois os filtros ativos e as ações; depois a legenda. */}
-                <div className="mt-7 flex flex-wrap items-end gap-x-3 gap-y-3">{controls}</div>
-                <div className="mt-4 flex flex-wrap items-center gap-3">
-                  <div className="min-w-0 flex-1">
-                    <ActiveFilters2026
-                      total={visible2026.length}
-                      onClear={clearFilters2026}
-                      pills={[
-                        ...(platformFilter !== "todas"
-                          ? [{ key: "plataforma", label: platformOptions.find((o) => o.value === platformFilter)?.label ?? platformFilter, onRemove: () => setPlatform("todas") }]
-                          : []),
-                        ...status2026.map((st) => ({ key: `s-${st}`, prefix: "Status:", label: STATUS_2026_LABEL[st], onRemove: () => setStatus2026((v) => v.filter((x) => x !== st)) })),
-                        ...areaCells2026.map((c) => ({ key: `a-${c}`, prefix: "Área:", label: cellLabel(c), onRemove: () => setAreaCells2026((v) => v.filter((x) => x !== c)) })),
-                      ]}
-                    />
-                  </div>
+                {/* 2026: filtros e ações; depois o total e os filtros ativos; depois a legenda. */}
+                <div className="mt-7 flex flex-wrap items-end gap-x-3 gap-y-3">
+                  {controls}
                   <div className="ml-auto flex flex-wrap items-center gap-2">
                     {actions2026}
                     {fullscreenButton}
                   </div>
+                </div>
+                <div className="mt-3">
+                  <ActiveFilters2026
+                    total={visible2026.length}
+                    onClear={clearFilters2026}
+                    pills={[
+                      ...(platformFilter !== "todas"
+                        ? [{ key: "plataforma", label: platformOptions.find((o) => o.value === platformFilter)?.label ?? platformFilter, onRemove: () => setPlatform("todas") }]
+                        : []),
+                      ...status2026.map((st) => ({ key: `s-${st}`, prefix: "Status:", label: STATUS_2026_LABEL[st], onRemove: () => setStatus2026((v) => v.filter((x) => x !== st)) })),
+                      ...groupAreaCells(areaCells2026).map((g) => ({
+                        key: `a-${g.key}`,
+                        prefix: "Área:",
+                        label: g.label,
+                        onRemove: () => setAreaCells2026((v) => v.filter((x) => !g.cells.includes(x))),
+                      })),
+                    ]}
+                  />
                 </div>
                 <div className="mt-4">{legend}</div>
               </>
