@@ -1,11 +1,12 @@
 "use client";
 
-import { AlertTriangle, ArrowDownToLine, Check, CircleDashed, Code2, ExternalLink, GripVertical, Layers, PenTool, Pencil, ShieldCheck, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowDownToLine, Check, CircleDashed, Code2, Expand, GripVertical, Layers, PenTool, Pencil, ShieldCheck, Shrink, type LucideIcon } from "lucide-react";
 import { createContext, useContext, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
 import { Avatar } from "@/components/org/avatar";
 import { useCardDrag, type DropTarget } from "@/components/ui/use-card-drag";
 import { PLATFORM_GLYPHS } from "@/components/platforms/platform-icon";
 import { Badge } from "@/components/ui/badges";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/feedback";
 import { cn, plural } from "@/lib/client/cn";
 import { ACCENT_TONE, STATUS_2026_TONE, TRANSVERSAL_TONE, WORK_2026_TONE } from "@/lib/client/tones";
@@ -34,9 +35,8 @@ import {
   type TrackStatus2026,
   type TrackStatuses2026,
 } from "@/lib/domain/roadmap-2026";
-import type { Person, Platform, Roadmap2026Item, Roadmap2026Source, Roadmap2026Work } from "@/lib/domain/types";
+import type { Person, Platform, Roadmap2026Item, Roadmap2026Work } from "@/lib/domain/types";
 
-const formatDate = (iso: string) => iso.split("-").reverse().join("/");
 const WEEKS = ROADMAP_2026_WEEK_COUNT;
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
 
@@ -45,10 +45,13 @@ export const Owners2026Context = createContext<{
   ownersOf: (item: Roadmap2026Item) => Owners2026;
   trackStatusOf: (item: Roadmap2026Item) => TrackStatuses2026;
   people: Person[];
+  /** Mostra as frentes (Design, Engenharia, QA) com andamento e responsáveis ("Expandir todos"). */
+  showTracks: boolean;
 }>({
   ownersOf: () => ({ design: [], engineering: [], qa: [] }),
   trackStatusOf: () => ({ design: "nao_iniciado", engineering: "nao_iniciado", qa: "nao_iniciado" }),
   people: [],
+  showTracks: true,
 });
 
 /** Tons do andamento por frente (texto com contraste AA sobre o fundo suave). */
@@ -181,21 +184,7 @@ export function StatusBadge2026({ status, size = "sm" }: { status: Roadmap2026It
   );
 }
 
-/** Fonte dos dados: planilha do time (link real) e data da importação. */
-export function Roadmap2026Source({ source, editable }: { source: Roadmap2026Source; editable: boolean }) {
-  return (
-    <span className="flex flex-wrap items-center gap-x-1.5">
-      Importado da
-      <a href={source.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-bold text-brand underline-offset-2 hover:underline">
-        planilha “{source.title}”, aba {source.sheet}
-        <ExternalLink size={12} aria-hidden />
-      </a>
-      <span>em {formatDate(source.importedAt)}{editable ? " · as alterações feitas aqui valem a partir de agora" : ""}</span>
-    </span>
-  );
-}
-
-export function Roadmap2026Legend({ canEdit }: { canEdit: boolean }) {
+export function Roadmap2026Legend() {
   return (
     <>
       {ROADMAP_2026_WORK.filter((work) => work !== "indefinido").map((work) => (
@@ -210,11 +199,6 @@ export function Roadmap2026Legend({ canEdit }: { canEdit: boolean }) {
       <span className="flex items-center gap-1.5">
         <span aria-hidden className="h-2.5 w-5 rounded-[3px] bg-[#64708A] opacity-45" /> Concluída
       </span>
-      {canEdit && (
-        <span className="flex items-center gap-1.5">
-          <GripVertical size={13} aria-hidden /> Arraste a barra para mover e a borda direita para mudar a duração
-        </span>
-      )}
     </>
   );
 }
@@ -293,6 +277,7 @@ export function Delayed2026({
 /* ---------------------------------- Cards ---------------------------------- */
 
 function Card2026({ item, platforms, onEdit }: { item: Roadmap2026Item; platforms: Platform[]; onEdit?: () => void }) {
+  const { showTracks } = useContext(Owners2026Context);
   const Tag = onEdit ? "button" : "article";
   return (
     <Tag
@@ -319,7 +304,7 @@ function Card2026({ item, platforms, onEdit }: { item: Roadmap2026Item; platform
           </Badge>
         )}
       </span>
-      <OwnerRows item={item} />
+      {showTracks && <OwnerRows item={item} />}
       {item.segments.length > 0 && (
         <span className="flex flex-col gap-1 border-t border-line pt-2">
           {item.segments.map((s) => (
@@ -467,7 +452,7 @@ function GanttRow2026({
   const active = drag;
   const weekPx = timelineWidth / WEEKS || 1;
   const shown = effectiveStatus(item);
-  const { trackStatusOf } = useContext(Owners2026Context);
+  const { trackStatusOf, showTracks } = useContext(Owners2026Context);
   const trackStatus = trackStatusOf(item);
   const trackDone = (work: Roadmap2026Work["work"]) =>
     (work === "design" && trackStatus.design === "concluido") ||
@@ -545,7 +530,7 @@ function GanttRow2026({
                 </span>
                 {item.backlog && <span className="text-[11.5px] font-semibold text-muted">Backlog</span>}
               </span>
-              <TrackChips item={item} />
+              {showTracks && <TrackChips item={item} />}
             </>
           );
           return canEdit ? (
@@ -635,6 +620,22 @@ function GanttRow2026({
         )}
       </div>
     </li>
+  );
+}
+
+/** Mostrar/ocultar as frentes de todas as iniciativas do 2026 (Gantt e Cards). */
+export function TrackToggle({ expanded, onChange }: { expanded: boolean; onChange: (expanded: boolean) => void }) {
+  const Icon = expanded ? Shrink : Expand;
+  return (
+    <Button
+      size="sm"
+      icon={<Icon size={15} />}
+      aria-pressed={expanded}
+      title={expanded ? "Ocultar Design, Engenharia e QA de cada iniciativa" : "Mostrar o andamento e os responsáveis de Design, Engenharia e QA"}
+      onClick={() => onChange(!expanded)}
+    >
+      {expanded ? "Recolher todos" : "Expandir todos"}
+    </Button>
   );
 }
 

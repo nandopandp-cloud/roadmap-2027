@@ -8,7 +8,7 @@ import { PageContainer, PageHero } from "@/components/layout/page-header";
 import { RoadmapBoard } from "@/components/roadmap/roadmap-board";
 import { EffortDialog } from "@/components/roadmap/effort-dialog";
 import { RoadmapGantt } from "@/components/roadmap/roadmap-gantt";
-import { Delayed2026, Owners2026Context, Roadmap2026Board, Roadmap2026Gantt, Roadmap2026Legend, Roadmap2026Source } from "@/components/roadmap/roadmap-2026";
+import { Delayed2026, Owners2026Context, Roadmap2026Board, Roadmap2026Gantt, Roadmap2026Legend, TrackToggle } from "@/components/roadmap/roadmap-2026";
 import { Item2026Dialog } from "@/components/roadmap/roadmap-2026-dialog";
 import { YearSwitch } from "@/components/roadmap/year-switch";
 import { EFFORT_TONE } from "@/lib/client/tones";
@@ -25,6 +25,9 @@ import { useCanEdit, useEffortTracks, useEvidenceTracks, useRoadmap } from "@/li
 import { platformKey2026, TRANSVERSAL_2026 } from "@/lib/domain/roadmap-2026";
 import { compareRoadmapOrder } from "@/lib/domain/roadmap-order";
 import type { Roadmap2026Item, RoadmapYear } from "@/lib/domain/types";
+
+/** Preferência "Expandir todos" do Roadmap 2026 (por navegador). */
+const TRACKS_KEY = "jg-roadmap:2026-frentes";
 
 const VIEWS = [
   { key: "cards", label: "Cards", icon: LayoutGrid },
@@ -84,9 +87,31 @@ export function RoadmapView() {
   const change2026 = (item: Roadmap2026Item) => void save2026(item.id, { segments: item.segments });
   // Responsáveis de cada iniciativa (colaboradores de Times & Squads), para os avatares.
   // Responsáveis e andamento por frente de cada iniciativa, para os avatares e as pílulas.
+  // "Expandir todos" do 2026: preferência de cada pessoa neste navegador (começa recolhido).
+  const [showTracks, setShowTracks] = useState(false);
+  useEffect(() => {
+    try {
+      setShowTracks(localStorage.getItem(TRACKS_KEY) === "1");
+    } catch {
+      // Sem acesso ao armazenamento: fica recolhido.
+    }
+  }, []);
+  const toggleTracks = (next: boolean) => {
+    setShowTracks(next);
+    try {
+      localStorage.setItem(TRACKS_KEY, next ? "1" : "0");
+    } catch {
+      // Preferência não lembrada; a tela funciona igual.
+    }
+  };
   const owners2026 = useMemo(
-    () => ({ ownersOf: (item: Roadmap2026Item) => item.owners, trackStatusOf: (item: Roadmap2026Item) => item.trackStatus, people: data.people }),
-    [data.people],
+    () => ({
+      ownersOf: (item: Roadmap2026Item) => item.owners,
+      trackStatusOf: (item: Roadmap2026Item) => item.trackStatus,
+      people: data.people,
+      showTracks,
+    }),
+    [data.people, showTracks],
   );
   const [platform, setPlatform] = useState("todas");
   const [showMilestones, setShowMilestones] = useState(true);
@@ -189,6 +214,7 @@ export function RoadmapView() {
       </div>
       {!is2026 && <Checkbox label="Mostrar marcos" checked={showMilestones} onChange={setShowMilestones} />}
       {!is2026 && view === "gantt" && <Checkbox label="Mostrar esforço" checked={showEffort} onChange={setShowEffort} />}
+      {is2026 && <TrackToggle expanded={showTracks} onChange={toggleTracks} />}
     </>
   );
 
@@ -198,10 +224,9 @@ export function RoadmapView() {
         {view === "cards" ? (
           <span>Cada card fica no trimestre em que termina a última semana projetada na planilha.</span>
         ) : (
-          <Roadmap2026Legend canEdit={canPlan2026} />
+          <Roadmap2026Legend />
         )}
       </p>
-      {roadmap2026 && !fullscreen && <Roadmap2026Source source={roadmap2026.source} editable={canPlan2026} />}
     </div>
   ) : view === "cards" ? (
       <p className={cn("flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] text-muted", fullscreen && "text-[12px]")}>
