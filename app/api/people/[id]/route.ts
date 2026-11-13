@@ -5,10 +5,10 @@ type Ctx = { params: Promise<{ id: string }> };
 
 export async function PUT(request: Request, { params }: Ctx) {
   const { id } = await params;
-  return handleEdit(async () => updatePerson(id, await request.json()));
+  return handleEdit(async (viewer) => updatePerson(viewer, id, await request.json()));
 }
 
 export async function DELETE(_request: Request, { params }: Ctx) {
   const { id } = await params;
-  return handleEdit(() => deletePerson(id));
+  return handleEdit((viewer) => deletePerson(viewer, id));
 }

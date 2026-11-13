@@ -1,5 +1,6 @@
 "use client";
 
+import { AccessBadge } from "@/components/org/access";
 import { DisciplineBadge, DisciplineSummary } from "@/components/org/discipline";
 import { Crown, Plus } from "lucide-react";
 import { Avatar } from "@/components/org/avatar";
@@ -164,6 +165,7 @@ export function PeopleTab({ people }: { people: Person[] }) {
             <th scope="col" className="px-3 py-3">Área</th>
             <th scope="col" className="px-3 py-3">Squad</th>
             <th scope="col" className="px-3 py-3">Liderança direta</th>
+            <th scope="col" className="px-3 py-3">Permissão</th>
             <th scope="col" className="w-12 px-2 py-3"><span className="sr-only">Ações</span></th>
           </tr>
         </thead>
@@ -183,6 +185,9 @@ export function PeopleTab({ people }: { people: Person[] }) {
               <td className="px-3 py-2.5 text-ink">{p.area || dash}</td>
               <td className="px-3 py-2.5 text-ink">{squadOf(p) ?? <span className="text-subtle">Sem squad</span>}</td>
               <td className="px-3 py-2.5 text-ink">{managerOf(p) ?? dash}</td>
+              <td className="px-3 py-2.5">
+                <AccessBadge access={p.access} className="whitespace-nowrap" />
+              </td>
               <td className="px-2 py-2.5">{personMenu(p).length > 0 && <ActionMenu vertical label={`Ações de ${p.name}`} actions={personMenu(p)} />}</td>
             </tr>
           ))}
@@ -194,6 +199,7 @@ export function PeopleTab({ people }: { people: Person[] }) {
             <div className="min-w-0 flex-1">
               <PersonChip person={p} detail={[p.role, squadOf(p) ?? "Sem squad"].join(" · ")} />
             </div>
+            {p.access !== "consulta" && <AccessBadge access={p.access} className="shrink-0" />}
             {personMenu(p).length > 0 && <ActionMenu vertical label={`Ações de ${p.name}`} actions={personMenu(p)} />}
           </li>
         ))}

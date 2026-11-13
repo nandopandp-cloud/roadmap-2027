@@ -338,6 +338,12 @@ export function useCanEdit(): boolean {
   return useRoadmap().data.writable;
 }
 
+/** Administração: define a permissão de cada pessoa (Times & Squads). O servidor também confere. */
+export function useIsAdmin(): boolean {
+  const { data } = useRoadmap();
+  return data.writable && data.viewer?.access === "admin";
+}
+
 /**
  * Frentes de esforço (Design/Engenharia) que a pessoa conectada pode estimar: as duas para
  * editores; pelo cargo no organograma para tech leads e coordenação de design.

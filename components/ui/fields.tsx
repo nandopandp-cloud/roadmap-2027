@@ -228,6 +228,83 @@ export function ChipMultiSelect<T extends string>({
   );
 }
 
+/**
+ * Escolha única em cartões (rádio nativo: setas do teclado trocam a opção). Cada cartão tem ícone,
+ * rótulo e descrição; `disabled` mostra a escolha atual sem permitir trocar.
+ */
+export function RadioCards<T extends string>({
+  legend,
+  hint,
+  error,
+  name,
+  options,
+  value,
+  onChange,
+  disabled,
+  columns = 3,
+}: {
+  legend: string;
+  hint?: ReactNode;
+  error?: string;
+  name: string;
+  options: Array<{ value: T; label: string; description: string; icon?: ReactNode; badge?: ReactNode }>;
+  value: T;
+  onChange: (value: T) => void;
+  disabled?: boolean;
+  columns?: 2 | 3;
+}) {
+  const hintId = useId();
+  return (
+    <fieldset className="flex flex-col gap-2" aria-describedby={hint || error ? hintId : undefined} disabled={disabled}>
+      <legend className="mb-1.5 text-[13px] font-bold text-navy">{legend}</legend>
+      <div className={cn("grid grid-cols-1 gap-2", columns === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2")}>
+        {options.map((opt) => {
+          const checked = value === opt.value;
+          return (
+            <label
+              key={opt.value}
+              className={cn(
+                "relative flex flex-col gap-1.5 rounded-2xl border px-3.5 py-3 transition-colors",
+                "has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-[#6045d8]/20",
+                checked ? "border-violet bg-brand-soft" : "border-line bg-surface",
+                disabled ? "cursor-default" : "cursor-pointer",
+                !checked && !disabled && "hover:border-line-strong",
+                !checked && disabled && "opacity-55",
+              )}
+            >
+              <HiddenInput type="radio" name={name} value={opt.value} checked={checked} onChange={() => onChange(opt.value)} />
+              <span className="flex items-center gap-2">
+                <span
+                  aria-hidden
+                  className={cn(
+                    "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-2",
+                    checked ? "border-violet" : "border-line-strong",
+                  )}
+                >
+                  {checked && <span className="h-2 w-2 rounded-full bg-violet" />}
+                </span>
+                {opt.icon && (
+                  <span aria-hidden className={cn("shrink-0", checked ? "text-violet" : "text-muted")}>
+                    {opt.icon}
+                  </span>
+                )}
+                <span className={cn("text-[14.5px] font-extrabold", checked ? "text-brand-strong" : "text-ink")}>{opt.label}</span>
+                {opt.badge}
+              </span>
+              <span className="text-[12.5px] leading-snug text-muted">{opt.description}</span>
+            </label>
+          );
+        })}
+      </div>
+      {(hint || error) && (
+        <div id={hintId}>
+          {error ? <p className="text-xs font-semibold text-[#c42b3a]">{error}</p> : <div className="text-xs text-muted">{hint}</div>}
+        </div>
+      )}
+    </fieldset>
+  );
+}
+
 export function Checkbox({ label, checked, onChange, hint }: { label: string; checked: boolean; onChange: (v: boolean) => void; hint?: string }) {
   return (
     <label className="flex cursor-pointer items-start gap-3">

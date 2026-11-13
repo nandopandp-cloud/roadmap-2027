@@ -1,14 +1,17 @@
 import "server-only";
 import type { z } from "zod";
+import type { Viewer } from "@/lib/auth/session";
+import { ACCESS_LABEL, registeredAdmins } from "@/lib/domain/access";
 import { EFFORT_TRACKS } from "@/lib/domain/constants";
 import { applyMove, createsCycle, nextSquadOrder, orderIn } from "@/lib/domain/org";
 import { OWNER_TRACKS_2026 } from "@/lib/domain/roadmap-2026";
-import type { Database, Person, PersonInput, Squad, SquadInput } from "@/lib/domain/types";
+import type { AccessLevel, Database, Person, PersonInput, Squad, SquadInput } from "@/lib/domain/types";
 import { getRepository } from "@/lib/repositories";
 import { DomainError, notFound } from "@/lib/services/errors";
 import { slugify } from "@/lib/validation/paths";
 import {
   fieldErrors,
+  personAccessInputSchema,
   personInputSchema,
   personMoveSchema,
   personReplaceSchema,
@@ -70,26 +73,77 @@ function membershipsFor(db: Database, input: PersonInput, before?: Person): Pers
   });
 }
 
-const toPerson = ({ squadIds: _squadIds, ...input }: PersonInput, id: string, memberships: Person["memberships"]): Person => ({ ...input, id, memberships });
+const toPerson = (
+  { squadIds: _squadIds, ...input }: PersonInput,
+  id: string,
+  memberships: Person["memberships"],
+  access: Pick<Person, "access" | "accessChange">,
+): Person => ({ ...input, id, memberships, ...access });
 
-export async function createPerson(data: unknown): Promise<Person> {
+/* ---------- Permissão na plataforma ---------- */
+
+const ADMIN_ONLY = "Só administradores alteram permissões. Peça a um administrador em Times & Squads.";
+
+function assertAdmin(viewer: Viewer, message = ADMIN_ONLY) {
+  if (viewer.access !== "admin") throw new DomainError(403, message);
+}
+
+/** A plataforma nunca fica sem administrador cadastrado (quem define as permissões). */
+function assertKeepsAdmin(before: Person[], after: Person[]) {
+  if (registeredAdmins(before).length > 0 && registeredAdmins(after).length === 0) {
+    throw new DomainError(422, "É preciso manter pelo menos um administrador com e-mail cadastrado. Defina outra pessoa como Administração antes.", {
+      access: "Mantenha pelo menos um administrador.",
+    });
+  }
+}
+
+const sameEmail = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+
+/** Permissão pedida no formulário (só administradores enviam algo diferente do atual). */
+function requestedAccess(data: unknown): AccessLevel | undefined {
+  return parse(personAccessInputSchema, data && typeof data === "object" ? { access: (data as { access?: unknown }).access } : {}).access;
+}
+
+const accessStamp = (viewer: Viewer): Person["accessChange"] => ({ by: viewer.name, at: new Date().toISOString() });
+
+export async function createPerson(viewer: Viewer, data: unknown): Promise<Person> {
   const input = cleanPerson(parse(personInputSchema, data));
+  const access = requestedAccess(data) ?? "consulta";
+  if (access !== "consulta") assertAdmin(viewer);
   return getRepository().transaction((db) => {
     assertPersonReferences(db, input);
-    const person = toPerson(input, uniqueId(input.name, db.people, "colaborador"), membershipsFor(db, input));
+    const person = toPerson(input, uniqueId(input.name, db.people, "colaborador"), membershipsFor(db, input), {
+      access,
+      accessChange: access !== "consulta" ? accessStamp(viewer) : null,
+    });
     db.people.push(person);
     return person;
   });
 }
 
-export async function updatePerson(id: string, data: unknown): Promise<Person> {
+export async function updatePerson(viewer: Viewer, id: string, data: unknown): Promise<Person> {
   const input = cleanPerson(parse(personInputSchema, data));
+  const requested = requestedAccess(data);
   return getRepository().transaction((db) => {
     const index = db.people.findIndex((p) => p.id === id);
     if (index < 0) throw notFound("Colaborador");
+    const before = db.people[index];
     assertPersonReferences(db, input, id);
-    db.people[index] = toPerson(input, id, membershipsFor(db, input, db.people[index]));
-    return db.people[index];
+    const access = requested ?? before.access;
+    const accessChanged = access !== before.access;
+    if (accessChanged) assertAdmin(viewer);
+    // O e-mail é o que liga a permissão ao login: trocá-lo em quem altera conteúdo é trocar o acesso.
+    if (before.access !== "consulta" && !sameEmail(before.email, input.email)) {
+      assertAdmin(viewer, `Só administradores alteram o e-mail de quem tem permissão de ${ACCESS_LABEL[before.access]}.`);
+    }
+    const next = toPerson(input, id, membershipsFor(db, input, before), {
+      access,
+      accessChange: accessChanged ? accessStamp(viewer) : before.accessChange,
+    });
+    const people = db.people.map((p, i) => (i === index ? next : p));
+    assertKeepsAdmin(db.people, people);
+    db.people = people;
+    return next;
   });
 }
 
@@ -125,9 +179,22 @@ function reassignEffortOwner(db: Database, from: string, to: string | null) {
   });
 }
 
-export async function deletePerson(id: string): Promise<void> {
+/** Remover quem altera conteúdo é tirar um acesso: só administradores (e nunca o último). */
+function assertCanRemove(viewer: Viewer, db: Database, person: Person) {
+  if (person.access !== "consulta") {
+    assertAdmin(viewer, `Só administradores removem quem tem permissão de ${ACCESS_LABEL[person.access]}.`);
+  }
+  assertKeepsAdmin(
+    db.people,
+    db.people.filter((p) => p.id !== person.id),
+  );
+}
+
+export async function deletePerson(viewer: Viewer, id: string): Promise<void> {
   await getRepository().transaction((db) => {
-    if (!db.people.some((p) => p.id === id)) throw notFound("Colaborador");
+    const person = db.people.find((p) => p.id === id);
+    if (!person) throw notFound("Colaborador");
+    assertCanRemove(viewer, db, person);
     detach(db, id);
   });
 }
@@ -154,12 +221,14 @@ export async function movePerson(id: string, data: unknown): Promise<{ people: P
  * Substitui um colaborador: o substituto assume os squads e as posições, os squads liderados,
  * os liderados diretos e a liderança de quem sai (e, opcionalmente, cargo e responsabilidades).
  */
-export async function replacePerson(id: string, data: unknown): Promise<Person> {
+export async function replacePerson(viewer: Viewer, id: string, data: unknown): Promise<Person> {
   const options = parse(personReplaceSchema, data);
   return getRepository().transaction((db) => {
     const outgoing = db.people.find((p) => p.id === id);
     if (!outgoing) throw notFound("Colaborador");
     if (options.substituteId === id) throw new DomainError(422, "Escolha outra pessoa para a substituição.", { substituteId: "Escolha outra pessoa." });
+    // A permissão não passa ao substituto; remover quem sai segue as regras de remoção.
+    if (options.outgoing === "remover") assertCanRemove(viewer, db, outgoing);
 
     let substitute: Person | undefined;
     if (options.newPerson) {
@@ -167,10 +236,13 @@ export async function replacePerson(id: string, data: unknown): Promise<Person> 
       if (email && db.people.some((p) => p.email.toLowerCase() === email.toLowerCase())) {
         throw new DomainError(422, "Revise os campos destacados.", { "newPerson.email": "Já existe um colaborador com este e-mail." });
       }
+      const { squadIds: _squadIds, ...input } = parse(personInputSchema, { name: options.newPerson.name, email, role: outgoing.role });
       substitute = {
-        ...parse(personInputSchema, { name: options.newPerson.name, email, role: outgoing.role }),
+        ...input,
         id: uniqueId(options.newPerson.name, db.people, "colaborador"),
         memberships: [],
+        access: "consulta",
+        accessChange: null,
       };
       db.people.push(substitute);
     } else {

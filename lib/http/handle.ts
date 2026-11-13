@@ -1,6 +1,7 @@
 import "server-only";
 import { NextResponse } from "next/server";
 import { requireEditor } from "@/lib/auth/server";
+import type { Viewer } from "@/lib/auth/session";
 import { DomainError } from "@/lib/services/errors";
 
 /** Executa um handler de rota convertendo erros de domínio em respostas JSON padronizadas. */
@@ -25,10 +26,7 @@ export async function handle<T>(fn: () => Promise<T>, status = 200): Promise<Nex
   }
 }
 
-/** Como `handle`, mas só para quem tem perfil de edição (rotas que alteram dados). */
-export async function handleEdit<T>(fn: () => Promise<T>, status = 200): Promise<NextResponse> {
-  return handle(async () => {
-    await requireEditor();
-    return fn();
-  }, status);
+/** Como `handle`, mas só para quem tem perfil de edição (rotas que alteram dados). Recebe quem está conectado. */
+export async function handleEdit<T>(fn: (viewer: Viewer) => Promise<T>, status = 200): Promise<NextResponse> {
+  return handle(async () => fn(await requireEditor()), status);
 }

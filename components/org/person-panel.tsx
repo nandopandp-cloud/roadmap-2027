@@ -1,7 +1,7 @@
 "use client";
 
 import { DisciplineBadge } from "@/components/org/discipline";
-import { ArrowLeftRight, Crown, Mail, MapPin, Pencil, Repeat2, Timer, Trash2, UserX, X } from "lucide-react";
+import { ArrowLeftRight, Crown, Mail, MapPin, Pencil, Repeat2, ShieldCheck, Timer, Trash2, UserX, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Avatar } from "@/components/org/avatar";
 import { useOrgActions } from "@/components/org/org-actions";
@@ -10,7 +10,9 @@ import { Button, IconButton } from "@/components/ui/button";
 import { useFocusTrap } from "@/components/ui/dialog";
 import { cn } from "@/lib/client/cn";
 import { useInitiativeSelection } from "@/lib/client/selection";
-import { useRoadmap } from "@/lib/client/store";
+import { useIsAdmin, useRoadmap } from "@/lib/client/store";
+import { AccessBadge } from "@/components/org/access";
+import { ACCESS_SUMMARY } from "@/lib/domain/access";
 import { ACCENT_TONE, STATUS_TONE } from "@/lib/client/tones";
 import { directReports, isLeader, relatedInitiatives, relatedSquads, squadsLedBy } from "@/lib/domain/org";
 import { EFFORT_TRACK_LABEL } from "@/lib/domain/effort";
@@ -84,6 +86,29 @@ function EffortAccessNote({ person }: { person: Person }) {
         )}
       </p>
     </div>
+  );
+}
+
+/** Permissão na plataforma: nível e o que ele libera; administradores alteram por aqui. */
+function AccessSection({ person }: { person: Person }) {
+  const actions = useOrgActions();
+  const isAdmin = useIsAdmin();
+  return (
+    <Section
+      title="Permissão na plataforma"
+      action={
+        isAdmin ? (
+          <Button size="sm" className="h-8 px-2.5" icon={<ShieldCheck size={14} />} onClick={() => actions.editAccess(person)}>
+            Alterar permissão
+          </Button>
+        ) : undefined
+      }
+    >
+      <div className="flex flex-col items-start gap-1.5">
+        <AccessBadge access={person.access} />
+        <p className="text-[13px] leading-relaxed text-[#3b4470]">{ACCESS_SUMMARY[person.access]}</p>
+      </div>
+    </Section>
   );
 }
 
@@ -161,6 +186,8 @@ function PanelBody({ person }: { person: Person }) {
           {person.location || <span className={muted}>Localização não informada</span>}
         </p>
       </div>
+
+      <AccessSection person={person} />
 
       <EffortAccessNote person={person} />
 

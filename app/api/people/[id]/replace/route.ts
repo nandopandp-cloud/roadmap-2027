@@ -6,5 +6,5 @@ type Ctx = { params: Promise<{ id: string }> };
 /** Substituir um colaborador por outro (existente ou novo). */
 export async function POST(request: Request, { params }: Ctx) {
   const { id } = await params;
-  return handleEdit(async () => replacePerson(id, await request.json()));
+  return handleEdit(async (viewer) => replacePerson(viewer, id, await request.json()));
 }

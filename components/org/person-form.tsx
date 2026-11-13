@@ -1,7 +1,7 @@
 "use client";
 
 import { Camera, Trash2 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ImageEditor } from "@/components/initiatives/form/image-editor";
 import { Avatar } from "@/components/org/avatar";
 import { Button } from "@/components/ui/button";
@@ -9,11 +9,13 @@ import { Modal, useConfirm } from "@/components/ui/dialog";
 import { ChipMultiSelect, LinesField, SelectField, TextField } from "@/components/ui/fields";
 import { useToast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/client/api";
-import { useRoadmap } from "@/lib/client/store";
+import { useIsAdmin, useRoadmap } from "@/lib/client/store";
+import { AccessField } from "@/components/org/access";
+import { ACCESS_LABEL } from "@/lib/domain/access";
 import { DISCIPLINES } from "@/lib/domain/constants";
 import { DISCIPLINE_LABEL } from "@/lib/domain/labels";
 import { createsCycle, inferDiscipline } from "@/lib/domain/org";
-import type { Person, PersonInput } from "@/lib/domain/types";
+import type { AccessLevel, Person, PersonInput } from "@/lib/domain/types";
 import { fieldErrors, personInputSchema } from "@/lib/validation/schemas";
 
 /** Valor do select de liderança para "fora do organograma". */
@@ -34,7 +36,7 @@ export const emptyPerson = (defaults: Partial<PersonInput> = {}): PersonInput =>
   ...defaults,
 });
 
-const toInput = ({ id: _id, memberships, ...input }: Person): PersonInput => ({
+const toInput = ({ id: _id, memberships, access: _access, accessChange: _change, ...input }: Person): PersonInput => ({
   ...input,
   discipline: input.discipline ?? null,
   squadIds: memberships.map((m) => m.squadId),
@@ -43,16 +45,20 @@ const toInput = ({ id: _id, memberships, ...input }: Person): PersonInput => ({
 export function PersonForm({
   person,
   defaults,
+  focusAccess,
   onClose,
   onSaved,
 }: {
   /** null = novo colaborador */
   person: Person | null;
   defaults?: Partial<PersonInput>;
+  /** Abre já na permissão na plataforma (atalho do painel do colaborador). */
+  focusAccess?: boolean;
   onClose: () => void;
   onSaved: (person: Person) => void;
 }) {
-  const { data, savePerson } = useRoadmap();
+  const { data, savePerson, reload } = useRoadmap();
+  const isAdmin = useIsAdmin();
   const notify = useToast();
   const confirm = useConfirm();
   const initial = useMemo(() => (person ? toInput(person) : emptyPerson(defaults)), [person, defaults]);
@@ -62,7 +68,22 @@ export function PersonForm({
   const [editingPhoto, setEditingPhoto] = useState(false);
   const [external, setExternal] = useState(!initial.managerId && !!initial.externalManager);
   const savingRef = useRef(false);
-  const dirty = JSON.stringify(draft) !== JSON.stringify(initial);
+  // Permissão na plataforma: fora do PersonInput (só administradores enviam).
+  const initialAccess: AccessLevel = person?.access ?? "consulta";
+  const [access, setAccess] = useState<AccessLevel>(initialAccess);
+  const viewerEmail = data.viewer?.email.toLowerCase() ?? "";
+  const isSelf = !!person?.email && person.email.trim().toLowerCase() === viewerEmail;
+  const dirty = JSON.stringify(draft) !== JSON.stringify(initial) || access !== initialAccess;
+  const accessRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!focusAccess) return;
+    // Depois do foco inicial do modal: rola até a permissão e foca a opção marcada.
+    const timer = setTimeout(() => {
+      accessRef.current?.scrollIntoView({ block: "center" });
+      accessRef.current?.querySelector<HTMLInputElement>("input[type=radio]:checked")?.focus({ preventScroll: true });
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [focusAccess]);
 
   const areas = useMemo(() => [...new Set(data.people.map((p) => p.area).filter(Boolean))].sort(), [data.people]);
   // Lideranças possíveis: qualquer pessoa, exceto a própria e quem já responde a ela (evita ciclos).
@@ -103,11 +124,32 @@ export function PersonForm({
       notify("error", "Revise os campos destacados antes de salvar.");
       return;
     }
+    const accessChanged = access !== initialAccess;
+    // Reduzir a própria permissão tira o acesso às permissões (e talvez à edição): confirma antes.
+    if (isSelf && accessChanged && access !== "admin") {
+      const ok = await confirm({
+        title: "Reduzir a sua própria permissão?",
+        message: `Você passa a ter ${ACCESS_LABEL[access]} e deixa de poder alterar permissões${access === "consulta" ? " e conteúdo" : ""}. Só outro administrador poderá desfazer.`,
+        confirmLabel: `Mudar para ${ACCESS_LABEL[access]}`,
+        cancelLabel: "Manter Administração",
+        tone: "danger",
+      });
+      if (!ok) return;
+    }
     savingRef.current = true;
     setSaving(true);
     try {
-      const saved = await savePerson(person?.id ?? null, parsed.data);
-      notify("success", person ? "Colaborador atualizado." : `${saved.name} foi adicionado ao organograma.`);
+      const saved = await savePerson(person?.id ?? null, isAdmin ? { ...parsed.data, access } : parsed.data);
+      notify(
+        "success",
+        person
+          ? accessChanged
+            ? `${saved.name} agora tem permissão de ${ACCESS_LABEL[saved.access]}.`
+            : "Colaborador atualizado."
+          : `${saved.name} foi adicionado ao organograma.`,
+      );
+      // A própria permissão mudou (ou o e-mail passou a ser o seu): recarrega o perfil da sessão.
+      if (isSelf || saved.email.trim().toLowerCase() === viewerEmail) void reload();
       onSaved(saved);
     } catch (error) {
       if (error instanceof ApiError) {
@@ -249,6 +291,19 @@ export function PersonForm({
             rows={4}
             onChange={(v) => set("responsibilities", v)}
           />
+
+          <div ref={accessRef}>
+          <AccessField
+            value={access}
+            onChange={setAccess}
+            canManage={isAdmin}
+            email={draft.email}
+            person={person}
+            roleInfo={draft}
+            isSelf={isSelf}
+            error={errors.access}
+          />
+          </div>
           {/* Envio pelo Enter nos campos de texto. */}
           <button type="submit" hidden />
         </form>

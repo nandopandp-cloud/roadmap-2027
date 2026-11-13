@@ -54,6 +54,8 @@ export const INITIATIVES_DIR = "initiatives";
 
 /** Função do colaborador no squad (resumo de composição dos squads). */
 export const DISCIPLINES = ["produto", "design", "engenharia", "qa"] as const;
+/** Nível de permissão na plataforma (Times & Squads → colaborador), do maior para o menor. */
+export const ACCESS_LEVELS = ["admin", "editor", "consulta"] as const;
 
 /** Frentes de esforço estimadas no roadmap (cada uma pelo seu responsável). */
 export const EFFORT_TRACKS = ["design", "engineering"] as const;

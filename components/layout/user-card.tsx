@@ -2,9 +2,9 @@
 
 import { LogOut } from "lucide-react";
 import { useState } from "react";
-import { ROLE_LABEL } from "@/lib/auth/config";
 import { cn } from "@/lib/client/cn";
 import { useRoadmap } from "@/lib/client/store";
+import { ACCESS_LABEL } from "@/lib/domain/access";
 import { EFFORT_TRACK_LABEL } from "@/lib/domain/effort";
 import { effortTracksFor, evidenceTracksFor } from "@/lib/domain/effort-access";
 
@@ -54,7 +54,7 @@ export function UserCard({ compact }: { compact: boolean }) {
     ? `Consulta · estima ${leadTracks.map((t) => EFFORT_TRACK_LABEL[t]).join(" e ")}`
     : teamTracks.length
       ? `Consulta · justificativa de ${teamTracks.map((t) => EFFORT_TRACK_LABEL[t]).join(" e ")}`
-      : ROLE_LABEL[viewer.role];
+      : ACCESS_LABEL[viewer.access];
 
   const logout = (
     <form action="/api/auth/logout" method="post">

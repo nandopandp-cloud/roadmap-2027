@@ -2,7 +2,8 @@
  * Tokens assinados (HMAC-SHA256 com AUTH_SECRET) para a sessão e para o estado
  * do login no Google. Usa apenas Web Crypto: roda no proxy e nas rotas.
  */
-import { isAllowedEmail, roleFor, type Role } from "@/lib/auth/config";
+import { isAllowedEmail, type Role } from "@/lib/auth/config";
+import type { AccessLevel } from "@/lib/domain/types";
 
 export interface SessionUser {
   email: string;
@@ -10,8 +11,10 @@ export interface SessionUser {
   picture: string;
 }
 
+/** Pessoa conectada com a permissão lida do cadastro a cada requisição (lib/auth/server.ts). */
 export interface Viewer extends SessionUser {
   role: Role;
+  access: AccessLevel;
 }
 
 const encoder = new TextEncoder();
@@ -70,8 +73,11 @@ export async function createSessionToken(user: SessionUser, ttlSeconds: number):
   return signToken({ email: user.email, name: user.name, picture: user.picture }, ttlSeconds);
 }
 
-/** Lê o cookie de sessão. Revalida o domínio: um token antigo não sobrevive a mudança de regra. */
-export async function readSession(token: string | undefined): Promise<Viewer | null> {
+/**
+ * Lê o cookie de sessão. Revalida o domínio: um token antigo não sobrevive a mudança de regra.
+ * A permissão não fica no cookie: é lida do cadastro a cada requisição, então mudar vale na hora.
+ */
+export async function readSession(token: string | undefined): Promise<SessionUser | null> {
   const payload = await verifyToken(token);
   if (!payload || typeof payload.email !== "string" || !isAllowedEmail(payload.email)) return null;
   const email = payload.email.toLowerCase();
@@ -79,6 +85,5 @@ export async function readSession(token: string | undefined): Promise<Viewer | n
     email,
     name: typeof payload.name === "string" && payload.name ? payload.name : email,
     picture: typeof payload.picture === "string" ? payload.picture : "",
-    role: roleFor(email),
   };
 }

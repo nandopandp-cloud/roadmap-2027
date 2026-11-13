@@ -1,25 +1,23 @@
 /**
- * Regras de acesso. Só contas Google do domínio institucional entram; apenas os
- * e-mails de edição podem criar, alterar, mover ou remover conteúdo. Os demais
- * entram em modo consulta.
+ * Regras de acesso. Só contas Google do domínio institucional entram. O nível de cada pessoa
+ * (Administração, Edição, Consulta) fica no cadastro de Times & Squads e é alterado pelos
+ * administradores na própria plataforma (lib/domain/access.ts).
  */
 
 export const ALLOWED_DOMAIN = "jovensgenios.com";
 
-/** Pessoas com permissão de edição (sempre em minúsculas). */
-export const EDITOR_EMAILS: readonly string[] = ["fernando.rodrigues@jovensgenios.com", "joaofigueroa@jovensgenios.com"];
+/**
+ * Administradores de origem (sempre em minúsculas): o acesso de edição de antes da permissão por
+ * pessoa. Valem como administradores enquanto não estão cadastrados em Times & Squads e sempre que
+ * não houver nenhum administrador cadastrado. Cadastrados, vale o nível gravado no cadastro.
+ */
+export const FOUNDING_ADMIN_EMAILS: readonly string[] = ["fernando.rodrigues@jovensgenios.com", "joaofigueroa@jovensgenios.com"];
 
+/** Pode alterar conteúdo (Administração ou Edição) ou só consultar. */
 export type Role = "editor" | "leitor";
-
-export const ROLE_LABEL: Record<Role, string> = { editor: "Edição", leitor: "Somente consulta" };
 
 export function isAllowedEmail(email: string): boolean {
   return email.trim().toLowerCase().endsWith(`@${ALLOWED_DOMAIN}`);
-}
-
-/** O perfil é calculado a cada requisição: mudar a lista vale sem novo login. */
-export function roleFor(email: string): Role {
-  return EDITOR_EMAILS.includes(email.trim().toLowerCase()) ? "editor" : "leitor";
 }
 
 export const SESSION_COOKIE = "jg_session";

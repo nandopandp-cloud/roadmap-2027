@@ -5,7 +5,7 @@ import type { Pool, PoolClient } from "pg";
 import { emptyContext } from "@/lib/domain/context";
 import type { Database, Initiative, Person, Platform, Roadmap2026Item, Squad } from "@/lib/domain/types";
 import { buildSeedDatabase } from "@/lib/repositories/json-file-repository";
-import { EMPTY_SYNC, importedRoadmap2026, migrateDatabase, SCHEMA_VERSION } from "@/lib/repositories/migrations";
+import { EMPTY_SYNC, importedRoadmap2026, migrateDatabase, migratePerson, SCHEMA_VERSION } from "@/lib/repositories/migrations";
 import { ensureSchema, ROADMAP_LOCK_KEY } from "@/lib/repositories/postgres";
 import type { RoadmapRepository } from "@/lib/repositories/types";
 
@@ -26,6 +26,12 @@ export class PostgresRepository implements RoadmapRepository {
   async read(): Promise<Database> {
     await this.ready();
     return this.load(this.pool);
+  }
+
+  async readPeople(): Promise<Person[]> {
+    await this.ready();
+    const { rows } = await this.pool.query<{ data: Person }>("SELECT data FROM people ORDER BY id");
+    return rows.map((r) => migratePerson(r.data));
   }
 
   async transaction<T>(mutate: (db: Database) => T | Promise<T>): Promise<T> {

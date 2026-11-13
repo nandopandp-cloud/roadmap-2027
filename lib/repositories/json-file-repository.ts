@@ -3,7 +3,7 @@ import path from "node:path";
 import { seedContext } from "@/data/seed/context";
 import { seedInitiatives } from "@/data/seed/initiatives";
 import { seedPlatforms } from "@/data/seed/platforms";
-import type { Database } from "@/lib/domain/types";
+import type { Database, Person } from "@/lib/domain/types";
 import { EMPTY_SYNC, importedRoadmap2026, migrateDatabase, SCHEMA_VERSION } from "@/lib/repositories/migrations";
 import type { RoadmapRepository } from "@/lib/repositories/types";
 import { DomainError } from "@/lib/services/errors";
@@ -37,6 +37,10 @@ export class JsonFileRepository implements RoadmapRepository {
   private queue: Promise<unknown> = Promise.resolve();
 
   constructor(private readonly filePath: string) {}
+
+  async readPeople(): Promise<Person[]> {
+    return (await this.read()).people;
+  }
 
   async read(): Promise<Database> {
     await this.queue.catch(() => undefined);

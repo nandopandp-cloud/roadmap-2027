@@ -5,6 +5,7 @@
 import { z } from "zod";
 import {
   CONTEXT_ARTS,
+  ACCESS_LEVELS,
   DISCIPLINES,
   EFFORT_START_MODES,
   EFFORT_TRACKS,
@@ -447,10 +448,21 @@ export const membershipSchema = z.object({
   order: z.number().int().min(0).default(0),
 });
 
+export const accessLevelSchema = z.enum(ACCESS_LEVELS);
+
+/** Última alteração da permissão: quem alterou (nome no login) e quando. */
+export const accessChangeSchema = z.object({ by: text(160), at: z.string().max(40) });
+
 export const personSchema = personInputSchema.omit({ squadIds: true }).extend({
   id: localId,
   memberships: z.array(membershipSchema).default([]),
+  /** Permissão na plataforma, ligada ao e-mail da conta Google. Só administradores alteram. */
+  access: accessLevelSchema.default("consulta"),
+  accessChange: accessChangeSchema.nullable().default(null),
 });
+
+/** Permissão enviada junto com o formulário do colaborador (opcional: ausente = mantém). */
+export const personAccessInputSchema = z.object({ access: accessLevelSchema.optional() });
 
 export const squadInputSchema = z.object({
   name: required("O nome", 80),

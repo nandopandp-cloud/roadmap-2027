@@ -1,5 +1,5 @@
 import type { Situation2026, Status2026, Work2026 } from "@/lib/domain/roadmap-2026";
-import type { Discipline, InitiativeStatus, PlatformAccent, Priority, ProblemValidation, Roadmap2026Phase } from "@/lib/domain/types";
+import type { AccessLevel, Discipline, InitiativeStatus, PlatformAccent, Priority, ProblemValidation, Roadmap2026Phase } from "@/lib/domain/types";
 
 /** Tons discretos (fundo suave, texto com contraste AA, ponto de cor). */
 export interface Tone {
@@ -73,6 +73,13 @@ export const TRANSVERSAL_TONE: Tone = { bg: "#E3F6F3", fg: "#00665E", dot: "#00A
 /** Iniciativa "em breve" (sinalizada, cadastro incompleto). */
 export const UPCOMING_TONE: Tone = { bg: "#FFF1F8", fg: "#9C1F62", dot: "#E0559E" };
 export const QUARTER_TONE: Tone = { bg: "#EFEBFC", fg: "#4A2D91", dot: "#6045D8" };
+
+/** Permissão na plataforma (Times & Squads): Administração, Edição, Consulta. */
+export const ACCESS_TONE: Record<AccessLevel, Tone> = {
+  admin: { bg: "#EFEBFC", fg: "#4A2D91", dot: "#6045D8" },
+  editor: { bg: "#E3F6F3", fg: "#00665E", dot: "#00A99D" },
+  consulta: { bg: "#EEF0F5", fg: "#4A557F", dot: "#8A93B2" },
+};
 
 /** Funções no squad: tons suaves distintos entre si. */
 export const DISCIPLINE_TONE: Record<Discipline, Tone> = {

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeftRight, Pencil, Repeat2, Trash2, UserPlus } from "lucide-react";
+import { ArrowLeftRight, Pencil, Repeat2, ShieldCheck, Trash2, UserPlus } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import { MoveDialog, ReplaceDialog } from "@/components/org/person-dialogs";
@@ -11,12 +11,12 @@ import { useConfirm } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/client/api";
 import { plural } from "@/lib/client/cn";
-import { useCanEdit, useRoadmap } from "@/lib/client/store";
+import { useCanEdit, useIsAdmin, useRoadmap } from "@/lib/client/store";
 import { directReports, squadMembers, squadsLedBy } from "@/lib/domain/org";
 import type { Person, PersonInput, Squad } from "@/lib/domain/types";
 
 type Dialog =
-  | { type: "person"; person: Person | null; defaults?: Partial<PersonInput> }
+  | { type: "person"; person: Person | null; defaults?: Partial<PersonInput>; focusAccess?: boolean }
   | { type: "squad"; squad: Squad | null }
   | { type: "move"; person: Person }
   | { type: "replace"; person: Person };
@@ -29,6 +29,8 @@ interface OrgActions {
   canEdit: boolean;
   newPerson: (defaults?: Partial<PersonInput>) => void;
   editPerson: (person: Person) => void;
+  /** Abre o formulário já na permissão na plataforma (administradores). */
+  editAccess: (person: Person) => void;
   newSquad: () => void;
   editSquad: (squad: Squad) => void;
   movePerson: (person: Person) => void;
@@ -50,6 +52,7 @@ export function OrgActionsProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const canEdit = useCanEdit();
+  const isAdmin = useIsAdmin();
 
   const selectedId = params.get("colaborador");
   const setSelected = useCallback(
@@ -124,6 +127,7 @@ export function OrgActionsProvider({ children }: { children: ReactNode }) {
       canEdit,
       newPerson: (defaults) => setDialog({ type: "person", person: null, defaults }),
       editPerson: (person) => setDialog({ type: "person", person }),
+      editAccess: (person) => setDialog({ type: "person", person, focusAccess: true }),
       newSquad: () => setDialog({ type: "squad", squad: null }),
       editSquad: (squad) => setDialog({ type: "squad", squad }),
       movePerson: (person) => setDialog({ type: "move", person }),
@@ -134,6 +138,7 @@ export function OrgActionsProvider({ children }: { children: ReactNode }) {
         canEdit
           ? [
               { label: "Editar", icon: Pencil, onSelect: () => setDialog({ type: "person", person }) },
+              ...(isAdmin ? [{ label: "Alterar permissão", icon: ShieldCheck, onSelect: () => setDialog({ type: "person", person, focusAccess: true }) }] : []),
               { label: "Realocar", icon: ArrowLeftRight, onSelect: () => setDialog({ type: "move", person }) },
               { label: "Substituir", icon: Repeat2, onSelect: () => setDialog({ type: "replace", person }) },
               { label: "Remover", icon: Trash2, onSelect: () => void removePerson(person), danger: true },
@@ -148,7 +153,7 @@ export function OrgActionsProvider({ children }: { children: ReactNode }) {
             ]
           : [],
     }),
-    [selectedId, setSelected, canEdit, removePerson, removeSquad],
+    [selectedId, setSelected, canEdit, isAdmin, removePerson, removeSquad],
   );
 
   const close = () => setDialog(null);
@@ -160,6 +165,7 @@ export function OrgActionsProvider({ children }: { children: ReactNode }) {
         <PersonForm
           person={dialog.person}
           defaults={dialog.defaults}
+          focusAccess={dialog.focusAccess}
           onClose={close}
           onSaved={(saved) => {
             close();

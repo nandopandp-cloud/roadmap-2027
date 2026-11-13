@@ -1,4 +1,4 @@
-import type { Database } from "@/lib/domain/types";
+import type { Database, Person } from "@/lib/domain/types";
 
 /**
  * Contrato de persistência. A aplicação depende apenas desta interface;
@@ -12,6 +12,8 @@ export interface RoadmapRepository {
    * cópia do estado, pode alterá-la ou lançar erro (nada é gravado nesse caso).
    */
   transaction<T>(mutate: (db: Database) => T | Promise<T>): Promise<T>;
+  /** Só os colaboradores (permissão de quem está conectado, lida a cada requisição). */
+  readPeople(): Promise<Person[]>;
   /** Indica se o armazenamento aceita gravações neste ambiente. */
   isWritable(): Promise<boolean>;
 }

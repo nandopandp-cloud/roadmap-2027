@@ -1,6 +1,7 @@
 import { seedContext } from "@/data/seed/context";
 import { seedRoadmap2026 } from "@/data/seed/roadmap-2026";
 import { ILLUSTRATIONS } from "@/lib/domain/constants";
+import { defaultAccess } from "@/lib/domain/access";
 import { inferDiscipline } from "@/lib/domain/org";
 import { importedItem, ownersFromSheet, trackStatusesFromSheet } from "@/lib/domain/roadmap-2026";
 import { sheetKey } from "@/lib/domain/roadmap-2026-sheet";
@@ -8,7 +9,7 @@ import { eligibleOwners } from "@/lib/domain/org";
 import { defaultRoadmapOrder } from "@/lib/domain/roadmap-order";
 import type { Database, IllustrationKey, Person, PlatformStrategy, ProposalSection, RepositoryLink, Roadmap2026Item, Squad, StrategyContext } from "@/lib/domain/types";
 
-export const SCHEMA_VERSION = 20;
+export const SCHEMA_VERSION = 21;
 
 /** Ilustrações removidas da biblioteca → equivalentes atuais. */
 const RENAMED_ILLUSTRATIONS: Record<string, IllustrationKey | null> = { cometa: null, lua: null };
@@ -45,6 +46,8 @@ const RENAMED_ILLUSTRATIONS: Record<string, IllustrationKey | null> = { cometa: 
  * v18 → v19: frentes que não se aplicam à iniciativa (skippedTracks: Design e/ou QA), vazias.
  * v19 → v20: sincronização com a planilha — cada iniciativa ganha o vínculo com a linha (sheetKey) e
  *            os últimos valores vistos nela (sheet, a importação de 10/11); estado em roadmap2026Sync.
+ * v20 → v21: permissão na plataforma por colaborador (access): Administração para os e-mails que
+ *            tinham edição (FOUNDING_ADMIN_EMAILS) e Consulta para os demais — o acesso de antes.
  */
 export function migrateDatabase(db: Database): { db: Database; changed: boolean } {
   if ((db.schemaVersion ?? 1) >= SCHEMA_VERSION) return { db, changed: false };
@@ -130,11 +133,12 @@ function migrateRepository(raw: LegacyRepository): RepositoryLink {
   return { ...repo, branches: branchUrl ? [{ id: `${repo.id}-b1`, url: branchUrl }] : [] };
 }
 
-type LegacyPerson = Person & { squadId?: string | null; squadOrder?: number };
+type LegacyPerson = Omit<Person, "access" | "accessChange"> & Partial<Pick<Person, "access" | "accessChange">> & { squadId?: string | null; squadOrder?: number };
 type LegacySquad = Squad & { leaderId?: string | null };
 
-function migratePerson(raw: LegacyPerson): Person {
-  const { squadId, squadOrder, ...person } = raw;
+export function migratePerson(raw: LegacyPerson): Person {
+  const { squadId, squadOrder, ...rest } = raw;
+  const person = { ...rest, access: rest.access ?? defaultAccess(rest.email ?? ""), accessChange: rest.accessChange ?? null };
   const discipline = person.discipline === undefined ? inferDiscipline(person.role ?? "") : person.discipline;
   if (person.memberships) return { ...person, discipline };
   return { ...person, discipline, memberships: squadId ? [{ squadId, order: squadOrder ?? 0 }] : [] };
