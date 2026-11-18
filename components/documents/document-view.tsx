@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { extractToc, MarkdownView } from "@/components/documents/markdown";
 import { ApprovePrdButton, PendingReviewNote } from "@/components/initiatives/drawer/artifacts-tabs";
 import { PageContainer, TopBar } from "@/components/layout/page-header";
-import { ActivityTimeline, Authorship, versionTimeline } from "@/components/ui/authorship";
+import { ActivityTimeline, Authorship, CollaboratorsLine, PersonCredit, versionTimeline } from "@/components/ui/authorship";
 import { Badge } from "@/components/ui/badges";
 import { Button, buttonClass } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/dialog";
@@ -218,7 +218,8 @@ export function DocumentView({ initiativeId, documentId }: { initiativeId: strin
             <code className="font-mono text-[11.5px] text-subtle">· {doc.path}</code>
           </div>
           <div className="mt-2 flex flex-col gap-1">
-            <Authorship label="Criado por" actor={doc.createdBy} at={doc.createdAt ?? doc.versions[doc.versions.length - 1]?.date} />
+            <PersonCredit label="Criado por" personId={doc.authorId} actor={doc.createdBy} at={doc.createdAt ?? doc.versions[doc.versions.length - 1]?.date} />
+            <CollaboratorsLine ids={doc.collaboratorIds} />
             <Authorship label="Última atualização por" actor={doc.updatedBy} at={doc.updatedAtTime ?? doc.updatedAt} />
             <PendingReviewNote doc={doc} />
           </div>

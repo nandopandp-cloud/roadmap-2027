@@ -11,6 +11,7 @@ import { api, ApiError } from "@/lib/client/api";
 import { cn } from "@/lib/client/cn";
 import { useInitiativeSelection } from "@/lib/client/selection";
 import { useCanEdit, useRoadmap, type PrdPrefill } from "@/lib/client/store";
+import { personForEmail } from "@/lib/domain/access";
 import type { InitiativeInput } from "@/lib/domain/types";
 
 type InputState = InitiativeInput;
@@ -51,11 +52,15 @@ function InitiativeForm({
   const notify = useToast();
   const editing = initiativeId ? initiativeById(initiativeId) : undefined;
 
+  // Quem está conectado, se estiver em Times & Squads: criador sugerido de uma iniciativa nova.
+  const me = personForEmail(data.people, data.viewer?.email ?? "")?.id ?? null;
   // Estado inicial congelado na abertura: base para detectar alterações não salvas.
-  const [initial] = useState<InputState>(() => (editing ? toInput(editing) : emptyInput()));
+  const [initial] = useState<InputState>(() => (editing ? toInput(editing) : { ...emptyInput(), creatorId: me }));
   // Vindo de um PRD, o rascunho começa preenchido (e conta como alteração não salva).
   // "Completar cadastro" de uma iniciativa em breve: começa já sem a marcação (cadastro completo exigido).
-  const [draft, setDraft] = useState<InitiativeInput>(() => prefill?.input ?? (complete ? { ...initial, upcoming: false } : initial));
+  const [draft, setDraft] = useState<InitiativeInput>(() =>
+    prefill ? { ...prefill.input, creatorId: prefill.input.creatorId ?? me } : complete ? { ...initial, upcoming: false } : initial,
+  );
   const [step, setStep] = useState(initialStep);
   const [errors, setErrors] = useState<Record<string, string>>(prefill?.errors ?? {});
   const [saving, setSaving] = useState(false);

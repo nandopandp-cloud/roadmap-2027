@@ -9,7 +9,7 @@ import { eligibleOwners } from "@/lib/domain/org";
 import { defaultRoadmapOrder } from "@/lib/domain/roadmap-order";
 import type { Database, IllustrationKey, Person, PlatformStrategy, ProposalSection, RepositoryLink, Roadmap2026Item, Squad, StrategyContext } from "@/lib/domain/types";
 
-export const SCHEMA_VERSION = 22;
+export const SCHEMA_VERSION = 23;
 
 /** Ilustrações removidas da biblioteca → equivalentes atuais. */
 const RENAMED_ILLUSTRATIONS: Record<string, IllustrationKey | null> = { cometa: null, lua: null };
@@ -51,6 +51,9 @@ const RENAMED_ILLUSTRATIONS: Record<string, IllustrationKey | null> = { cometa: 
  * v21 → v22: autoria — quem criou e quem alterou (createdBy/updatedBy) iniciativas e documentos, e
  *            quem fez cada entrada do histórico e cada versão de documento (by, at). Campos opcionais:
  *            os registros anteriores ficam sem autor ("não registrado"), nada é inventado.
+ * v22 → v23: quem criou a iniciativa (creatorId) e quem criou e colaborou em cada documento e
+ *            protótipo (authorId, collaboratorIds) — colaboradores de Times & Squads informados no
+ *            formulário. Vazios nos registros existentes até o time preencher.
  */
 export function migrateDatabase(db: Database): { db: Database; changed: boolean } {
   if ((db.schemaVersion ?? 1) >= SCHEMA_VERSION) return { db, changed: false };
@@ -72,6 +75,9 @@ export function migrateDatabase(db: Database): { db: Database; changed: boolean 
       upcoming: raw.upcoming ?? false,
       effort: raw.effort ?? { design: null, engineering: null },
       effortEvidence: raw.effortEvidence ?? { design: [], engineering: [] },
+      creatorId: raw.creatorId ?? null,
+      documents: raw.documents.map((d) => ({ ...d, authorId: d.authorId ?? null, collaboratorIds: d.collaboratorIds ?? [] })),
+      prototypes: raw.prototypes.map((p) => ({ ...p, authorId: p.authorId ?? null, collaboratorIds: p.collaboratorIds ?? [] })),
     };
   });
   const people = (db.people ?? []).map(migratePerson);

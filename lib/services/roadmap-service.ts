@@ -4,6 +4,7 @@ import type { Viewer } from "@/lib/auth/session";
 import { EFFORT_TRACKS } from "@/lib/domain/constants";
 import { EFFORT_TRACK_LABEL } from "@/lib/domain/effort";
 import { effortTracksFor } from "@/lib/domain/effort-access";
+import { personForEmail } from "@/lib/domain/access";
 import { eligibleOwners, squadNamesOf } from "@/lib/domain/org";
 import type { Actor, Database, DocumentDraft, DocumentRef, EffortEstimate, Initiative, InitiativeEffort, InitiativeInput, Platform, StrategyContext } from "@/lib/domain/types";
 import { DOCUMENT_KIND_LABEL, DOCUMENT_STATUS_LABEL, QUARTER_LABEL } from "@/lib/domain/labels";
@@ -64,6 +65,25 @@ function assertReferences(db: Database, input: InitiativeInput, selfId?: string)
     if (p.platformIds.some((id) => !platformIds.has(id))) fields[`prototypes.${idx}.platformIds`] = "Plataforma inexistente.";
   });
 
+  // Criador e colaboradores precisam estar em Times & Squads (referências antigas a quem saiu continuam valendo).
+  const people = new Set(db.people.map((p) => p.id));
+  const previous = selfId ? db.initiatives.find((i) => i.id === selfId) : undefined;
+  const kept = new Set<string>(
+    previous
+      ? [previous.creatorId, ...[...previous.documents, ...previous.prototypes].flatMap((a) => [a.authorId, ...a.collaboratorIds])].filter((x): x is string => !!x)
+      : [],
+  );
+  const unknownPerson = (id: string | null) => !!id && !people.has(id) && !kept.has(id);
+  if (unknownPerson(input.creatorId)) fields.creatorId = "Escolha um colaborador cadastrado em Times & Squads.";
+  input.documents.forEach((d, idx) => {
+    if (unknownPerson(d.authorId)) fields[`documents.${idx}.authorId`] = "Escolha um colaborador cadastrado em Times & Squads.";
+    if (d.collaboratorIds.some(unknownPerson)) fields[`documents.${idx}.collaboratorIds`] = "Há colaboradores que não estão em Times & Squads.";
+  });
+  input.prototypes.forEach((p, idx) => {
+    if (unknownPerson(p.authorId)) fields[`prototypes.${idx}.authorId`] = "Escolha um colaborador cadastrado em Times & Squads.";
+    if (p.collaboratorIds.some(unknownPerson)) fields[`prototypes.${idx}.collaboratorIds`] = "Há colaboradores que não estão em Times & Squads.";
+  });
+
   const duplicateDoc = input.documents.find(
     (d, idx) =>
       d.source === "repo" && d.path !== "" && input.documents.findIndex((o) => o.source === "repo" && o.path === d.path) !== idx,
@@ -72,6 +92,9 @@ function assertReferences(db: Database, input: InitiativeInput, selfId?: string)
 
   if (Object.keys(fields).length) throw new DomainError(422, "Há relacionamentos inválidos.", fields);
 }
+
+/** Nome de um colaborador de Times & Squads (para o histórico). */
+const personName = (db: Database) => (id: string) => db.people.find((p) => p.id === id)?.name ?? "colaborador removido";
 
 function assertUniqueTitle(db: Database, title: string, selfId?: string) {
   const key = normalizeTitle(title);
@@ -209,6 +232,8 @@ async function insertInitiative(db: Database, input: InitiativeInput, files: Doc
   const { documents, notes } = await storeDocumentTexts(repoFolder, input.documents, [], files, now, actor);
   const initiative: Initiative = {
     ...input,
+    // Sem criador informado, vale quem cadastrou (se estiver em Times & Squads).
+    creatorId: input.creatorId ?? personForEmail(db.people, actor.email)?.id ?? null,
     documents,
     id,
     repoFolder,
@@ -293,6 +318,8 @@ export async function createInitiativeFromPrd(data: unknown, files: DocumentFile
         status: statusAfterReview(undefined, { kind: "prd", status: "rascunho" }, actor, true),
         updatedAt: today,
         versions: [{ version, date: today, note: "Texto original do PRD usado na criação da iniciativa.", at: initiative.createdAt, by: actor }],
+        authorId: personForEmail(db.people, actor.email)?.id ?? null,
+        collaboratorIds: [],
         createdAt: initiative.createdAt,
         createdBy: actor,
         updatedBy: actor,
@@ -319,7 +346,7 @@ export async function updateInitiative(id: string, data: unknown, files: Documen
     const before = db.initiatives[index];
     const now = new Date().toISOString();
     const { documents, notes, events } = await storeDocumentTexts(before.repoFolder, input.documents, before.documents, files, now, actor);
-    const changes = [...describeChanges(before, { ...input, documents }), ...notes];
+    const changes = [...describeChanges(before, { ...input, documents }, personName(db)), ...notes];
     const descriptions = changes.length ? changes : ["Detalhes da iniciativa atualizados."];
     details = [...descriptions, ...events.map((e) => e.description)];
     const updated: Initiative = {
@@ -670,6 +697,8 @@ export async function createRepoDocument(
           url: "",
           version: "0.1",
           status,
+          authorId: personForEmail(current.people, actor.email)?.id ?? null,
+          collaboratorIds: [],
           updatedAt: today,
           versions: [{ version: "0.1", date: today, note, at: now, by: actor }],
           createdAt: now,

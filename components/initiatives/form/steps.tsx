@@ -6,6 +6,7 @@ import { ImageEditor } from "@/components/initiatives/form/image-editor";
 import { SortableRepeater } from "@/components/initiatives/form/sortable-repeater";
 import { newDocument, newMetric, newMilestone, newPhase, newPrototype } from "@/components/initiatives/form/defaults";
 import { illustrationFor, InitiativeIllustration } from "@/components/initiatives/initiative-illustration";
+import { PeopleMultiField, PersonSelectField } from "@/components/org/people-fields";
 import { PLATFORM_GLYPHS } from "@/components/platforms/platform-icon";
 import { useIsPrdReviewer } from "@/components/ui/authorship";
 import { Button, IconButton } from "@/components/ui/button";
@@ -38,6 +39,7 @@ import {
   QUARTER_LABEL,
   STATUS_LABEL,
 } from "@/lib/domain/labels";
+import { personForEmail } from "@/lib/domain/access";
 import { reviewerLabel } from "@/lib/domain/prd-review";
 import type { DocumentDraft, Initiative, InitiativeInput, Platform } from "@/lib/domain/types";
 
@@ -147,6 +149,13 @@ export function IdentificationStep({ draft, set, errors, others, editingId, next
         value={draft.summary}
         onChange={(e) => set("summary", e.target.value)}
         error={errors.summary}
+      />
+      <PersonSelectField
+        label="Quem criou a iniciativa"
+        value={draft.creatorId}
+        onChange={(v) => set("creatorId", v)}
+        error={errors.creatorId}
+        hint="Colaborador de Times & Squads que propôs ou idealizou a iniciativa (pode ser diferente de quem a cadastrou aqui)."
       />
       <div className="rounded-2xl border border-line bg-[#fafbff] px-4 py-3.5">
         <Checkbox
@@ -481,6 +490,20 @@ function DocumentFields({
         ))}
       </SelectField>
       <TextField label="Data de atualização" type="date" value={d.updatedAt} onChange={(e) => update({ updatedAt: e.target.value })} error={errors[`documents.${idx}.updatedAt`]} />
+      <PersonSelectField
+        label={d.kind === "prd" ? "Quem criou o PRD" : "Quem criou o documento"}
+        value={d.authorId}
+        onChange={(v) => update({ authorId: v, collaboratorIds: d.collaboratorIds.filter((c) => c !== v) })}
+        error={errors[`documents.${idx}.authorId`]}
+      />
+      <PeopleMultiField
+        label="Colaboradores"
+        value={d.collaboratorIds}
+        onChange={(v) => update({ collaboratorIds: v })}
+        exclude={[d.authorId]}
+        hint="Quem ajudou a construir o documento."
+        error={errors[`documents.${idx}.collaboratorIds`]}
+      />
       {origin === "texto" && (
         <TextAreaField
           className="sm:col-span-2"
@@ -503,6 +526,9 @@ function DocumentFields({
 }
 
 export function DocumentationStep({ draft, set, errors, platforms, folder, importedPrd }: StepProps) {
+  const { data } = useRoadmap();
+  // Quem está conectado, se estiver em Times & Squads: autor sugerido de documentos e protótipos novos.
+  const me = personForEmail(data.people, data.viewer?.email ?? "")?.id ?? null;
   const pathHint = folder
     ? `Caminho relativo à raiz do projeto, dentro de ${folder}/.`
     : "Caminho relativo à raiz do projeto, dentro de initiatives/. Após salvar, use “Criar PRD” na aba PRD para gerar o arquivo automaticamente.";
@@ -518,7 +544,7 @@ export function DocumentationStep({ draft, set, errors, platforms, folder, impor
           zone="form-documentos"
           items={draft.documents}
           onChange={(v) => set("documents", v)}
-          create={() => newDocument(draft.documents.some((d) => d.kind === "prd"))}
+          create={() => ({ ...newDocument(draft.documents.some((d) => d.kind === "prd")), authorId: me })}
           addLabel="Adicionar documento"
           empty="Nenhum documento associado."
           icon={<FileText size={18} />}
@@ -544,7 +570,7 @@ export function DocumentationStep({ draft, set, errors, platforms, folder, impor
           zone="form-prototipos"
           items={draft.prototypes}
           onChange={(v) => set("prototypes", v)}
-          create={() => newPrototype(folder)}
+          create={() => ({ ...newPrototype(folder), authorId: me })}
           addLabel="Adicionar protótipo"
           empty="Nenhum protótipo associado."
           icon={<MonitorPlay size={18} />}
@@ -583,6 +609,20 @@ export function DocumentationStep({ draft, set, errors, platforms, folder, impor
                 />
               </div>
               <LinesField className="sm:col-span-2" label="Fluxos disponíveis" value={p.flows} onChange={(v) => update({ flows: v })} />
+              <PersonSelectField
+                label="Quem criou o protótipo"
+                value={p.authorId}
+                onChange={(v) => update({ authorId: v, collaboratorIds: p.collaboratorIds.filter((c) => c !== v) })}
+                error={errors[`prototypes.${idx}.authorId`]}
+              />
+              <PeopleMultiField
+                label="Colaboradores"
+                value={p.collaboratorIds}
+                onChange={(v) => update({ collaboratorIds: v })}
+                exclude={[p.authorId]}
+                hint="Quem ajudou a construir o protótipo."
+                error={errors[`prototypes.${idx}.collaboratorIds`]}
+              />
             </div>
           )}
         />

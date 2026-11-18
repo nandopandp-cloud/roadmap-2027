@@ -7,7 +7,7 @@ import { useState } from "react";
 import { EffortSection } from "@/components/initiatives/drawer/effort-section";
 import { PhaseIcon } from "@/components/initiatives/drawer/overview-tab";
 import { BulletList, DrawerSection, InitiativeRow, Prose, SubHeading } from "@/components/initiatives/drawer/parts";
-import { ActivityTimeline, Authorship } from "@/components/ui/authorship";
+import { ActivityTimeline, Authorship, PersonCredit } from "@/components/ui/authorship";
 import { ProgressBar } from "@/components/ui/progress";
 import { PlatformChip } from "@/components/platforms/platform-icon";
 import { PriorityBadge, QuarterBadge, StateTag, StatusBadge, ValidationBadge } from "@/components/ui/badges";
@@ -264,7 +264,8 @@ export function RoadmapTab({ initiative: i, onOpen }: { initiative: Initiative; 
 
       <DrawerSection icon={History} color="#68769A" title="Linha do tempo">
         <div className="mb-4 flex flex-col gap-1">
-          <Authorship label="Criada por" actor={i.createdBy} at={i.createdAt} />
+          <PersonCredit label="Criada por" personId={i.creatorId} actor={i.createdBy} at={i.createdAt} />
+          {i.creatorId && <Authorship label="Cadastrada na plataforma por" actor={i.createdBy} at={i.createdAt} />}
           <Authorship label="Última alteração por" actor={i.updatedBy} at={i.updatedAt} />
         </div>
         <ActivityTimeline items={i.history.map((h) => ({ key: h.id, at: h.at, by: h.by, text: h.description }))} />

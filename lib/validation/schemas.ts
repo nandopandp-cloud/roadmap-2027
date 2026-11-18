@@ -114,7 +114,10 @@ const documentRefFields = {
   status: z.enum(DOCUMENT_STATUSES),
   updatedAt: isoDate,
   versions: z.array(versionEntrySchema).max(100).default([]),
-  /** Autoria (gravada pelo servidor; o que o formulário enviar é ignorado). */
+  /** Quem criou o documento e quem colaborou (colaboradores de Times & Squads, informados no formulário). */
+  authorId: localId.nullable().default(null),
+  collaboratorIds: z.array(localId).max(20).default([]),
+  /** Autoria do registro (gravada pelo servidor; o que o formulário enviar é ignorado). */
   createdAt: z.string().max(40).optional(),
   createdBy: actorSchema.optional(),
   updatedBy: actorSchema.optional(),
@@ -152,6 +155,9 @@ export const prototypeRefSchema = z
     platformIds: z.array(localId).max(20).default([]),
     flows: list(),
     status: z.enum(PROTOTYPE_STATUSES),
+    /** Quem criou o protótipo e quem colaborou (colaboradores de Times & Squads). */
+    authorId: localId.nullable().default(null),
+    collaboratorIds: z.array(localId).max(20).default([]),
   })
   .superRefine((v, ctx) => refineSource(v, ctx, PROTOTYPE_EXTENSIONS, "protótipo"));
 
@@ -307,6 +313,8 @@ const initiativeFieldsSchema = z.object({
   category: text(80).default(""),
   tags: z.array(text(40)).max(20).default([]),
   illustration: z.enum(ILLUSTRATIONS).nullable().default(null),
+  /** Quem criou a iniciativa (colaborador de Times & Squads); pode diferir de quem a cadastrou (createdBy). */
+  creatorId: localId.nullable().default(null),
   /** Imagem própria; quando definida, tem prioridade sobre a ilustração da biblioteca. */
   customImage: customImageSchema.nullable().default(null),
 

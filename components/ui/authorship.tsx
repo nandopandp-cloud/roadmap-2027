@@ -163,3 +163,59 @@ export const versionTimeline = (versions: { version: string; date: string; note:
     tag: v.version ? `v${v.version}` : undefined,
     text: v.note || "Versão registrada.",
   }));
+
+/** Colaborador de Times & Squads com foto e nome (ou aviso de que saiu do cadastro). */
+function PersonChip({ personId, size }: { personId: string; size: number }) {
+  const { data } = useRoadmap();
+  const person = data.people.find((p) => p.id === personId);
+  if (!person) return <span className="italic text-subtle">colaborador removido</span>;
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <Avatar person={person} size={size} />
+      <span className="font-bold text-ink">{person.name}</span>
+    </span>
+  );
+}
+
+/**
+ * "Criado por": o colaborador informado no formulário (quem de fato criou); sem ele, a conta
+ * que cadastrou no sistema.
+ */
+export function PersonCredit({
+  label,
+  personId,
+  actor,
+  at,
+  size = 22,
+  className,
+}: {
+  label: string;
+  personId: string | null | undefined;
+  actor: Actor | undefined;
+  at: string | undefined;
+  size?: number;
+  className?: string;
+}) {
+  if (!personId) return <Authorship label={label} actor={actor} at={at} size={size} className={className} />;
+  const when = at ? (at.length > 10 ? formatDateTime(at) : formatDate(at)) : "";
+  return (
+    <p className={cn("flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-[12.5px] text-muted", className)}>
+      <span>{label}</span>
+      <PersonChip personId={personId} size={size} />
+      {when && <span>· {when}</span>}
+    </p>
+  );
+}
+
+/** "Colaboração: [foto] Nome, [foto] Nome" (nada quando não há colaboradores). */
+export function CollaboratorsLine({ ids, size = 22, className }: { ids: string[]; size?: number; className?: string }) {
+  if (!ids.length) return null;
+  return (
+    <p className={cn("flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 text-[12.5px] text-muted", className)}>
+      <span>Colaboração</span>
+      {ids.map((id) => (
+        <PersonChip key={id} personId={id} size={size} />
+      ))}
+    </p>
+  );
+}

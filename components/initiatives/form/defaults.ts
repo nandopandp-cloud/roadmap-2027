@@ -12,7 +12,7 @@ export const FORM_STEPS = [
 
 /** Em qual etapa cada campo vive (para levar o usuário ao primeiro erro). */
 const FIELD_STEP: Record<string, number> = {
-  title: 0, summary: 0, upcoming: 0, category: 0, tags: 0, illustration: 0, customImage: 0,
+  title: 0, summary: 0, upcoming: 0, creatorId: 0, category: 0, tags: 0, illustration: 0, customImage: 0,
   problem: 1, currentContext: 1, audience: 1, userPain: 1, motivator: 1, evidence: 1, hypothesis: 1, expectedOutcome: 1, objectives: 1, deliverables: 1,
   platformIds: 2, platformNotes: 2, journeys: 2, userProfiles: 2, areas: 2, operationalImpacts: 2,
   status: 3, quarter: 3, priority: 3, planningValidated: 3, owner: 3, milestones: 3, phases: 3,
@@ -31,6 +31,7 @@ export const emptyInput = (): InitiativeInput => ({
   category: "",
   tags: [],
   illustration: null,
+  creatorId: null,
   customImage: null,
   problem: "",
   currentContext: "",
@@ -95,6 +96,8 @@ export const newDocument = (hasPrd?: boolean): DocumentDraft => ({
   status: "rascunho",
   updatedAt: new Date().toISOString().slice(0, 10),
   versions: [],
+  authorId: null,
+  collaboratorIds: [],
   content: "",
 });
 
@@ -108,6 +111,8 @@ export const newPrototype = (folder?: string): PrototypeRef => ({
   platformIds: [],
   flows: [],
   status: "conceito",
+  authorId: null,
+  collaboratorIds: [],
 });
 
 export const newMetric = (): Metric => ({

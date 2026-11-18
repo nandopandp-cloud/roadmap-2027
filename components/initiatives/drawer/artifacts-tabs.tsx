@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { SubHeading } from "@/components/initiatives/drawer/parts";
 import { PlatformChip } from "@/components/platforms/platform-icon";
-import { ActivityTimeline, Authorship, useIsPrdReviewer, versionTimeline } from "@/components/ui/authorship";
+import { ActivityTimeline, Authorship, CollaboratorsLine, PersonCredit, useIsPrdReviewer, versionTimeline } from "@/components/ui/authorship";
 import { Badge } from "@/components/ui/badges";
 import { Button, buttonClass } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/feedback";
@@ -103,7 +103,8 @@ function DocumentCard({ initiativeId, doc, exists }: { initiativeId: string; doc
             )}
           </div>
           <div className="mt-2 flex flex-col gap-1">
-            <Authorship label="Criado por" actor={doc.createdBy} at={doc.createdAt ?? doc.versions[doc.versions.length - 1]?.date} />
+            <PersonCredit label="Criado por" personId={doc.authorId} actor={doc.createdBy} at={doc.createdAt ?? doc.versions[doc.versions.length - 1]?.date} />
+            <CollaboratorsLine ids={doc.collaboratorIds} />
             <Authorship label="Última atualização por" actor={doc.updatedBy} at={doc.updatedAtTime ?? doc.updatedAt} />
             <PendingReviewNote doc={doc} />
           </div>
@@ -281,6 +282,12 @@ export function PrototypesTab({ initiative: i, platforms }: { initiative: Initia
                     </Badge>
                   </div>
                   {p.description && <p className="mt-1 text-[14px] leading-relaxed text-muted">{p.description}</p>}
+                  {(p.authorId || p.collaboratorIds.length > 0) && (
+                    <div className="mt-2 flex flex-col gap-1">
+                      {p.authorId && <PersonCredit label="Criado por" personId={p.authorId} actor={undefined} at={undefined} />}
+                      <CollaboratorsLine ids={p.collaboratorIds} />
+                    </div>
+                  )}
                   {shown.length > 0 && (
                     <div className="mt-2.5 flex flex-wrap gap-2">
                       {shown.map((x) => (

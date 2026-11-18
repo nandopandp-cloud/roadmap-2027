@@ -11,9 +11,12 @@ const priority = (p: Initiative["priority"]) => (p ? PRIORITY_LABEL[p] : "a defi
  * Descreve as mudanças importantes entre duas versões de uma iniciativa.
  * Apenas mudanças relevantes para o planejamento são registradas no histórico.
  */
-export function describeChanges(before: Initiative, after: InitiativeInput): string[] {
+export function describeChanges(before: Initiative, after: InitiativeInput, nameOf: (personId: string) => string = () => "colaborador"): string[] {
   const changes: string[] = [];
+  const who = (id: string | null) => (id ? nameOf(id) : "não informado");
   if (before.title !== after.title) changes.push(`Nome alterado de “${before.title}” para “${after.title}”.`);
+  if ((before.creatorId ?? null) !== after.creatorId)
+    changes.push(`Criador da iniciativa: ${who(after.creatorId)} (antes: ${who(before.creatorId ?? null)}).`);
   if (before.status !== after.status)
     changes.push(`Status alterado de ${STATUS_LABEL[before.status]} para ${STATUS_LABEL[after.status]}.`);
   if (before.quarter !== after.quarter)
@@ -36,6 +39,11 @@ export function describeChanges(before: Initiative, after: InitiativeInput): str
     const prev = before.documents.find((d) => d.id === doc.id);
     if (prev && prev.version !== doc.version && doc.version)
       changes.push(`${doc.title}: versão ${prev.version || "—"} → ${doc.version}.`);
+    if (prev) changes.push(...describeCredits(doc.title, prev, doc, who));
+  }
+  for (const proto of after.prototypes) {
+    const prev = before.prototypes.find((p) => p.id === proto.id);
+    if (prev) changes.push(...describeCredits(proto.name, prev, proto, who));
   }
   const protos = diffIds(before.prototypes, after.prototypes);
   protos.added.forEach((p) => changes.push(`Protótipo associado: ${p.name}.`));
@@ -66,6 +74,22 @@ export function describeChanges(before: Initiative, after: InitiativeInput): str
   if (before.customImage?.imageId !== after.customImage?.imageId)
     changes.push(after.customImage ? "Imagem da iniciativa atualizada." : "Imagem própria removida.");
   if (JSON.stringify(before.objectives) !== JSON.stringify(after.objectives)) changes.push("Objetivos principais atualizados.");
+  return changes;
+}
+
+type Credits = { authorId?: string | null; collaboratorIds?: string[] };
+
+/** Mudanças em quem criou e quem colaborou num documento ou protótipo. */
+function describeCredits(title: string, before: Credits, after: Credits, who: (id: string | null) => string): string[] {
+  const changes: string[] = [];
+  if ((before.authorId ?? null) !== (after.authorId ?? null))
+    changes.push(`${title}: criado por ${who(after.authorId ?? null)} (antes: ${who(before.authorId ?? null)}).`);
+  const prev = before.collaboratorIds ?? [];
+  const next = after.collaboratorIds ?? [];
+  const added = next.filter((id) => !prev.includes(id));
+  const removed = prev.filter((id) => !next.includes(id));
+  if (added.length) changes.push(`${title}: ${added.length > 1 ? "colaboradores incluídos" : "colaborador incluído"} — ${added.map(who).join(", ")}.`);
+  if (removed.length) changes.push(`${title}: ${removed.length > 1 ? "colaboradores retirados" : "colaborador retirado"} — ${removed.map(who).join(", ")}.`);
   return changes;
 }
 

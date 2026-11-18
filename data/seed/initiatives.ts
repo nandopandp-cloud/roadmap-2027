@@ -12,6 +12,7 @@ import type { Initiative, PhaseState } from "@/lib/domain/types";
 const SEEDED_AT = "2026-10-16T12:00:00.000Z";
 
 const base = {
+  creatorId: null,
   createdAt: SEEDED_AT,
   updatedAt: SEEDED_AT,
   planningValidated: false,
@@ -168,6 +169,8 @@ export const seedInitiatives: Initiative[] = [
         versions: [
           { version: "1.0", date: "2026-10-16", note: "PRD recebido e importado para o repositório." },
         ],
+        authorId: null,
+        collaboratorIds: [],
       },
       {
         id: "decisoes",
@@ -180,6 +183,8 @@ export const seedInitiatives: Initiative[] = [
         status: "rascunho",
         updatedAt: "2026-10-16",
         versions: [],
+        authorId: null,
+        collaboratorIds: [],
       },
       {
         id: "contexto",
@@ -192,6 +197,8 @@ export const seedInitiatives: Initiative[] = [
         status: "rascunho",
         updatedAt: "2026-10-16",
         versions: [],
+        authorId: null,
+        collaboratorIds: [],
       },
     ],
     prototypes: [
@@ -212,6 +219,8 @@ export const seedInitiatives: Initiative[] = [
           "Estudante — feedback de sucesso e de falha na validação.",
         ],
         status: "conceito",
+        authorId: null,
+        collaboratorIds: [],
       },
     ],
     metrics: [
@@ -401,7 +410,9 @@ export const seedInitiatives: Initiative[] = [
             "date": "2026-10-16",
             "note": "PRD v2.0 (outubro de 2026) importado para o repositório."
           }
-        ]
+        ],
+        "authorId": null,
+        "collaboratorIds": []
       },
       {
         "id": "decisoes",
@@ -413,7 +424,9 @@ export const seedInitiatives: Initiative[] = [
         "version": "",
         "status": "rascunho",
         "updatedAt": "2026-10-16",
-        "versions": []
+        "versions": [],
+        "authorId": null,
+        "collaboratorIds": []
       },
       {
         "id": "contexto",
@@ -425,7 +438,9 @@ export const seedInitiatives: Initiative[] = [
         "version": "",
         "status": "rascunho",
         "updatedAt": "2026-10-16",
-        "versions": []
+        "versions": [],
+        "authorId": null,
+        "collaboratorIds": []
       }
     ],
     "prototypes": [
@@ -449,7 +464,9 @@ export const seedInitiatives: Initiative[] = [
           "Gabarito e histórico de batalhas.",
           "Ficha do personagem Nexo."
         ],
-        "status": "conceito"
+        "status": "conceito",
+        "authorId": null,
+        "collaboratorIds": []
       }
     ],
     "metrics": [
