@@ -9,7 +9,7 @@ import { eligibleOwners } from "@/lib/domain/org";
 import { defaultRoadmapOrder } from "@/lib/domain/roadmap-order";
 import type { Database, IllustrationKey, Person, PlatformStrategy, ProposalSection, RepositoryLink, Roadmap2026Item, Squad, StrategyContext } from "@/lib/domain/types";
 
-export const SCHEMA_VERSION = 21;
+export const SCHEMA_VERSION = 22;
 
 /** Ilustrações removidas da biblioteca → equivalentes atuais. */
 const RENAMED_ILLUSTRATIONS: Record<string, IllustrationKey | null> = { cometa: null, lua: null };
@@ -48,6 +48,9 @@ const RENAMED_ILLUSTRATIONS: Record<string, IllustrationKey | null> = { cometa: 
  *            os últimos valores vistos nela (sheet, a importação de 10/11); estado em roadmap2026Sync.
  * v20 → v21: permissão na plataforma por colaborador (access): Administração para os e-mails que
  *            tinham edição (FOUNDING_ADMIN_EMAILS) e Consulta para os demais — o acesso de antes.
+ * v21 → v22: autoria — quem criou e quem alterou (createdBy/updatedBy) iniciativas e documentos, e
+ *            quem fez cada entrada do histórico e cada versão de documento (by, at). Campos opcionais:
+ *            os registros anteriores ficam sem autor ("não registrado"), nada é inventado.
  */
 export function migrateDatabase(db: Database): { db: Database; changed: boolean } {
   if ((db.schemaVersion ?? 1) >= SCHEMA_VERSION) return { db, changed: false };

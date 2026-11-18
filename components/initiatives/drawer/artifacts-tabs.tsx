@@ -1,20 +1,21 @@
 "use client";
 
-import { ExternalLink, Eye, FilePlus2, FileText, History, Link2, MonitorPlay, Pencil, Plus, TriangleAlert } from "lucide-react";
+import { BadgeCheck, ExternalLink, Eye, FilePlus2, FileText, History, Link2, MonitorPlay, Pencil, Plus, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { SubHeading } from "@/components/initiatives/drawer/parts";
 import { PlatformChip } from "@/components/platforms/platform-icon";
+import { ActivityTimeline, Authorship, useIsPrdReviewer, versionTimeline } from "@/components/ui/authorship";
 import { Badge } from "@/components/ui/badges";
 import { Button, buttonClass } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/feedback";
 import { useToast } from "@/components/ui/toast";
 import { api, ApiError } from "@/lib/client/api";
-import { formatDate } from "@/lib/client/cn";
 import { useCanEdit, useRoadmap } from "@/lib/client/store";
 import { useArtifactStatus } from "@/lib/client/use-artifact-status";
 import { documentReaderHref, prototypeHref, prototypeViewerHref } from "@/lib/domain/artifacts";
 import { DOCUMENT_KIND_LABEL, DOCUMENT_STATUS_LABEL, PROTOTYPE_STATUS_LABEL } from "@/lib/domain/labels";
+import { reviewerNames } from "@/lib/domain/prd-review";
 import type { DocumentRef, DocumentStatus, Initiative, Platform, PrototypeStatus } from "@/lib/domain/types";
 
 /** Etapa "Documentação e protótipo" do formulário. */
@@ -44,6 +45,40 @@ function MissingFile({ path }: { path: string }) {
   );
 }
 
+/** Aprovação de um PRD em revisão (só quem revisa PRDs vê o botão). */
+export function ApprovePrdButton({ initiativeId, doc, size = "sm" }: { initiativeId: string; doc: DocumentRef; size?: "sm" | "md" }) {
+  const reviewer = useIsPrdReviewer();
+  const { upsertInitiative } = useRoadmap();
+  const notify = useToast();
+  const [saving, setSaving] = useState(false);
+  if (!reviewer || doc.kind !== "prd" || doc.status === "aprovado") return null;
+  async function approve() {
+    setSaving(true);
+    try {
+      upsertInitiative(await api.approveDocument(initiativeId, doc.id));
+      notify("success", "PRD aprovado.");
+    } catch (error) {
+      notify("error", error instanceof ApiError ? error.message : "Não foi possível aprovar o PRD.");
+    } finally {
+      setSaving(false);
+    }
+  }
+  return (
+    <Button variant="primary" size={size} icon={<BadgeCheck size={15} />} loading={saving} onClick={approve}>
+      Aprovar PRD
+    </Button>
+  );
+}
+
+/** Aviso de PRD aguardando revisão, para quem não revisa. */
+export function PendingReviewNote({ doc }: { doc: DocumentRef }) {
+  const reviewer = useIsPrdReviewer();
+  const { data } = useRoadmap();
+  if (reviewer || doc.kind !== "prd" || doc.status !== "em_revisao") return null;
+  const names = reviewerNames(data.people);
+  return <p className="text-[12.5px] font-semibold text-[#1F55C4]">{names ? `Aguardando a revisão de ${names}.` : "Aguardando a revisão do revisor de PRDs."}</p>;
+}
+
 function DocumentCard({ initiativeId, doc, exists }: { initiativeId: string; doc: DocumentRef; exists: boolean | undefined }) {
   const canEdit = useCanEdit();
   const [showVersions, setShowVersions] = useState(false);
@@ -66,7 +101,11 @@ function DocumentCard({ initiativeId, doc, exists }: { initiativeId: string; doc
                 Versão {doc.version}
               </Badge>
             )}
-            {doc.updatedAt && <span className="text-[12.5px] text-muted">Atualizado em {formatDate(doc.updatedAt)}</span>}
+          </div>
+          <div className="mt-2 flex flex-col gap-1">
+            <Authorship label="Criado por" actor={doc.createdBy} at={doc.createdAt ?? doc.versions[doc.versions.length - 1]?.date} />
+            <Authorship label="Última atualização por" actor={doc.updatedBy} at={doc.updatedAtTime ?? doc.updatedAt} />
+            <PendingReviewNote doc={doc} />
           </div>
           <p className="mt-2 break-all font-mono text-[11.5px] text-subtle">
             {doc.source === "repo" ? doc.path : doc.url}
@@ -95,22 +134,17 @@ function DocumentCard({ initiativeId, doc, exists }: { initiativeId: string; doc
             <ExternalLink size={15} aria-hidden /> Abrir link externo
           </a>
         )}
+        <ApprovePrdButton initiativeId={initiativeId} doc={doc} />
         {doc.versions.length > 0 && (
           <Button size="sm" variant="ghost" icon={<History size={15} />} onClick={() => setShowVersions((v) => !v)} aria-expanded={showVersions}>
-            Histórico de versões ({doc.versions.length})
+            Linha do tempo ({doc.versions.length})
           </Button>
         )}
       </div>
       {showVersions && (
-        <ol className="mt-3 flex flex-col gap-2 border-l-2 border-line pl-4">
-          {doc.versions.map((v, idx) => (
-            <li key={idx} className="text-[13px] text-muted">
-              <span className="font-bold text-ink">v{v.version || "—"}</span>
-              {v.date && <span> · {formatDate(v.date)}</span>}
-              {v.note && <span> — {v.note}</span>}
-            </li>
-          ))}
-        </ol>
+        <div className="mt-4 rounded-2xl bg-[#f7f9fd] p-4">
+          <ActivityTimeline items={versionTimeline(doc.versions)} />
+        </div>
       )}
     </li>
   );

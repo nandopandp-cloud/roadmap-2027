@@ -65,10 +65,23 @@ export const phaseSchema = z.object({
   state: z.enum(PHASE_STATES).default("pendente"),
 });
 
+/**
+ * Quem fez uma alteração: a conta Google conectada no momento (nome, e-mail e foto). Gravado
+ * sempre pelo servidor; registros anteriores à autoria (v22) não têm esse campo.
+ */
+export const actorSchema = z.object({
+  email: text(200),
+  name: text(160),
+  picture: text(2000).default(""),
+});
+
 export const versionEntrySchema = z.object({
   version: text(20),
   date: isoDate,
   note: text(500).default(""),
+  /** Data e hora da revisão (ISO); ausente nas revisões anteriores à v22. */
+  at: z.string().max(40).optional(),
+  by: actorSchema.optional(),
 });
 
 /** Valida a origem de um artefato: caminho no repositório OU URL externa. */
@@ -101,6 +114,12 @@ const documentRefFields = {
   status: z.enum(DOCUMENT_STATUSES),
   updatedAt: isoDate,
   versions: z.array(versionEntrySchema).max(100).default([]),
+  /** Autoria (gravada pelo servidor; o que o formulário enviar é ignorado). */
+  createdAt: z.string().max(40).optional(),
+  createdBy: actorSchema.optional(),
+  updatedBy: actorSchema.optional(),
+  /** Hora da última atualização (ISO); `updatedAt` guarda só a data. */
+  updatedAtTime: z.string().max(40).optional(),
 };
 
 export const documentRefSchema = z
@@ -271,6 +290,8 @@ export const historyEntrySchema = z.object({
   id: localId,
   at: z.string(),
   description: text(500),
+  /** Quem fez a alteração; ausente nas entradas anteriores à v22 e nas automáticas (sincronização). */
+  by: actorSchema.optional(),
 });
 
 /** Campos editáveis de uma iniciativa (o que o formulário envia), sem as regras de preenchimento. */
@@ -365,6 +386,9 @@ export const initiativeSchema = initiativeFieldsSchema.extend({
   repoFolder: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),
+  /** Quem criou e quem fez a última alteração (ausentes nas iniciativas anteriores à v22). */
+  createdBy: actorSchema.optional(),
+  updatedBy: actorSchema.optional(),
   history: z.array(historyEntrySchema).default([]),
   /** Repositórios do GitHub (editados na aba Repositório do drawer, não no formulário). */
   repositories: z.array(repositoryLinkSchema).max(10).default([]),
@@ -610,6 +634,12 @@ export const strategyContextSchema = z.object({
 export const documentContentSchema = z.object({
   path: z.string().refine((p) => isSafeRepoPath(p, DOCUMENT_EXTENSIONS), "Caminho de documento inválido."),
   content: z.string().max(500_000, "Documento muito grande."),
+});
+
+/** Revisão de um PRD em revisão: só quem revisa PRDs aprova (lib/domain/prd-review.ts). */
+export const documentReviewSchema = z.object({
+  documentId: localId,
+  decision: z.literal("aprovar", { error: "Decisão de revisão inválida." }),
 });
 
 /** Texto completo de um PRD usado para criar uma iniciativa (preservado como prd.md). */

@@ -6,5 +6,5 @@ type Ctx = { params: Promise<{ id: string }> };
 /** Arrastar no roadmap: quarter de destino e posição na coluna. */
 export async function POST(request: Request, { params }: Ctx) {
   const { id } = await params;
-  return handleEdit(async () => moveInitiative(id, await request.json()));
+  return handleEdit(async (viewer) => moveInitiative(id, await request.json(), viewer));
 }

@@ -21,7 +21,7 @@ export function GET(request: Request) {
  * (versão, data e nota) no documento associado à iniciativa.
  */
 export function PUT(request: Request) {
-  return handleEdit(async () => {
+  return handleEdit(async (viewer) => {
     const body = (await request.json()) as Record<string, unknown>;
     const parsed = documentContentSchema.safeParse(body);
     if (!parsed.success) throw new DomainError(422, parsed.error.issues[0]?.message ?? "Dados inválidos.");
@@ -33,7 +33,7 @@ export function PUT(request: Request) {
         ? await recordDocumentRevision(initiativeId, documentId, {
             version: typeof body.version === "string" ? body.version : undefined,
             note: typeof body.note === "string" ? body.note : undefined,
-          })
+          }, viewer)
         : null;
     return { path: parsed.data.path, modifiedAt, initiative };
   });

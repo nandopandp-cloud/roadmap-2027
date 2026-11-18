@@ -13,6 +13,13 @@ export const ALLOWED_DOMAIN = "jovensgenios.com";
  */
 export const FOUNDING_ADMIN_EMAILS: readonly string[] = ["fernando.rodrigues@jovensgenios.com", "joaofigueroa@jovensgenios.com"];
 
+/**
+ * Quem revisa os PRDs (sempre em minúsculas). PRDs criados por qualquer outra pessoa entram
+ * "Em revisão", só quem revisa aprova, e as alterações dos demais em iniciativas e PRDs geram
+ * alerta por e-mail (lib/domain/prd-review.ts, lib/services/notifications.ts).
+ */
+export const PRD_REVIEWER_EMAILS: readonly string[] = ["fernando.rodrigues@jovensgenios.com"];
+
 /** Pode alterar conteúdo (Administração ou Edição) ou só consultar. */
 export type Role = "editor" | "leitor";
 

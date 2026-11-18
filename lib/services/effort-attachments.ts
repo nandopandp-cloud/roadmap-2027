@@ -15,7 +15,7 @@ import { getAttachmentStore, getRepository, storageKind } from "@/lib/repositori
 import type { StoredAttachment } from "@/lib/repositories/attachments";
 import { READ_ONLY_MESSAGE } from "@/lib/repositories/json-file-repository";
 import { DomainError, notFound } from "@/lib/services/errors";
-import { historyEntry } from "@/lib/services/history";
+import { actorOf, historyEntry } from "@/lib/services/history";
 import { effortAttachmentInputSchema, fieldErrors } from "@/lib/validation/schemas";
 
 /**
@@ -55,7 +55,6 @@ function assertTrack(viewer: Viewer, people: Parameters<typeof evidenceTracksFor
 }
 
 /** Quem não é editor fica identificado no histórico (como na estimativa). */
-const byline = (viewer: Viewer) => (viewer.role === "editor" ? "" : ` (por ${viewer.name})`);
 
 /** Recebe uma parte de um arquivo em envio. */
 export async function uploadAttachmentPart(uploadId: string, part: number, data: Buffer, viewer: Viewer): Promise<void> {
@@ -115,7 +114,7 @@ export async function addEffortAttachment(id: string, data: unknown, viewer: Vie
         effortEvidence: { ...before.effortEvidence, [input.track]: [...list, attachment] },
         updatedAt: now,
         history: [
-          historyEntry(`${what} anexado à justificativa de ${EFFORT_TRACK_LABEL[input.track]}${byline(viewer)}.`, now),
+          historyEntry(`${what} anexado à justificativa de ${EFFORT_TRACK_LABEL[input.track]}.`, now, actorOf(viewer)),
           ...before.history,
         ].slice(0, 200),
       };
@@ -146,7 +145,7 @@ export async function removeEffortAttachment(id: string, attachmentId: string, v
       ...before,
       effortEvidence: { ...before.effortEvidence, [track]: before.effortEvidence[track].filter((a) => a.id !== attachmentId) },
       updatedAt: now,
-      history: [historyEntry(`${what} removido da justificativa de ${EFFORT_TRACK_LABEL[track]}${byline(viewer)}.`, now), ...before.history].slice(
+      history: [historyEntry(`${what} removido da justificativa de ${EFFORT_TRACK_LABEL[track]}.`, now, actorOf(viewer)), ...before.history].slice(
         0,
         200,
       ),

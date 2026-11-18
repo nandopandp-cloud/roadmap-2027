@@ -103,6 +103,9 @@ export const api = {
     request<Initiative>("/api/initiatives/prd", { method: "POST", body: json({ initiative, prd }) }),
   createDocument: (id: string, kind: "prd" | "decisoes") =>
     request<Initiative>(`/api/initiatives/${id}/documents`, { method: "POST", body: json({ kind }) }),
+  /** Aprova um PRD em revisão (só quem revisa PRDs). */
+  approveDocument: (id: string, documentId: string) =>
+    request<Initiative>(`/api/initiatives/${id}/documents`, { method: "PATCH", body: json({ documentId, decision: "aprovar" }) }),
 
   createPlatform: (data: unknown) => request<Platform>("/api/platforms", { method: "POST", body: json(data) }),
   updatePlatform: (id: string, data: unknown) =>

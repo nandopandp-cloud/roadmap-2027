@@ -5,13 +5,15 @@ import { EFFORT_TRACKS } from "@/lib/domain/constants";
 import { EFFORT_TRACK_LABEL } from "@/lib/domain/effort";
 import { effortTracksFor } from "@/lib/domain/effort-access";
 import { eligibleOwners, squadNamesOf } from "@/lib/domain/org";
-import type { Database, DocumentDraft, DocumentRef, EffortEstimate, Initiative, InitiativeEffort, InitiativeInput, Platform, StrategyContext } from "@/lib/domain/types";
-import { QUARTER_LABEL } from "@/lib/domain/labels";
+import type { Actor, Database, DocumentDraft, DocumentRef, EffortEstimate, Initiative, InitiativeEffort, InitiativeInput, Platform, StrategyContext } from "@/lib/domain/types";
+import { DOCUMENT_KIND_LABEL, DOCUMENT_STATUS_LABEL, QUARTER_LABEL } from "@/lib/domain/labels";
+import { isPrdReviewer, PrdReviewError, reviewedStatus } from "@/lib/domain/prd-review";
 import { nextRoadmapOrder, placeInColumn, roadmapColumn } from "@/lib/domain/roadmap-order";
 import { getRepository, storageKind, type StorageKind } from "@/lib/repositories";
 import { DomainError, notFound } from "@/lib/services/errors";
 import { discardEvidenceFiles } from "@/lib/services/effort-attachments";
-import { describeChanges, describeEffortChanges, describeRepositoryChanges, historyEntry } from "@/lib/services/history";
+import { actorOf, describeChanges, describeEffortChanges, describeRepositoryChanges, historyEntry } from "@/lib/services/history";
+import { alertChange } from "@/lib/services/notifications";
 import { extractFromPrd, prdVersion, type PrdImportResult } from "@/lib/services/prd-import";
 import { initiativeFolder, slugify } from "@/lib/validation/paths";
 import {
@@ -23,6 +25,7 @@ import {
   planningPatchSchema,
   prdAnalysisSchema,
   platformInputSchema,
+  documentReviewSchema,
   roadmapMoveSchema,
   strategyContextSchema,
 } from "@/lib/validation/schemas";
@@ -108,58 +111,102 @@ const DOCUMENT_FILE_NAME: Record<DocumentRef["kind"], string> = {
   outro: "documento",
 };
 
+/** Status de um PRD conforme a revisão; a recusa vira erro no campo de status do documento. */
+function statusAfterReview(before: DocumentRef | undefined, next: Pick<DocumentRef, "kind" | "status">, actor: Actor, changed: boolean, field?: string) {
+  try {
+    return reviewedStatus(before, next, actor, changed);
+  } catch (error) {
+    if (error instanceof PrdReviewError) throw new DomainError(403, error.message, field ? { [field]: error.message } : undefined);
+    throw error;
+  }
+}
+
+/** Uma alteração de PRD (ou outro documento) para o alerta por e-mail. */
+interface DocumentEvent {
+  documentId: string;
+  description: string;
+}
+
 /**
- * Grava como Markdown o texto escrito ou colado no formulário e devolve os documentos
- * só com a referência ao arquivo. Sem caminho, usa um nome livre na pasta da iniciativa.
+ * Concilia os documentos enviados pelo formulário com os gravados: grava como Markdown o texto
+ * escrito ou colado (sem caminho, usa um nome livre na pasta da iniciativa), aplica a revisão de
+ * PRDs e registra a autoria. Autoria e histórico de versões vêm sempre do servidor (`before`):
+ * o que o formulário enviar nesses campos é ignorado.
  */
 async function storeDocumentTexts(
   folder: string,
   documents: DocumentDraft[],
+  before: DocumentRef[],
   files: DocumentFiles,
   now: string,
-): Promise<{ documents: DocumentRef[]; notes: string[] }> {
+  actor: Actor,
+): Promise<{ documents: DocumentRef[]; notes: string[]; events: DocumentEvent[] }> {
   const taken = new Set(documents.map((d) => d.path).filter(Boolean));
   const today = now.slice(0, 10);
   const notes: string[] = [];
+  const events: DocumentEvent[] = [];
   const stored: DocumentRef[] = [];
-  for (const { content, ...doc } of documents) {
-    if (content === undefined) {
-      stored.push(doc);
-      continue;
-    }
+  for (const [idx, draft] of documents.entries()) {
+    const { content, versions: _versions, createdAt: _ca, createdBy: _cb, updatedBy: _ub, updatedAtTime: _ut, ...doc } = draft;
+    const prev = before.find((d) => d.id === doc.id);
     let relPath = doc.path;
-    if (!relPath) {
-      const base = `${folder}/${DOCUMENT_FILE_NAME[doc.kind]}`;
-      relPath = `${base}.md`;
-      for (let n = 2; taken.has(relPath) || (await files.exists(relPath)); n++) relPath = `${base}-${n}.md`;
-      taken.add(relPath);
+    let replaced = false;
+    if (content !== undefined) {
+      if (!relPath) {
+        const base = `${folder}/${DOCUMENT_FILE_NAME[doc.kind]}`;
+        relPath = `${base}.md`;
+        for (let n = 2; taken.has(relPath) || (await files.exists(relPath)); n++) relPath = `${base}-${n}.md`;
+        taken.add(relPath);
+      }
+      replaced = doc.path !== "" && (await files.exists(relPath));
+      await files.write(relPath, content);
+      notes.push(replaced ? `Texto do documento atualizado: ${relPath}.` : `Documento gravado: ${relPath}.`);
     }
-    const replaced = doc.path !== "" && (await files.exists(relPath));
-    await files.write(relPath, content);
+    const location = content !== undefined ? { source: "repo" as const, path: relPath, url: "" } : { source: doc.source, path: doc.path, url: doc.url };
+    const metaChanged =
+      !!prev &&
+      (prev.title !== doc.title ||
+        prev.kind !== doc.kind ||
+        prev.version !== doc.version ||
+        prev.status !== doc.status ||
+        prev.source !== location.source ||
+        prev.path !== location.path ||
+        prev.url !== location.url);
+    const changed = !prev || content !== undefined || metaChanged;
+    const status = statusAfterReview(prev, doc, actor, content !== undefined || metaChanged, `documents.${idx}.status`);
+    const sentToReview = doc.kind === "prd" && status === "em_revisao" && doc.status !== "em_revisao";
+
+    let note = "";
+    if (!prev) note = content !== undefined ? "Texto inserido pelo formulário da iniciativa." : "Documento associado à iniciativa.";
+    else if (content !== undefined) note = "Texto atualizado pelo formulário da iniciativa.";
+    else if (prev.status !== status) note = `Status alterado para ${DOCUMENT_STATUS_LABEL[status]}.`;
+    else if (metaChanged) note = "Dados do documento atualizados.";
+    if (note && sentToReview) note = `${note} Enviado para revisão.`;
+
     stored.push({
       ...doc,
-      source: "repo",
-      path: relPath,
-      url: "",
-      updatedAt: today,
-      versions: [
-        { version: doc.version, date: today, note: replaced ? "Texto atualizado pelo formulário da iniciativa." : "Texto inserido pelo formulário da iniciativa." },
-        ...doc.versions,
-      ].slice(0, 100),
+      ...location,
+      status,
+      updatedAt: changed ? today : doc.updatedAt,
+      versions: note ? [{ version: doc.version, date: today, note, at: now, by: actor }, ...(prev?.versions ?? [])].slice(0, 100) : (prev?.versions ?? []),
+      createdAt: prev ? prev.createdAt : now,
+      createdBy: prev ? prev.createdBy : actor,
+      updatedBy: changed ? actor : prev?.updatedBy,
+      updatedAtTime: changed ? now : prev?.updatedAtTime,
     });
-    notes.push(replaced ? `Texto do documento atualizado: ${relPath}.` : `Documento gravado: ${relPath}.`);
+    if (note) events.push({ documentId: doc.id, description: `${DOCUMENT_KIND_LABEL[doc.kind]} “${doc.title}”: ${note}` });
   }
-  return { documents: stored, notes };
+  return { documents: stored, notes, events };
 }
 
 /** Monta e insere uma nova iniciativa no estado (dentro de uma transação). */
-async function insertInitiative(db: Database, input: InitiativeInput, files: DocumentFiles, note: string): Promise<Initiative> {
+async function insertInitiative(db: Database, input: InitiativeInput, files: DocumentFiles, note: string, actor: Actor): Promise<Initiative> {
   assertUniqueTitle(db, input.title);
   assertReferences(db, input);
   const now = new Date().toISOString();
   const id = nextInitiativeId(db);
   const repoFolder = initiativeFolder(id, input.title);
-  const { documents, notes } = await storeDocumentTexts(repoFolder, input.documents, files, now);
+  const { documents, notes } = await storeDocumentTexts(repoFolder, input.documents, [], files, now, actor);
   const initiative: Initiative = {
     ...input,
     documents,
@@ -167,7 +214,9 @@ async function insertInitiative(db: Database, input: InitiativeInput, files: Doc
     repoFolder,
     createdAt: now,
     updatedAt: now,
-    history: [...notes.map((n) => historyEntry(n, now)), historyEntry(note, now)],
+    createdBy: actor,
+    updatedBy: actor,
+    history: [...notes.map((n) => historyEntry(n, now, actor)), historyEntry(note, now, actor)],
     roadmapOrder: nextRoadmapOrder(db.initiatives, input.quarter),
     repositories: [],
     effort: { design: null, engineering: null },
@@ -177,19 +226,37 @@ async function insertInitiative(db: Database, input: InitiativeInput, files: Doc
   return initiative;
 }
 
-export async function createInitiative(data: unknown, files: DocumentFiles): Promise<Initiative> {
+/** Alerta da criação de uma iniciativa (o que foi registrado no histórico, do mais antigo ao mais novo). */
+function alertCreated(actor: Actor, initiative: Initiative, action = "criou a iniciativa") {
+  alertChange(actor, {
+    action,
+    initiative,
+    details: [...initiative.history].reverse().map((h) => h.description),
+    at: initiative.createdAt,
+  });
+}
+
+export async function createInitiative(data: unknown, files: DocumentFiles, viewer: Viewer): Promise<Initiative> {
   const input = cleanPlatformNotes(parse(initiativeInputSchema, data));
-  return getRepository().transaction((db) => insertInitiative(db, input, files, "Iniciativa criada."));
+  const actor = actorOf(viewer);
+  const created = await getRepository().transaction((db) => insertInitiative(db, input, files, "Iniciativa criada.", actor));
+  alertCreated(actor, created);
+  return created;
 }
 
 /**
  * Sinaliza uma iniciativa "em breve": só nome e descrição, para avisar que ela será considerada.
  * Problema, PRD, planejamento e métricas ficam para quando ela for detalhada.
  */
-export async function createUpcomingInitiative(data: unknown, files: DocumentFiles): Promise<Initiative> {
+export async function createUpcomingInitiative(data: unknown, files: DocumentFiles, viewer: Viewer): Promise<Initiative> {
   const { title, summary } = parse(upcomingInitiativeSchema, data);
   const input = parse(initiativeInputSchema, { title, summary, upcoming: true, status: "ideia" });
-  return getRepository().transaction((db) => insertInitiative(db, input, files, "Iniciativa sinalizada como em breve (só nome e descrição)."));
+  const actor = actorOf(viewer);
+  const created = await getRepository().transaction((db) =>
+    insertInitiative(db, input, files, "Iniciativa sinalizada como em breve (só nome e descrição).", actor),
+  );
+  alertCreated(actor, created, "sinalizou uma iniciativa em breve");
+  return created;
 }
 
 /** Identifica no texto do PRD os campos da iniciativa (nada é gravado). */
@@ -202,11 +269,12 @@ export async function analyzePrd(data: unknown): Promise<PrdImportResult> {
  * Cria a iniciativa com os campos revisados e grava o texto original do PRD, sem alterações,
  * em `<pasta>/prd.md`, já associado como documento. Se o PRD não puder ser gravado, nada é criado.
  */
-export async function createInitiativeFromPrd(data: unknown, files: DocumentFiles): Promise<Initiative> {
+export async function createInitiativeFromPrd(data: unknown, files: DocumentFiles, viewer: Viewer): Promise<Initiative> {
   const { initiative: raw, prd } = parse(initiativeFromPrdSchema, data);
   const input = cleanPlatformNotes(parse(initiativeInputSchema, raw));
-  return getRepository().transaction(async (db) => {
-    const initiative = await insertInitiative(db, input, files, "Iniciativa criada a partir do PRD.");
+  const actor = actorOf(viewer);
+  const created = await getRepository().transaction(async (db) => {
+    const initiative = await insertInitiative(db, input, files, "Iniciativa criada a partir do PRD.", actor);
     let relPath = `${initiative.repoFolder}/prd.md`;
     for (let n = 2; await files.exists(relPath); n++) relPath = `${initiative.repoFolder}/prd-${n}.md`;
     await files.write(relPath, prd);
@@ -221,62 +289,80 @@ export async function createInitiativeFromPrd(data: unknown, files: DocumentFile
         path: relPath,
         url: "",
         version,
-        status: "rascunho",
+        // Quem não revisa PRDs cria o PRD já em revisão.
+        status: statusAfterReview(undefined, { kind: "prd", status: "rascunho" }, actor, true),
         updatedAt: today,
-        versions: [{ version, date: today, note: "Texto original do PRD usado na criação da iniciativa." }],
+        versions: [{ version, date: today, note: "Texto original do PRD usado na criação da iniciativa.", at: initiative.createdAt, by: actor }],
+        createdAt: initiative.createdAt,
+        createdBy: actor,
+        updatedBy: actor,
+        updatedAtTime: initiative.createdAt,
       },
       ...initiative.documents,
     ];
-    initiative.history.unshift(historyEntry(`PRD associado: ${relPath}.`, initiative.createdAt));
+    initiative.history.unshift(historyEntry(`PRD associado: ${relPath}.`, initiative.createdAt, actor));
     return initiative;
   });
+  alertCreated(actor, created, "criou a iniciativa e o PRD");
+  return created;
 }
 
-export async function updateInitiative(id: string, data: unknown, files: DocumentFiles): Promise<Initiative> {
+export async function updateInitiative(id: string, data: unknown, files: DocumentFiles, viewer: Viewer): Promise<Initiative> {
   const input = cleanPlatformNotes(parse(initiativeInputSchema, data));
-  return getRepository().transaction(async (db) => {
+  const actor = actorOf(viewer);
+  let details: string[] = [];
+  const updated = await getRepository().transaction(async (db) => {
     const index = db.initiatives.findIndex((i) => i.id === id);
     if (index < 0) throw notFound("Iniciativa");
     assertUniqueTitle(db, input.title, id);
     assertReferences(db, input, id);
     const before = db.initiatives[index];
     const now = new Date().toISOString();
-    const { documents, notes } = await storeDocumentTexts(before.repoFolder, input.documents, files, now);
+    const { documents, notes, events } = await storeDocumentTexts(before.repoFolder, input.documents, before.documents, files, now, actor);
     const changes = [...describeChanges(before, { ...input, documents }), ...notes];
-    const entries = (changes.length ? changes : ["Detalhes da iniciativa atualizados."]).map((c) => historyEntry(c, now));
+    const descriptions = changes.length ? changes : ["Detalhes da iniciativa atualizados."];
+    details = [...descriptions, ...events.map((e) => e.description)];
     const updated: Initiative = {
       ...before,
       ...input,
       documents,
       roadmapOrder: orderAfterQuarterChange(db, before, input.quarter),
       updatedAt: now,
-      history: [...entries, ...before.history].slice(0, 200),
+      updatedBy: actor,
+      history: [...descriptions.map((c) => historyEntry(c, now, actor)), ...before.history].slice(0, 200),
     };
     db.initiatives[index] = updated;
     return updated;
   });
+  alertChange(actor, { action: "atualizou a iniciativa", initiative: updated, details, at: updated.updatedAt });
+  return updated;
 }
 
 /** Alteração rápida de quarter, prioridade, status, validação do planejamento, etapas ou repositórios. */
-export async function patchPlanning(id: string, data: unknown): Promise<Initiative> {
+export async function patchPlanning(id: string, data: unknown, viewer: Viewer): Promise<Initiative> {
   const patch = parse(planningPatchSchema, data);
-  return getRepository().transaction((db) => {
+  const actor = actorOf(viewer);
+  let changes: string[] = [];
+  const result = await getRepository().transaction((db) => {
     const index = db.initiatives.findIndex((i) => i.id === id);
     if (index < 0) throw notFound("Iniciativa");
     const before = db.initiatives[index];
     const next = { ...before, ...patch };
-    const changes = [...describeChanges(before, next), ...describeRepositoryChanges(before.repositories, next.repositories)];
+    changes = [...describeChanges(before, next), ...describeRepositoryChanges(before.repositories, next.repositories)];
     if (!changes.length) return before;
     const now = new Date().toISOString();
     const updated: Initiative = {
       ...next,
       roadmapOrder: orderAfterQuarterChange(db, before, next.quarter),
       updatedAt: now,
-      history: [...changes.map((c) => historyEntry(c, now)), ...before.history].slice(0, 200),
+      updatedBy: actor,
+      history: [...changes.map((c) => historyEntry(c, now, actor)), ...before.history].slice(0, 200),
     };
     db.initiatives[index] = updated;
     return updated;
   });
+  if (changes.length) alertChange(actor, { action: "alterou o planejamento da iniciativa", initiative: result, details: changes, at: result.updatedAt });
+  return result;
 }
 
 /**
@@ -303,13 +389,13 @@ export async function patchEffort(id: string, data: unknown, viewer: Viewer): Pr
     const changes = describeEffortChanges(before.effort, effort, nameOf);
     if (!changes.length) return before;
     const now = new Date().toISOString();
-    // Quem não é editor fica identificado no histórico (a estimativa é da frente dele).
-    const by = viewer.role === "editor" ? "" : ` (por ${viewer.name})`;
+    const actor = actorOf(viewer);
     const updated: Initiative = {
       ...before,
       effort,
       updatedAt: now,
-      history: [...changes.map((c) => historyEntry(by ? c.replace(/\.$/, `${by}.`) : c, now)), ...before.history].slice(0, 200),
+      updatedBy: actor,
+      history: [...changes.map((c) => historyEntry(c, now, actor)), ...before.history].slice(0, 200),
     };
     db.initiatives[index] = updated;
     return updated;
@@ -345,7 +431,7 @@ const columnLabel = (q: Initiative["quarter"]) => (q ? `em ${QUARTER_LABEL[q]}` 
  * Move um card do roadmap para outro quarter e/ou posição. Renumera a coluna de destino
  * e devolve todas as iniciativas cuja ordem mudou.
  */
-export async function moveInitiative(id: string, data: unknown): Promise<Initiative[]> {
+export async function moveInitiative(id: string, data: unknown, viewer: Viewer): Promise<Initiative[]> {
   const target = parse(roadmapMoveSchema, data);
   return getRepository().transaction((db) => {
     const index = db.initiatives.findIndex((i) => i.id === id);
@@ -372,12 +458,14 @@ export async function moveInitiative(id: string, data: unknown): Promise<Initiat
       before.quarter !== target.quarter
         ? describeChanges(before, { ...before, quarter: target.quarter })
         : [`Posição no roadmap alterada ${columnLabel(target.quarter)}: ${placement.position}ª de ${placement.size}.`];
+    const actor = actorOf(viewer);
     const moved: Initiative = {
       ...before,
       quarter: target.quarter,
       roadmapOrder: placement.orders.get(id) ?? 0,
       updatedAt: now,
-      history: [...descriptions.map((c) => historyEntry(c, now)), ...before.history].slice(0, 200),
+      updatedBy: actor,
+      history: [...descriptions.map((c) => historyEntry(c, now, actor)), ...before.history].slice(0, 200),
     };
     db.initiatives[index] = moved;
     return [moved, ...changed];
@@ -385,7 +473,8 @@ export async function moveInitiative(id: string, data: unknown): Promise<Initiat
 }
 
 /** Exclui a iniciativa e remove referências a ela, preservando a integridade. */
-export async function deleteInitiative(id: string): Promise<void> {
+export async function deleteInitiative(id: string, viewer: Viewer): Promise<void> {
+  const actor = actorOf(viewer);
   const removed = await getRepository().transaction((db) => {
     const target = db.initiatives.find((i) => i.id === id);
     if (!target) throw notFound("Iniciativa");
@@ -399,7 +488,7 @@ export async function deleteInitiative(id: string): Promise<void> {
           dependsOn: i.dependsOn.filter((d) => d !== id),
           relatedInitiativeIds: i.relatedInitiativeIds.filter((d) => d !== id),
           updatedAt: now,
-          history: [historyEntry(`Vínculo com ${id} removido porque a iniciativa foi excluída.`, now), ...i.history],
+          history: [historyEntry(`Vínculo com ${id} removido porque a iniciativa foi excluída.`, now, actor), ...i.history],
         };
       });
     db.context.problems = db.context.problems.map((p) => ({
@@ -410,6 +499,12 @@ export async function deleteInitiative(id: string): Promise<void> {
   });
   // Os arquivos da justificativa do esforço saem junto com a iniciativa.
   await discardEvidenceFiles(removed);
+  alertChange(actor, {
+    action: "excluiu a iniciativa",
+    initiative: removed,
+    details: [`Iniciativa excluída (criada em ${new Date(removed.createdAt).toLocaleDateString("pt-BR")}${removed.createdBy ? ` por ${removed.createdBy.name}` : ""}).`],
+    at: new Date().toISOString(),
+  });
 }
 
 export async function createPlatform(data: unknown): Promise<Platform> {
@@ -538,6 +633,7 @@ export async function createRepoDocument(
   kind: "prd" | "decisoes",
   writer: (relPath: string, content: string) => Promise<unknown>,
   exists: (relPath: string) => Promise<boolean>,
+  viewer: Viewer,
 ): Promise<Initiative> {
   const db = await getRepository().read();
   const initiative = db.initiatives.find((i) => i.id === initiativeId);
@@ -551,7 +647,11 @@ export async function createRepoDocument(
   }
   await writer(relPath, DOCUMENT_TEMPLATES[kind](initiative));
   const today = new Date().toISOString().slice(0, 10);
-  return getRepository().transaction((current) => {
+  const actor = actorOf(viewer);
+  const documentId = `${kind}-${Date.now().toString(36)}`;
+  const status = statusAfterReview(undefined, { kind, status: "rascunho" }, actor, true);
+  const note = `Documento criado a partir do modelo.${status === "em_revisao" ? " Enviado para revisão." : ""}`;
+  const updated = await getRepository().transaction((current) => {
     const index = current.initiatives.findIndex((i) => i.id === initiativeId);
     if (index < 0) throw notFound("Iniciativa");
     const target = current.initiatives[index];
@@ -562,33 +662,53 @@ export async function createRepoDocument(
       documents: [
         ...target.documents,
         {
-          id: `${kind}-${Date.now().toString(36)}`,
+          id: documentId,
           title,
           kind,
           source: "repo",
           path: relPath,
           url: "",
           version: "0.1",
-          status: "rascunho",
+          status,
           updatedAt: today,
-          versions: [{ version: "0.1", date: today, note: "Documento criado a partir do modelo." }],
+          versions: [{ version: "0.1", date: today, note, at: now, by: actor }],
+          createdAt: now,
+          createdBy: actor,
+          updatedBy: actor,
+          updatedAtTime: now,
         },
       ],
       updatedAt: now,
-      history: [historyEntry(`Documento criado: ${relPath}.`, now), ...target.history],
+      updatedBy: actor,
+      history: [historyEntry(`Documento criado: ${relPath}.`, now, actor), ...target.history],
     };
     current.initiatives[index] = updated;
     return updated;
   });
+  alertChange(actor, {
+    action: kind === "prd" ? "criou o PRD" : "criou o documento de decisões",
+    initiative: updated,
+    details: [`${DOCUMENT_KIND_LABEL[kind]} criado a partir do modelo: ${relPath}.`, ...(status === "em_revisao" ? ["O PRD entrou em revisão."] : [])],
+    documentId,
+    at: updated.updatedAt,
+  });
+  return updated;
 }
 
-/** Registra uma revisão de documento (data, versão e nota) após salvar seu conteúdo. */
+/**
+ * Registra uma revisão de documento (data, versão, nota e autor) após salvar seu conteúdo.
+ * Um PRD aprovado alterado por quem não revisa volta para revisão.
+ */
 export async function recordDocumentRevision(
   initiativeId: string,
   documentId: string,
   revision: { version?: string; note?: string },
+  viewer: Viewer,
 ): Promise<Initiative> {
-  return getRepository().transaction((db) => {
+  const actor = actorOf(viewer);
+  let summary = "";
+  let reopened = false;
+  const updated = await getRepository().transaction((db) => {
     const index = db.initiatives.findIndex((i) => i.id === initiativeId);
     if (index < 0) throw notFound("Iniciativa");
     const initiative = db.initiatives[index];
@@ -596,22 +716,71 @@ export async function recordDocumentRevision(
     if (!doc) throw notFound("Documento");
     const today = new Date().toISOString().slice(0, 10);
     const version = revision.version?.trim().slice(0, 20) || doc.version;
-    const note = revision.note?.trim().slice(0, 500) || "Conteúdo atualizado.";
+    const status = statusAfterReview(doc, doc, actor, true);
+    reopened = status !== doc.status;
+    const written = revision.note?.trim().slice(0, 480) || "Conteúdo atualizado.";
+    const note = reopened ? `${/[.!?]$/.test(written) ? written : `${written}.`} Enviado para revisão.` : written;
     const now = new Date().toISOString();
-    const updatedDoc = {
+    const updatedDoc: DocumentRef = {
       ...doc,
       version,
+      status,
       updatedAt: today,
-      versions: [{ version, date: today, note }, ...doc.versions].slice(0, 100),
+      updatedAtTime: now,
+      updatedBy: actor,
+      versions: [{ version, date: today, note, at: now, by: actor }, ...doc.versions].slice(0, 100),
+    };
+    summary = `${doc.title} atualizado${version !== doc.version ? ` para a versão ${version}` : ""}: ${note}`;
+    const updated: Initiative = {
+      ...initiative,
+      documents: initiative.documents.map((d) => (d.id === documentId ? updatedDoc : d)),
+      updatedAt: now,
+      updatedBy: actor,
+      history: [historyEntry(summary, now, actor), ...initiative.history].slice(0, 200),
+    };
+    db.initiatives[index] = updated;
+    return updated;
+  });
+  const doc = updated.documents.find((d) => d.id === documentId);
+  alertChange(actor, {
+    action: doc?.kind === "prd" ? "atualizou o PRD" : "atualizou um documento",
+    initiative: updated,
+    details: [summary, ...(reopened ? ["O PRD estava aprovado e voltou para revisão."] : [])],
+    documentId,
+    at: updated.updatedAt,
+  });
+  return updated;
+}
+
+/** Aprovação de um PRD em revisão: só quem revisa PRDs (PRD_REVIEWER_EMAILS). */
+export async function reviewDocument(initiativeId: string, data: unknown, viewer: Viewer): Promise<Initiative> {
+  const { documentId } = parse(documentReviewSchema, data);
+  if (!isPrdReviewer(viewer.email)) throw new DomainError(403, "Só quem revisa PRDs pode aprová-los.");
+  const actor = actorOf(viewer);
+  return getRepository().transaction((db) => {
+    const index = db.initiatives.findIndex((i) => i.id === initiativeId);
+    if (index < 0) throw notFound("Iniciativa");
+    const initiative = db.initiatives[index];
+    const doc = initiative.documents.find((d) => d.id === documentId);
+    if (!doc) throw notFound("Documento");
+    if (doc.kind !== "prd") throw new DomainError(400, "Só PRDs passam por revisão.");
+    if (doc.status === "aprovado") return initiative;
+    const now = new Date().toISOString();
+    const today = now.slice(0, 10);
+    const updatedDoc: DocumentRef = {
+      ...doc,
+      status: "aprovado",
+      updatedAt: today,
+      updatedAtTime: now,
+      updatedBy: actor,
+      versions: [{ version: doc.version, date: today, note: "PRD aprovado na revisão.", at: now, by: actor }, ...doc.versions].slice(0, 100),
     };
     const updated: Initiative = {
       ...initiative,
       documents: initiative.documents.map((d) => (d.id === documentId ? updatedDoc : d)),
       updatedAt: now,
-      history: [
-        historyEntry(`${doc.title} atualizado${version !== doc.version ? ` para a versão ${version}` : ""}: ${note}`, now),
-        ...initiative.history,
-      ].slice(0, 200),
+      updatedBy: actor,
+      history: [historyEntry(`${doc.title}: PRD aprovado na revisão.`, now, actor), ...initiative.history].slice(0, 200),
     };
     db.initiatives[index] = updated;
     return updated;

@@ -8,6 +8,7 @@ import { DependenciesTab, RoadmapTab } from "@/components/initiatives/drawer/pla
 import { RepositoryTab } from "@/components/initiatives/drawer/repository-tab";
 import { FallbackImg, illustrationFor } from "@/components/initiatives/initiative-illustration";
 import { PLATFORM_GLYPHS, PlatformPill } from "@/components/platforms/platform-icon";
+import { Authorship } from "@/components/ui/authorship";
 import { StatusBadge, UpcomingBadge } from "@/components/ui/badges";
 import { Button } from "@/components/ui/button";
 import { useConfirm, useFocusTrap } from "@/components/ui/dialog";
@@ -324,6 +325,12 @@ export function InitiativeDrawer() {
               {initiative.summary && (
                 <p className="relative z-10 mt-3 max-w-full text-[15px] leading-relaxed text-[#4a5680] sm:max-w-[calc(100%-250px)]">{initiative.summary}</p>
               )}
+              <div className="relative z-10 mt-3 flex max-w-full flex-col gap-1 sm:max-w-[calc(100%-250px)]">
+                <Authorship label="Criada por" actor={initiative.createdBy} at={initiative.createdAt} />
+                {initiative.updatedAt !== initiative.createdAt && (
+                  <Authorship label="Última alteração por" actor={initiative.updatedBy} at={initiative.updatedAt} />
+                )}
+              </div>
               {impacted.length > 0 && (
                 <div className="relative z-10 mt-5 flex flex-wrap gap-2">
                   {impacted.map((p) => (

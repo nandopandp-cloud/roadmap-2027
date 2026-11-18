@@ -7,6 +7,7 @@ import { useState } from "react";
 import { EffortSection } from "@/components/initiatives/drawer/effort-section";
 import { PhaseIcon } from "@/components/initiatives/drawer/overview-tab";
 import { BulletList, DrawerSection, InitiativeRow, Prose, SubHeading } from "@/components/initiatives/drawer/parts";
+import { ActivityTimeline, Authorship } from "@/components/ui/authorship";
 import { ProgressBar } from "@/components/ui/progress";
 import { PlatformChip } from "@/components/platforms/platform-icon";
 import { PriorityBadge, QuarterBadge, StateTag, StatusBadge, ValidationBadge } from "@/components/ui/badges";
@@ -14,7 +15,7 @@ import { buttonClass, Spinner } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/fields";
 import { useToast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/client/api";
-import { cn, formatDate, formatDateTime } from "@/lib/client/cn";
+import { cn, formatDate } from "@/lib/client/cn";
 import { useCanEdit, useRoadmap } from "@/lib/client/store";
 import { documentReaderHref } from "@/lib/domain/artifacts";
 import { INITIATIVE_STATUSES, PHASE_STATES, PRIORITIES, QUARTERS } from "@/lib/domain/constants";
@@ -67,7 +68,6 @@ export function RoadmapTab({ initiative: i, onOpen }: { initiative: Initiative; 
   const canEdit = useCanEdit();
   const notify = useToast();
   const [saving, setSaving] = useState(false);
-  const [showAllHistory, setShowAllHistory] = useState(false);
 
   async function save(patch: Parameters<typeof patchPlanning>[1], message: string) {
     setSaving(true);
@@ -83,7 +83,6 @@ export function RoadmapTab({ initiative: i, onOpen }: { initiative: Initiative; 
 
   const deps = i.dependsOn.map((id) => data.initiatives.find((x) => x.id === id)).filter((x): x is Initiative => !!x);
   const milestonesByQuarter = QUARTERS.map((q) => ({ q, items: i.milestones.filter((m) => m.quarter === q) })).filter((g) => g.items.length);
-  const history = showAllHistory ? i.history : i.history.slice(0, 6);
   const progress = progressOf(i.phases);
 
   async function setPhase(id: string, state: Phase["state"]) {
@@ -263,27 +262,12 @@ export function RoadmapTab({ initiative: i, onOpen }: { initiative: Initiative; 
         )}
       </DrawerSection>
 
-      <DrawerSection icon={History} color="#68769A" title="Histórico de alterações">
-        <p className="mb-3 text-[12.5px] text-muted">
-          Criada em {formatDateTime(i.createdAt)} · Atualizada em {formatDateTime(i.updatedAt)}
-        </p>
-        {i.history.length === 0 ? (
-          <Prose empty="Nenhuma alteração registrada." />
-        ) : (
-          <ol className="flex flex-col gap-2.5 border-l-2 border-line pl-4">
-            {history.map((h) => (
-              <li key={h.id} className="text-[13.5px] leading-snug">
-                <span className="block text-[12px] font-bold text-subtle">{formatDateTime(h.at)}</span>
-                <span className="text-ink">{h.description}</span>
-              </li>
-            ))}
-          </ol>
-        )}
-        {i.history.length > 6 && (
-          <button type="button" onClick={() => setShowAllHistory((v) => !v)} className="mt-3 text-[13px] font-bold text-blue hover:underline">
-            {showAllHistory ? "Mostrar menos" : `Ver histórico completo (${i.history.length})`}
-          </button>
-        )}
+      <DrawerSection icon={History} color="#68769A" title="Linha do tempo">
+        <div className="mb-4 flex flex-col gap-1">
+          <Authorship label="Criada por" actor={i.createdBy} at={i.createdAt} />
+          <Authorship label="Última alteração por" actor={i.updatedBy} at={i.updatedAt} />
+        </div>
+        <ActivityTimeline items={i.history.map((h) => ({ key: h.id, at: h.at, by: h.by, text: h.description }))} />
       </DrawerSection>
     </div>
   );

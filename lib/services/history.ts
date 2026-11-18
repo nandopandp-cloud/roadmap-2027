@@ -2,7 +2,7 @@ import { PRIORITY_LABEL, QUARTER_LABEL, STATUS_LABEL } from "@/lib/domain/labels
 import { progressOf } from "@/lib/domain/progress";
 import { parseGithubBranch, parseGithubRepo } from "@/lib/domain/github";
 import { describeEffortStart, EFFORT_TRACK_LABEL, EFFORT_TRACKS, formatWeeks } from "@/lib/domain/effort";
-import type { HistoryEntry, Initiative, InitiativeEffort, InitiativeInput, RepositoryLink } from "@/lib/domain/types";
+import type { Actor, HistoryEntry, Initiative, InitiativeEffort, InitiativeInput, RepositoryLink } from "@/lib/domain/types";
 
 const quarter = (q: Initiative["quarter"]) => (q ? QUARTER_LABEL[q] : "sem quarter");
 const priority = (p: Initiative["priority"]) => (p ? PRIORITY_LABEL[p] : "a definir");
@@ -128,6 +128,14 @@ export function describeEffortChanges(before: InitiativeEffort, after: Initiativ
   return changes;
 }
 
-export function historyEntry(description: string, at = new Date().toISOString()): HistoryEntry {
-  return { id: crypto.randomUUID(), at, description };
+/** Entrada de histórico; `by` identifica quem fez a alteração (ausente nas automáticas). */
+export function historyEntry(description: string, at = new Date().toISOString(), by?: Actor): HistoryEntry {
+  return by ? { id: crypto.randomUUID(), at, description, by } : { id: crypto.randomUUID(), at, description };
 }
+
+/** Autor de uma alteração: a conta Google conectada. */
+export const actorOf = (viewer: { email: string; name: string; picture: string }): Actor => ({
+  email: viewer.email,
+  name: viewer.name || viewer.email,
+  picture: viewer.picture ?? "",
+});

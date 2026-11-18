@@ -4,5 +4,5 @@ import { createInitiativeFromPrd } from "@/lib/services/roadmap-service";
 
 /** Cria uma iniciativa a partir de um PRD, gravando o texto original como prd.md. */
 export function POST(request: Request) {
-  return handleEdit(async () => createInitiativeFromPrd(await request.json(), documentFiles), 201);
+  return handleEdit(async (viewer) => createInitiativeFromPrd(await request.json(), documentFiles, viewer), 201);
 }

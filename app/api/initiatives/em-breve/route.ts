@@ -4,5 +4,5 @@ import { createUpcomingInitiative } from "@/lib/services/roadmap-service";
 
 /** Sinaliza uma iniciativa "em breve" (só nome e descrição). */
 export function POST(request: Request) {
-  return handleEdit(async () => createUpcomingInitiative(await request.json(), documentFiles), 201);
+  return handleEdit(async (viewer) => createUpcomingInitiative(await request.json(), documentFiles, viewer), 201);
 }

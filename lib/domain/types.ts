@@ -6,6 +6,7 @@
  */
 import type { z } from "zod";
 import type {
+  actorSchema,
   customImageSchema,
   documentDraftSchema,
   documentRefSchema,
@@ -98,6 +99,7 @@ export type DocumentDraft = z.infer<typeof documentDraftSchema>;
 export type PrototypeRef = z.infer<typeof prototypeRefSchema>;
 export type Metric = z.infer<typeof metricSchema>;
 export type HistoryEntry = z.infer<typeof historyEntrySchema>;
+export type Actor = z.infer<typeof actorSchema>;
 export type RepositoryLink = z.infer<typeof repositoryLinkSchema>;
 export type EffortEstimate = z.infer<typeof effortEstimateSchema>;
 export type InitiativeEffort = z.infer<typeof initiativeEffortSchema>;

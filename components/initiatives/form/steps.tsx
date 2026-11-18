@@ -7,11 +7,13 @@ import { SortableRepeater } from "@/components/initiatives/form/sortable-repeate
 import { newDocument, newMetric, newMilestone, newPhase, newPrototype } from "@/components/initiatives/form/defaults";
 import { illustrationFor, InitiativeIllustration } from "@/components/initiatives/initiative-illustration";
 import { PLATFORM_GLYPHS } from "@/components/platforms/platform-icon";
+import { useIsPrdReviewer } from "@/components/ui/authorship";
 import { Button, IconButton } from "@/components/ui/button";
 import { Checkbox, ChipMultiSelect, HiddenInput, LinesField, SelectField, TextAreaField, TextField } from "@/components/ui/fields";
 import { useToast } from "@/components/ui/toast";
 import { api, ApiError } from "@/lib/client/api";
 import { cn } from "@/lib/client/cn";
+import { useRoadmap } from "@/lib/client/store";
 import {
   DOCUMENT_KINDS,
   DOCUMENT_STATUSES,
@@ -36,6 +38,7 @@ import {
   QUARTER_LABEL,
   STATUS_LABEL,
 } from "@/lib/domain/labels";
+import { reviewerLabel } from "@/lib/domain/prd-review";
 import type { DocumentDraft, Initiative, InitiativeInput, Platform } from "@/lib/domain/types";
 
 export interface StepProps {
@@ -416,6 +419,8 @@ function DocumentFields({
   pathHint: string;
 }) {
   const notify = useToast();
+  const reviewer = useIsPrdReviewer();
+  const { data } = useRoadmap();
   const [loading, setLoading] = useState(false);
   const origin: DocumentOrigin = d.content !== undefined ? "texto" : d.source;
 
@@ -462,9 +467,15 @@ function DocumentFields({
         <TextField label="URL" required type="url" value={d.url} onChange={(e) => update({ url: e.target.value.trim() })} error={errors[`documents.${idx}.url`]} placeholder="https://…" />
       )}
       <TextField label="Versão" value={d.version} onChange={(e) => update({ version: e.target.value })} placeholder="Ex.: 1.0" />
-      <SelectField label="Status de elaboração" value={d.status} onChange={(e) => update({ status: e.target.value as typeof d.status })}>
+      <SelectField
+        label="Status de elaboração"
+        value={d.status}
+        onChange={(e) => update({ status: e.target.value as typeof d.status })}
+        error={errors[`documents.${idx}.status`]}
+        hint={d.kind === "prd" && !reviewer ? `PRDs criados ou alterados por você entram em revisão; só ${reviewerLabel(data.people)} aprova.` : undefined}
+      >
         {DOCUMENT_STATUSES.map((s) => (
-          <option key={s} value={s}>
+          <option key={s} value={s} disabled={s === "aprovado" && d.kind === "prd" && !reviewer && d.status !== "aprovado"}>
             {DOCUMENT_STATUS_LABEL[s]}
           </option>
         ))}

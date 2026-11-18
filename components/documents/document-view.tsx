@@ -1,11 +1,13 @@
 "use client";
 
-import { ArrowLeft, Eye, FileWarning, ListTree, Pencil, Save, SquarePen } from "lucide-react";
+import { ArrowLeft, Eye, FileWarning, History, ListTree, Pencil, Save, SquarePen } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { extractToc, MarkdownView } from "@/components/documents/markdown";
+import { ApprovePrdButton, PendingReviewNote } from "@/components/initiatives/drawer/artifacts-tabs";
 import { PageContainer, TopBar } from "@/components/layout/page-header";
+import { ActivityTimeline, Authorship, versionTimeline } from "@/components/ui/authorship";
 import { Badge } from "@/components/ui/badges";
 import { Button, buttonClass } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/dialog";
@@ -13,7 +15,7 @@ import { EmptyState, ErrorBanner, Skeleton } from "@/components/ui/feedback";
 import { TextField } from "@/components/ui/fields";
 import { useToast } from "@/components/ui/toast";
 import { api, ApiError } from "@/lib/client/api";
-import { cn, formatDate } from "@/lib/client/cn";
+import { cn } from "@/lib/client/cn";
 import { useCanEdit, useRoadmap } from "@/lib/client/store";
 import { DOCUMENT_KIND_LABEL, DOCUMENT_STATUS_LABEL } from "@/lib/domain/labels";
 
@@ -213,15 +215,22 @@ export function DocumentView({ initiativeId, documentId }: { initiativeId: strin
               {DOCUMENT_STATUS_LABEL[doc.status]}
             </Badge>
             {doc.version && <span className="font-semibold text-ink">Versão {doc.version}</span>}
-            {doc.updatedAt && <span>· Atualizado em {formatDate(doc.updatedAt)}</span>}
             <code className="font-mono text-[11.5px] text-subtle">· {doc.path}</code>
           </div>
+          <div className="mt-2 flex flex-col gap-1">
+            <Authorship label="Criado por" actor={doc.createdBy} at={doc.createdAt ?? doc.versions[doc.versions.length - 1]?.date} />
+            <Authorship label="Última atualização por" actor={doc.updatedBy} at={doc.updatedAtTime ?? doc.updatedAt} />
+            <PendingReviewNote doc={doc} />
+          </div>
         </div>
-        {canEdit && !editing && file.status === "ready" && (
-          <Button variant="outline" icon={<Pencil size={16} />} onClick={() => setEditing(true)}>
-            Editar documento
-          </Button>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {!editing && <ApprovePrdButton initiativeId={initiative.id} doc={doc} size="md" />}
+          {canEdit && !editing && file.status === "ready" && (
+            <Button variant="outline" icon={<Pencil size={16} />} onClick={() => setEditing(true)}>
+              Editar documento
+            </Button>
+          )}
+        </div>
       </div>
 
       {file.status === "loading" && <Skeleton className="mt-8 h-[60vh] w-full" />}
@@ -253,9 +262,18 @@ export function DocumentView({ initiativeId, documentId }: { initiativeId: strin
 
       {!editing && file.status === "ready" && (
         <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_240px]">
-          <article className="min-w-0 rounded-3xl border border-line bg-surface px-6 py-8 shadow-[var(--shadow-card)] sm:px-10">
-            <MarkdownView content={file.content} />
-          </article>
+          <div className="flex min-w-0 flex-col gap-6">
+            <article className="min-w-0 rounded-3xl border border-line bg-surface px-6 py-8 shadow-[var(--shadow-card)] sm:px-10">
+              <MarkdownView content={file.content} />
+            </article>
+            <section aria-labelledby="linha-do-tempo" className="rounded-3xl border border-line bg-surface px-6 py-6 sm:px-10">
+              <h2 id="linha-do-tempo" className="mb-1 flex items-center gap-2 text-[17px] font-extrabold text-navy">
+                <History size={18} aria-hidden /> Linha do tempo
+              </h2>
+              <p className="mb-4 text-[13px] text-muted">Quem criou, editou e atualizou este documento, e quando.</p>
+              <ActivityTimeline items={versionTimeline(doc.versions)} limit={10} empty="Nenhuma versão registrada." />
+            </section>
+          </div>
           {toc.length > 0 && (
             <nav aria-label="Seções do documento" className="order-first lg:order-none">
               <div className="rounded-2xl border border-line bg-surface p-4 lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)] lg:overflow-y-auto">
