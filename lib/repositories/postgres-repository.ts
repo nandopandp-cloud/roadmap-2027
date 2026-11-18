@@ -4,6 +4,7 @@ import path from "node:path";
 import type { Pool, PoolClient } from "pg";
 import { emptyContext } from "@/lib/domain/context";
 import type { Database, Initiative, Person, Platform, Roadmap2026Item, Squad } from "@/lib/domain/types";
+import { DATA_FIXES } from "@/lib/repositories/data-fixes";
 import { buildSeedDatabase } from "@/lib/repositories/json-file-repository";
 import { EMPTY_SYNC, importedRoadmap2026, migrateDatabase, migratePerson, SCHEMA_VERSION } from "@/lib/repositories/migrations";
 import { ensureSchema, ROADMAP_LOCK_KEY } from "@/lib/repositories/postgres";
@@ -107,6 +108,7 @@ export class PostgresRepository implements RoadmapRepository {
         await client.query("INSERT INTO roadmap_meta (key, value) VALUES ('roadmap_2026_imported', 'true') ON CONFLICT (key) DO NOTHING");
       }
       await this.importRoadmap2026(client);
+      await this.applyDataFixes(client);
       await client.query("COMMIT");
     } catch (error) {
       await client.query("ROLLBACK").catch(() => undefined);
@@ -130,6 +132,30 @@ export class PostgresRepository implements RoadmapRepository {
       await persistCollection(client, "roadmap_2026", [], importedRoadmap2026(people.map((r) => r.data), squads.map((r) => r.data)), true);
     }
     await client.query("INSERT INTO roadmap_meta (key, value) VALUES ('roadmap_2026_imported', 'true')");
+  }
+
+  /** Ajustes de dados pedidos pelo time (lib/repositories/data-fixes.ts), cada um aplicado uma única vez. */
+  private async applyDataFixes(client: PoolClient): Promise<void> {
+    const { rows } = await client.query<{ key: string }>("SELECT key FROM roadmap_meta WHERE key = ANY($1)", [DATA_FIXES.map((f) => f.key)]);
+    const pending = DATA_FIXES.filter((f) => !rows.some((r) => r.key === f.key));
+    if (!pending.length) return;
+    const db = await this.load(client);
+    const before = structuredClone(db);
+    const now = new Date().toISOString();
+    const done: string[] = [];
+    for (const fix of pending) {
+      const changed = fix.apply(db, now);
+      if (changed === null) {
+        console.warn(`[roadmap] ajuste de dados ${fix.key} adiado: requisito ainda não atendido.`);
+        continue;
+      }
+      console.info(`[roadmap] ajuste de dados ${fix.key}: ${changed} iniciativa(s) atualizada(s).`);
+      done.push(fix.key);
+    }
+    await this.persistChanges(client, before, db);
+    for (const key of done) {
+      await client.query("INSERT INTO roadmap_meta (key, value) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING", [key, JSON.stringify(now)]);
+    }
   }
 
   private async initialData(): Promise<Database> {
