@@ -60,6 +60,7 @@ export const Owners2026Context = createContext<{
 export const TRACK_STATUS_TONE: Record<TrackStatus2026, { bg: string; fg: string; dot: string }> = {
   nao_iniciado: { bg: "#F1F3F8", fg: "#5F6C8F", dot: "#B4BCD3" },
   andamento: { bg: "#FFF2E5", fg: "#934400", dot: "#F28A1F" },
+  change_request: { bg: "#FDEBF3", fg: "#A3245F", dot: "#E0508F" },
   concluido: { bg: "#E6F6EC", fg: "#1B6B3A", dot: "#22A05A" },
 };
 

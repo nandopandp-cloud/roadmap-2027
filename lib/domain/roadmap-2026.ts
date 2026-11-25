@@ -2,7 +2,7 @@
  * Regras de leitura do Roadmap 2026 (projeção importada da planilha do time): calendário de
  * semanas S1–S4 de julho/2026 a abril/2027, períodos, situação e trimestre de entrega.
  */
-import { ROADMAP_2026_STATUSES, ROADMAP_2026_TRACK_STATUSES, ROADMAP_2026_WEEK_COUNT, ROADMAP_2026_WORK } from "@/lib/domain/constants";
+import { ROADMAP_2026_COMMON_TRACK_STATUSES, ROADMAP_2026_STATUSES, ROADMAP_2026_TRACK_STATUSES, ROADMAP_2026_WEEK_COUNT, ROADMAP_2026_WORK } from "@/lib/domain/constants";
 import { eligibleOwners } from "@/lib/domain/org";
 import { sheetKey } from "@/lib/domain/roadmap-2026-sheet";
 import type {
@@ -372,19 +372,48 @@ export const TRACK_STATUS_TRACKS = ["design", "engineering", "qa"] as const;
 export type TrackStatusTrack = (typeof TRACK_STATUS_TRACKS)[number];
 export type TrackStatuses2026 = Roadmap2026TrackStatus;
 
+/** Andamentos possíveis de cada frente: "Change request" só existe em Engenharia. */
+export const TRACK_STATUSES_OF: Record<TrackStatusTrack, readonly TrackStatus2026[]> = {
+  design: ROADMAP_2026_COMMON_TRACK_STATUSES,
+  engineering: ROADMAP_2026_TRACK_STATUSES,
+  qa: ROADMAP_2026_COMMON_TRACK_STATUSES,
+};
+export const trackAllows = (track: TrackStatusTrack, status: TrackStatus2026) => TRACK_STATUSES_OF[track].includes(status);
+
 /** Andamento das frentes lido dos textos de Design, Engenheiro e QA da planilha. */
 export function trackStatusesFromSheet(item: Pick<Roadmap2026Item, "design" | "engineering" | "qa">): TrackStatuses2026 {
-  return { design: trackStatusFromSheet(item.design), engineering: trackStatusFromSheet(item.engineering), qa: trackStatusFromSheet(item.qa) };
+  return {
+    design: commonStatus(trackStatusFromSheet(item.design, "design")),
+    engineering: trackStatusFromSheet(item.engineering, "engineering"),
+    qa: commonStatus(trackStatusFromSheet(item.qa, "qa")),
+  };
 }
 
-export const TRACK_STATUS_LABEL: Record<TrackStatus2026, string> = { nao_iniciado: "Não iniciado", andamento: "Em andamento", concluido: "Concluído" };
+export const TRACK_STATUS_LABEL: Record<TrackStatus2026, string> = {
+  nao_iniciado: "Não iniciado",
+  andamento: "Em andamento",
+  change_request: "Change request",
+  concluido: "Concluído",
+};
 /** Rótulo curto (chips do Gantt). */
-export const TRACK_STATUS_SHORT: Record<TrackStatus2026, string> = { nao_iniciado: "A iniciar", andamento: "Andamento", concluido: "Concluído" };
+export const TRACK_STATUS_SHORT: Record<TrackStatus2026, string> = {
+  nao_iniciado: "A iniciar",
+  andamento: "Andamento",
+  change_request: "Change request",
+  concluido: "Concluído",
+};
 
-/** Texto da planilha → andamento da frente: "Concluído", "Andamento…"; nomes e o resto = não iniciado. */
-export function trackStatusFromSheet(text: string): TrackStatus2026 {
+type CommonTrackStatus = (typeof ROADMAP_2026_COMMON_TRACK_STATUSES)[number];
+const commonStatus = (status: TrackStatus2026): CommonTrackStatus => (status === "change_request" ? "nao_iniciado" : status);
+
+/**
+ * Texto da planilha → andamento da frente: "Concluído", "Andamento…", "Change request" (só em
+ * Engenharia); nomes e o resto = não iniciado.
+ */
+export function trackStatusFromSheet(text: string, track: TrackStatusTrack): TrackStatus2026 {
   const t = norm(text);
   if (/^concluid[oa]$/.test(t)) return "concluido";
   if (t.startsWith("andamento")) return "andamento";
+  if (track === "engineering" && /^change[\s_-]*request/.test(t)) return "change_request";
   return "nao_iniciado";
 }

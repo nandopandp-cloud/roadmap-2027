@@ -17,7 +17,7 @@ import {
   ownerProblem,
   STATUS_2026_LABEL,
   TRACK_STATUS_LABEL,
-  TRACK_STATUSES_2026,
+  TRACK_STATUSES_OF,
   WEEKS_PER_MONTH,
   effectiveStatus,
   statusReason,
@@ -189,7 +189,7 @@ function OwnerPicker({
       </span>
       {status && onStatus && (
         <span role="radiogroup" aria-label={`Andamento de ${OWNER_TRACK_LABEL[track]}`} className="mr-1 flex rounded-lg border border-line bg-canvas p-0.5">
-          {TRACK_STATUSES_2026.map((st) => {
+          {TRACK_STATUSES_OF[track].map((st) => {
             const on = status === st;
             const tone = TRACK_STATUS_TONE[st];
             return (

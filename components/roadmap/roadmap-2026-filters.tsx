@@ -11,6 +11,8 @@ import {
   TRACK_STATUS_LABEL,
   TRACK_STATUS_TRACKS,
   TRACK_STATUSES_2026,
+  TRACK_STATUSES_OF,
+  trackAllows,
   type Status2026,
   type TrackStatus2026,
   type TrackStatusTrack,
@@ -21,7 +23,10 @@ import { TRACK_STATUS_TONE } from "@/components/roadmap/roadmap-2026";
 export type AreaCell = `${TrackStatusTrack}:${TrackStatus2026}`;
 export const areaCell = (track: TrackStatusTrack, status: TrackStatus2026) => `${track}:${status}` as AreaCell;
 /** Todas as combinações área × status: o padrão do filtro (não filtra nada). */
-export const ALL_AREA_CELLS: AreaCell[] = TRACK_STATUS_TRACKS.flatMap((t) => TRACK_STATUSES_2026.map((st) => `${t}:${st}` as AreaCell));
+export const ALL_AREA_CELLS: AreaCell[] = TRACK_STATUS_TRACKS.flatMap((t) => TRACK_STATUSES_OF[t].map((st) => areaCell(t, st)));
+/** Células de um status nas áreas em que ele existe ("Change request" só em Engenharia). */
+const columnCells = (status: TrackStatus2026) => TRACK_STATUS_TRACKS.filter((t) => trackAllows(t, status)).map((t) => areaCell(t, status));
+const rowCells = (track: TrackStatusTrack) => TRACK_STATUSES_OF[track].map((st) => areaCell(track, st));
 export const isAllCells = (cells: AreaCell[]) => ALL_AREA_CELLS.every((c) => cells.includes(c));
 export const splitCell = (cell: AreaCell) => cell.split(":") as [TrackStatusTrack, TrackStatus2026];
 /** "Design em andamento". */
@@ -118,20 +123,22 @@ export function AreaFilter2026({
 
   const toggle = (cell: AreaCell) => onChange(value.includes(cell) ? value.filter((c) => c !== cell) : [...value, cell]);
   const toggleRow = (track: TrackStatusTrack) => {
-    const row = TRACK_STATUSES_2026.map((st) => areaCell(track, st));
+    const row = rowCells(track);
     const all = row.every((c) => value.includes(c));
     onChange(all ? value.filter((c) => !row.includes(c)) : [...new Set([...value, ...row])]);
   };
   const toggleColumn = (status: TrackStatus2026) => {
-    const column = TRACK_STATUS_TRACKS.map((t) => areaCell(t, status));
+    const column = columnCells(status);
     const all = column.every((c) => value.includes(c));
     onChange(all ? value.filter((c) => !column.includes(c)) : [...new Set([...value, ...column])]);
   };
   const allSelected = isAllCells(value);
   /** Seleção rápida: só um status em todas as áreas. */
-  const onlyColumn = (status: TrackStatus2026) => onChange(TRACK_STATUS_TRACKS.map((t) => areaCell(t, status)));
-  const isOnlyColumn = (status: TrackStatus2026) =>
-    value.length === TRACK_STATUS_TRACKS.length && TRACK_STATUS_TRACKS.every((t) => value.includes(areaCell(t, status)));
+  const onlyColumn = (status: TrackStatus2026) => onChange(columnCells(status));
+  const isOnlyColumn = (status: TrackStatus2026) => {
+    const column = columnCells(status);
+    return value.length === column.length && column.every((c) => value.includes(c));
+  };
   // O detalhe de cada combinação aparece nas etiquetas de "Filtrando"; aqui fica o resumo curto.
   const summary = allSelected ? "Todas" : value.length ? "Selecionadas" : "Nenhuma";
   const filtering = !allSelected;
@@ -194,7 +201,7 @@ export function AreaFilter2026({
                   type="button"
                   aria-pressed={on}
                   onClick={() => onlyColumn(st)}
-                  title={`Só ${TRACK_STATUS_LABEL[st].toLowerCase()}, em todas as áreas`}
+                  title={`Só ${TRACK_STATUS_LABEL[st].toLowerCase()}, ${st === "change_request" ? "em Engenharia" : "em todas as áreas"}`}
                   className={cn(
                     "inline-flex h-8 items-center gap-1.5 rounded-full border-[1.5px] px-3 text-[13px] font-bold transition-colors",
                     on ? "" : "border-line text-muted hover:border-line-strong hover:text-ink",
@@ -217,7 +224,7 @@ export function AreaFilter2026({
                       <button
                         type="button"
                         onClick={() => toggleColumn(st)}
-                        title={`Marcar ${TRACK_STATUS_LABEL[st].toLowerCase()} em todas as áreas`}
+                        title={`Marcar ${TRACK_STATUS_LABEL[st].toLowerCase()} ${st === "change_request" ? "em Engenharia" : "em todas as áreas"}`}
                         className="rounded-lg px-2 py-0.5 text-[12.5px] font-extrabold text-muted hover:bg-[#f3f1fd] hover:text-brand"
                       >
                         {TRACK_STATUS_LABEL[st]}
@@ -243,6 +250,13 @@ export function AreaFilter2026({
                         </button>
                       </td>
                       {TRACK_STATUSES_2026.map((st) => {
+                        // Status que não existe na área (ex.: Change request em Design e QA).
+                        if (!trackAllows(track, st))
+                          return (
+                            <td key={st} className="px-1 text-center text-[13px] text-subtle" aria-label={`${TRACK_STATUS_LABEL[st]} não se aplica a ${OWNER_TRACK_LABEL[track]}`}>
+                              —
+                            </td>
+                          );
                         const cell = areaCell(track, st);
                         const on = value.includes(cell);
                         const tone = TRACK_STATUS_TONE[st];
@@ -343,15 +357,16 @@ export function groupAreaCells(cells: AreaCell[]): { key: string; label: string;
   let rest = [...cells];
   const groups: { key: string; label: string; cells: AreaCell[] }[] = [];
   for (const t of TRACK_STATUS_TRACKS) {
-    const row = TRACK_STATUSES_2026.map((st) => areaCell(t, st));
+    const row = rowCells(t);
     if (row.every((c) => rest.includes(c))) {
       groups.push({ key: `linha-${t}`, label: `${OWNER_TRACK_LABEL[t]} (todos os status)`, cells: row });
       rest = rest.filter((c) => !row.includes(c));
     }
   }
   for (const st of TRACK_STATUSES_2026) {
-    const column = TRACK_STATUS_TRACKS.map((t) => areaCell(t, st));
-    if (column.every((c) => rest.includes(c))) {
+    const column = columnCells(st);
+    // Change request só existe em Engenharia: a "coluna" dele é uma célula só, sem agrupamento.
+    if (column.length > 1 && column.every((c) => rest.includes(c))) {
       groups.push({ key: `coluna-${st}`, label: `${TRACK_STATUS_LABEL[st]} (todas as áreas)`, cells: column });
       rest = rest.filter((c) => !column.includes(c));
     }

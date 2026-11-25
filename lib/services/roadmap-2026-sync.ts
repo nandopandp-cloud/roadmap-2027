@@ -9,7 +9,7 @@ import {
   OWNER_TRACKS_2026,
   ownerCandidatesForPlatform,
   segmentsFromSheet,
-  trackStatusFromSheet,
+  trackStatusesFromSheet,
 } from "@/lib/domain/roadmap-2026";
 import { checkHeader, sheetKey, sheetRows, type SheetRow } from "@/lib/domain/roadmap-2026-sheet";
 import type { Database, Roadmap2026Item } from "@/lib/domain/types";
@@ -23,7 +23,8 @@ import { readSheet } from "@/lib/services/xlsx-reader";
  * Sentido único (planilha → app). A cada sincronização, cada linha é comparada com os últimos valores
  * vistos nela (`item.sheet`): só o que mudou na planilha é aplicado — o resto do que foi editado no
  * app continua como está. O que a planilha atualiza:
- *  - Design, Engenheiro e QA: texto de referência, andamento da frente ("Concluído", "Andamento…") e
+ *  - Design, Engenheiro e QA: texto de referência, andamento da frente ("Concluído", "Andamento…" e, só em
+ *    Engenharia, "Change request") e
  *    o responsável, quando o texto traz o nome de alguém do squad com a função da frente;
  *  - semanas (cores da linha do tempo), backlog, "ENG. PRECIFICAR" e "Qtd Semana";
  *  - linhas novas viram iniciativas novas (as removidas no app não voltam).
@@ -77,7 +78,7 @@ function applyRow(item: Roadmap2026Item, row: SheetRow, db: Database): string[] 
     item[field] = row[field];
     out.push(`${OWNER_TRACK_LABEL[track]} “${prev[field] || "vazio"}” → “${row[field] || "vazio"}”`);
     if (item.skippedTracks.includes(track as never)) continue;
-    item.trackStatus = { ...item.trackStatus, [track]: trackStatusFromSheet(row[field]) };
+    item.trackStatus = { ...item.trackStatus, [track]: trackStatusesFromSheet(row)[track] };
     const person = matchSheetPerson(
       row[field],
       candidates.filter((p) => p.discipline === OWNER_TRACK_DISCIPLINE[track]),

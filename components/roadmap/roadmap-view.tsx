@@ -29,7 +29,7 @@ import {
   platformKey2026,
   STATUS_2026_LABEL,
   TRACK_STATUS_TRACKS,
-  TRACK_STATUSES_2026,
+  TRACK_STATUSES_OF,
   TRANSVERSAL_2026,
   type Status2026,
 } from "@/lib/domain/roadmap-2026";
@@ -270,7 +270,7 @@ export function RoadmapView() {
     const rows: Record<string, number> = {};
     for (const t of TRACK_STATUS_TRACKS) {
       rows[t] = base.filter((x) => activeTracks(x).includes(t)).length;
-      for (const st of TRACK_STATUSES_2026) counts[areaCell(t, st)] = base.filter((x) => matchesCells(x, [areaCell(t, st)])).length;
+      for (const st of TRACK_STATUSES_OF[t]) counts[areaCell(t, st)] = base.filter((x) => matchesCells(x, [areaCell(t, st)])).length;
     }
     return { counts, rows };
     // eslint-disable-next-line react-hooks/exhaustive-deps

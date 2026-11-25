@@ -25,6 +25,7 @@ import {
   ROADMAP_2026_PHASES,
   ROADMAP_2026_OPTIONAL_TRACKS,
   ROADMAP_2026_STATUSES,
+  ROADMAP_2026_COMMON_TRACK_STATUSES,
   ROADMAP_2026_TRACK_STATUSES,
   ROADMAP_2026_WAVES,
   ROADMAP_2026_WEEK_COUNT,
@@ -725,11 +726,11 @@ const ownerIds = z.array(localId).max(10, "Escolha no máximo 10 pessoas por fre
 /** Responsáveis por frente: colaboradores de Times & Squads (ids). */
 export const roadmap2026OwnersSchema = z.object({ design: ownerIds, engineering: ownerIds, qa: ownerIds });
 
-/** Andamento de Design, Engenharia e QA, separado do status geral. */
+/** Andamento de Design, Engenharia e QA, separado do status geral ("Change request" só em Engenharia). */
 export const roadmap2026TrackStatusSchema = z.object({
-  design: z.enum(ROADMAP_2026_TRACK_STATUSES),
+  design: z.enum(ROADMAP_2026_COMMON_TRACK_STATUSES),
   engineering: z.enum(ROADMAP_2026_TRACK_STATUSES),
-  qa: z.enum(ROADMAP_2026_TRACK_STATUSES),
+  qa: z.enum(ROADMAP_2026_COMMON_TRACK_STATUSES),
 });
 
 const roadmap2026EditableFields = {
