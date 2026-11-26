@@ -488,6 +488,7 @@ export function RoadmapView() {
           selectedId={selectedId}
           onOpen={openInitiative}
           onEditEffort={setEditingEffort}
+          people={data.people}
           fill={fullscreen}
         />
       )}

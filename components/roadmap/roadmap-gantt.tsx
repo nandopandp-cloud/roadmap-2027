@@ -2,6 +2,7 @@
 
 import { AlertTriangle, Code2, GitFork, Paperclip, PenTool, Plus } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { Avatar } from "@/components/org/avatar";
 import { Skeleton } from "@/components/ui/feedback";
 import { cn, plural } from "@/lib/client/cn";
 import { EFFORT_TONE, STATUS_TONE } from "@/lib/client/tones";
@@ -9,7 +10,7 @@ import { QUARTERS, ROADMAP_YEAR } from "@/lib/domain/constants";
 import { EFFORT_TRACK_LABEL, EFFORT_TRACKS, formatWeeks, formatWeeksShort, lastDay, planEffort, quarterEndDate, type EffortTrack } from "@/lib/domain/effort";
 import { QUARTER_LABEL, STATUS_LABEL } from "@/lib/domain/labels";
 import { progressOf } from "@/lib/domain/progress";
-import type { Initiative, Milestone, Quarter } from "@/lib/domain/types";
+import type { Initiative, Milestone, Person, Quarter } from "@/lib/domain/types";
 
 const MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 const ROW = "grid grid-cols-[200px_minmax(0,1fr)] sm:grid-cols-[290px_minmax(0,1fr)]";
@@ -51,8 +52,11 @@ function EffortLanes({
   attachTracks,
   onEdit,
   timelineWidth,
+  people,
 }: {
   initiative: Initiative;
+  /** Colaboradores de Times & Squads (avatar do responsável de cada frente). */
+  people: Person[];
   /** Frentes que a pessoa conectada pode estimar (vazio = só consulta). */
   effortTracks: EffortTrack[];
   /** Frentes cuja justificativa (anexos) a pessoa pode alterar. */
@@ -122,15 +126,17 @@ function EffortLanes({
         const left = clampedPosition(placed.start);
         const width = clampedPosition(placed.end) - left;
         const label = `${EFFORT_TRACK_LABEL[track]} · ${formatWeeksShort(placed.estimate.weeks)}`;
-        // Rótulo que não cabe na barra vai ao lado (à esquerda, quando a barra chega ao fim do ano).
-        const narrow = (width / 100) * timelineWidth < label.length * 5.6 + 26;
+        const owner = placed.estimate.ownerId ? people.find((p) => p.id === placed.estimate.ownerId) : undefined;
+        const ownerText = owner ? ` · responsável: ${owner.name}` : "";
+        // Rótulo (e avatar do responsável) que não cabe na barra vai ao lado (à esquerda, quando a barra chega ao fim do ano).
+        const narrow = (width / 100) * timelineWidth < label.length * 5.6 + 26 + (owner ? 22 : 0);
         const labelLeft = left + width > 82;
         return (
           <Tag
             key={track}
             {...(canEdit ? { type: "button" as const, onClick: onEdit } : {})}
-            title={`${EFFORT_TRACK_LABEL[track]}: ${formatWeeks(placed.estimate.weeks)} (${formatDate(placed.start)} a ${formatDate(lastDay(placed.end))})${canEdit ? (canEstimate ? " — clique para editar" : " — clique para ver e anexar a justificativa") : ""}`}
-            aria-label={canEdit ? `${canEstimate ? "Editar esforço" : "Esforço e justificativa"} de ${EFFORT_TRACK_LABEL[track]} de ${i.title}: ${formatWeeks(placed.estimate.weeks)}` : undefined}
+            title={`${EFFORT_TRACK_LABEL[track]}: ${formatWeeks(placed.estimate.weeks)} (${formatDate(placed.start)} a ${formatDate(lastDay(placed.end))})${ownerText}${canEdit ? (canEstimate ? " — clique para editar" : " — clique para ver e anexar a justificativa") : ""}`}
+            aria-label={canEdit ? `${canEstimate ? "Editar esforço" : "Esforço e justificativa"} de ${EFFORT_TRACK_LABEL[track]} de ${i.title}: ${formatWeeks(placed.estimate.weeks)}${ownerText}` : undefined}
             className={cn(
               "absolute flex h-[22px] items-center rounded-md text-[11.5px] font-extrabold text-white shadow-[0_2px_6px_rgba(23,27,77,0.16)]",
               canEdit && "pointer-events-auto transition-[filter,box-shadow] hover:brightness-110 hover:shadow-[0_4px_12px_rgba(23,27,77,0.22)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet",
@@ -138,9 +144,10 @@ function EffortLanes({
             style={{ top: LANE_TOP[track], left: `${left}%`, width: `max(${width}%, 10px)`, background: tone.solid }}
           >
             {!narrow && (
-              <span className="flex min-w-0 items-center gap-1 truncate px-2">
+              <span className={cn("flex min-w-0 flex-1 items-center gap-1 pl-2", owner ? "pr-px" : "pr-2")}>
                 <Icon size={12} className="shrink-0" aria-hidden />
                 <span className="truncate">{label}</span>
+                {owner && <Avatar person={owner} size={20} className="ml-auto" />}
               </span>
             )}
             {narrow && (
@@ -150,6 +157,7 @@ function EffortLanes({
               >
                 <Icon size={12} aria-hidden />
                 {label}
+                {owner && <Avatar person={owner} size={20} className="ml-0.5" />}
               </span>
             )}
           </Tag>
@@ -199,8 +207,10 @@ function GanttRow({
   onOpen,
   onEditEffort,
   timelineWidth,
+  people,
 }: {
   initiative: Initiative;
+  people: Person[];
   showMilestones: boolean;
   showEffort: boolean;
   timelineWidth: number;
@@ -316,7 +326,7 @@ function GanttRow({
         <div aria-hidden={!canEdit} className={cn(ROW, "pointer-events-none absolute inset-0")}>
           <span />
           <span className="relative block">
-            <EffortLanes initiative={i} effortTracks={effortTracks} attachTracks={attachTracks} onEdit={onEditEffort} timelineWidth={timelineWidth} />
+            <EffortLanes initiative={i} effortTracks={effortTracks} attachTracks={attachTracks} onEdit={onEditEffort} timelineWidth={timelineWidth} people={people} />
           </span>
         </div>
       )}
@@ -334,9 +344,12 @@ export function RoadmapGantt({
   selectedId,
   onOpen,
   onEditEffort,
+  people,
   fill = false,
 }: {
   showEffort: boolean;
+  /** Colaboradores de Times & Squads (avatar do responsável pelo esforço). */
+  people: Person[];
   /** Tela cheia: limita a altura à janela, rola por dentro e fixa o cabeçalho dos meses. */
   fill?: boolean;
   /** Frentes de esforço que a pessoa conectada pode estimar. */
@@ -376,6 +389,7 @@ export function RoadmapGantt({
       onOpen={() => onOpen(i.id)}
       onEditEffort={() => onEditEffort(i.id)}
       timelineWidth={timelineWidth}
+      people={people}
     />
   );
 
